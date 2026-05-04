@@ -1,32 +1,64 @@
 import api from "./api";
 
-export const login = async (email, password) => {
+export const getToken = () => localStorage.getItem("token");
+
+export const getUser = () => {
   try {
-    const response = await api.post("/auth/login", {
-      email,
-      password,
-    });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error.message;
+    const raw = localStorage.getItem("user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
   }
 };
 
+export const isAuthenticated = () => !!getToken();
+
 export const logout = () => {
-  // Clear any stored tokens
   localStorage.removeItem("token");
   localStorage.removeItem("user");
 };
 
-export const register = async (email, password, name) => {
-  try {
-    const response = await api.post("/auth/register", {
-      email,
-      password,
-      name,
-    });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error.message;
-  }
+export const register = async ({
+  name,
+  email,
+  password,
+  telephone,
+  address,
+  cin,
+  passportNumber,
+}) => {
+  const response = await api.post("/auth/register", {
+    name,
+    email,
+    password,
+    phone: telephone,
+    address,
+    cin: cin || undefined,
+    passportNumber: passportNumber || undefined,
+  });
+
+  return response.data;
+};
+
+export const login = async (email, password) => {
+  const response = await api.post("/auth/login", {
+    email,
+    password,
+  });
+
+  const { token, user } = response.data;
+
+  if (token) localStorage.setItem("token", token);
+  if (user) localStorage.setItem("user", JSON.stringify(user));
+
+  return response.data;
+};
+
+export const resetPassword = async ({ email, newPassword }) => {
+  const response = await api.post("/auth/reset-password", {
+    email,
+    password: newPassword,
+  });
+
+  return response.data;
 };

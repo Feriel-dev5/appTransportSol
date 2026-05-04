@@ -1,6 +1,7 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
+import { fetchUsers, updateUser, mapUser } from "../../services/adminService";
 
 /* ══════════════════════════ CSS ══════════════════════════ */
 const listeCSS = `
@@ -154,7 +155,7 @@ const listeCSS = `
   .status-banned { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
   .sdot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 
-  /* ── Action menu (3 dots) — FIXED: higher z-index, no overflow hidden on row ── */
+  /* ── Action menu (3 dots) ── */
   .am-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
   .am-btn { width: 32px; height: 32px; border-radius: 8px; background: none; border: 1px solid transparent; color: var(--text-muted); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: var(--tr); }
   .am-btn:hover { background: #f0f5fb; border-color: var(--border); color: var(--brand-blue); }
@@ -190,7 +191,7 @@ const listeCSS = `
   /* ── Modal ── */
   .modal-ov { position: fixed; inset: 0; z-index: 100; background: rgba(13,43,94,0.45); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.2s ease; }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  .modal-box { background: #fff; border-radius: 24px; width: 100%; max-width: 500px; overflow: hidden; box-shadow: var(--shadow-lg); animation: slideUp 0.25s ease; }
+  .modal-box { background: #fff; border-radius: 24px; width: 100%; max-width: 520px; overflow: hidden; box-shadow: var(--shadow-lg); animation: slideUp 0.25s ease; }
   @keyframes slideUp { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: none; } }
   .mh { background: linear-gradient(135deg, var(--brand-dark), var(--brand-mid)); padding: 22px 24px; color: #fff; }
   .mh-row { display: flex; align-items: flex-start; justify-content: space-between; }
@@ -216,6 +217,12 @@ const listeCSS = `
   .btn-save { padding: 10px 24px; font-size: 13px; font-weight: 700; font-family: inherit; color: #fff; border: none; border-radius: 10px; background: linear-gradient(135deg, var(--brand-blue), #1a6fd4); cursor: pointer; transition: var(--tr); box-shadow: 0 4px 14px rgba(41,128,232,0.3); }
   .btn-save:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(41,128,232,0.4); }
   .btn-save:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+  /* Phone row inside modal */
+  .phone-row-m { display: flex; gap: 8px; align-items: flex-start; }
+  .country-sel-m { height: 42px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 12px; font-family: inherit; color: var(--text-primary); background: #fff; outline: none; transition: var(--tr); cursor: pointer; padding: 0 8px; flex-shrink: 0; min-width: 130px; }
+  .country-sel-m:focus { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(41,128,232,0.1); }
+  .phone-local-m { flex: 1; }
 
   /* Detail modal */
   .mb { padding: 18px 24px; }
@@ -276,6 +283,8 @@ const listeCSS = `
     .mf-grid { grid-template-columns: 1fr; }
     .ef.full { grid-column: 1; }
     .pag { flex-direction: column; align-items: flex-start; }
+    .phone-row-m { flex-direction: column; }
+    .country-sel-m { min-width: 100%; }
   }
 `;
 
@@ -286,16 +295,78 @@ if (typeof document !== "undefined" && !document.getElementById("liste-u-css")) 
   document.head.appendChild(tag);
 }
 
+/* ══════════════════════════ COUNTRY DIAL CODES ══════════════════════════ */
+const COUNTRIES = [
+  { code: "TN", dial: "+216", flag: "🇹🇳", name: "Tunisie",           digits: 8  },
+  { code: "DZ", dial: "+213", flag: "🇩🇿", name: "Algérie",           digits: 9  },
+  { code: "MA", dial: "+212", flag: "🇲🇦", name: "Maroc",             digits: 9  },
+  { code: "EG", dial: "+20",  flag: "🇪🇬", name: "Égypte",            digits: 10 },
+  { code: "LY", dial: "+218", flag: "🇱🇾", name: "Libye",             digits: 9  },
+  { code: "FR", dial: "+33",  flag: "🇫🇷", name: "France",            digits: 9  },
+  { code: "DE", dial: "+49",  flag: "🇩🇪", name: "Allemagne",         digits: 11 },
+  { code: "GB", dial: "+44",  flag: "🇬🇧", name: "Royaume-Uni",       digits: 10 },
+  { code: "ES", dial: "+34",  flag: "🇪🇸", name: "Espagne",           digits: 9  },
+  { code: "IT", dial: "+39",  flag: "🇮🇹", name: "Italie",            digits: 10 },
+  { code: "PT", dial: "+351", flag: "🇵🇹", name: "Portugal",          digits: 9  },
+  { code: "BE", dial: "+32",  flag: "🇧🇪", name: "Belgique",          digits: 9  },
+  { code: "NL", dial: "+31",  flag: "🇳🇱", name: "Pays-Bas",          digits: 9  },
+  { code: "CH", dial: "+41",  flag: "🇨🇭", name: "Suisse",            digits: 9  },
+  { code: "SA", dial: "+966", flag: "🇸🇦", name: "Arabie Saoudite",   digits: 9  },
+  { code: "AE", dial: "+971", flag: "🇦🇪", name: "Émirats Arabes",    digits: 9  },
+  { code: "QA", dial: "+974", flag: "🇶🇦", name: "Qatar",             digits: 8  },
+  { code: "KW", dial: "+965", flag: "🇰🇼", name: "Koweït",            digits: 8  },
+  { code: "BH", dial: "+973", flag: "🇧🇭", name: "Bahreïn",           digits: 8  },
+  { code: "OM", dial: "+968", flag: "🇴🇲", name: "Oman",              digits: 8  },
+  { code: "JO", dial: "+962", flag: "🇯🇴", name: "Jordanie",          digits: 9  },
+  { code: "LB", dial: "+961", flag: "🇱🇧", name: "Liban",             digits: 8  },
+  { code: "TR", dial: "+90",  flag: "🇹🇷", name: "Turquie",           digits: 10 },
+  { code: "SN", dial: "+221", flag: "🇸🇳", name: "Sénégal",           digits: 9  },
+  { code: "CI", dial: "+225", flag: "🇨🇮", name: "Côte d Ivoire",     digits: 10 },
+  { code: "CM", dial: "+237", flag: "🇨🇲", name: "Cameroun",          digits: 9  },
+  { code: "GN", dial: "+224", flag: "🇬🇳", name: "Guinée",            digits: 9  },
+  { code: "ML", dial: "+223", flag: "🇲🇱", name: "Mali",              digits: 8  },
+  { code: "MR", dial: "+222", flag: "🇲🇷", name: "Mauritanie",        digits: 8  },
+  { code: "US", dial: "+1",   flag: "🇺🇸", name: "États-Unis",        digits: 10 },
+  { code: "CA", dial: "+1",   flag: "🇨🇦", name: "Canada",            digits: 10 },
+  { code: "BR", dial: "+55",  flag: "🇧🇷", name: "Brésil",            digits: 11 },
+  { code: "CN", dial: "+86",  flag: "🇨🇳", name: "Chine",             digits: 11 },
+  { code: "JP", dial: "+81",  flag: "🇯🇵", name: "Japon",             digits: 10 },
+  { code: "KR", dial: "+82",  flag: "🇰🇷", name: "Corée du Sud",      digits: 10 },
+  { code: "AU", dial: "+61",  flag: "🇦🇺", name: "Australie",         digits: 9  },
+  { code: "IN", dial: "+91",  flag: "🇮🇳", name: "Inde",              digits: 10 },
+  { code: "PK", dial: "+92",  flag: "🇵🇰", name: "Pakistan",          digits: 10 },
+  { code: "NG", dial: "+234", flag: "🇳🇬", name: "Nigéria",           digits: 10 },
+  { code: "ZA", dial: "+27",  flag: "🇿🇦", name: "Afrique du Sud",    digits: 9  },
+  { code: "RU", dial: "+7",   flag: "🇷🇺", name: "Russie",            digits: 10 },
+];
+
+/* ══════════════════════════ HELPERS ══════════════════════════ */
+function isAlphaOnly(str) {
+  return /^[a-zA-ZÀ-ÖØ-öø-ÿ\s\-']+$/.test(str);
+}
+
+function parsePhone(telephone) {
+  if (!telephone) return { countryCode: "TN", local: "" };
+  const country = COUNTRIES.find(c => telephone.startsWith(c.dial + " "));
+  if (country) return { countryCode: country.code, local: telephone.slice(country.dial.length + 1) };
+  return { countryCode: "TN", local: telephone.replace(/\D/g, "") };
+}
+
+function buildPhone(countryCode, local) {
+  const c = COUNTRIES.find(x => x.code === countryCode) || COUNTRIES[0];
+  return local ? `${c.dial} ${local}` : "";
+}
+
 /* ══════════════════════════ STORAGE ══════════════════════════ */
 const LS_KEY = "nouvelair_users_v1";
 
 const initialUsers = [
-  { id: 1, nom: "Ahmed Mansour",  email: "ahmed.mansour@nouvelair.com",  telephone: "22 111 333", role: "Admin",       banned: false },
-  { id: 2, nom: "Sami Ben Ali",   email: "sami.benali@nouvelair.com",    telephone: "55 888 999", role: "Responsable", banned: false },
-  { id: 3, nom: "Karim Trabelsi", email: "karim.trabelsi@nouvelair.com", telephone: "20 000 111", role: "Passager",    banned: false },
-  { id: 4, nom: "Lina Gharbi",    email: "lina.gharbi@nouvelair.com",    telephone: "99 777 222", role: "Chauffeur",   banned: false },
-  { id: 5, nom: "Moez Ben Ali",   email: "moez.benali@nouvelair.com",    telephone: "51 222 444", role: "Passager",    banned: true  },
-  { id: 6, nom: "Anis Gharbi",    email: "anis.gharbi@nouvelair.com",    telephone: "28 444 666", role: "Responsable", banned: false },
+  { id: 1, nom: "Ahmed Mansour",  email: "ahmed.mansour@nouvelair.com",  telephone: "+216 22111333", role: "Admin",       banned: false },
+  { id: 2, nom: "Sami Ben Ali",   email: "sami.benali@nouvelair.com",    telephone: "+216 55888999", role: "Responsable", banned: false },
+  { id: 3, nom: "Karim Trabelsi", email: "karim.trabelsi@nouvelair.com", telephone: "+216 20000111", role: "Passager",    banned: false },
+  { id: 4, nom: "Lina Gharbi",    email: "lina.gharbi@nouvelair.com",    telephone: "+216 99777222", role: "Chauffeur",   banned: false },
+  { id: 5, nom: "Moez Ben Ali",   email: "moez.benali@nouvelair.com",    telephone: "+216 51222444", role: "Passager",    banned: true  },
+  { id: 6, nom: "Anis Gharbi",    email: "anis.gharbi@nouvelair.com",    telephone: "+216 28444666", role: "Responsable", banned: false },
 ];
 
 function loadUsers() {
@@ -332,6 +403,16 @@ const navItems = [
     icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>,
   },
   {
+    label: "Ajouter Utilisateur",
+    to: "/ajouterU",
+    icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>,
+  },
+  {
+    label: "Ajouter Véhicule",
+    to: "/ajouterVehicule",
+    icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 17h8M3 9l2-4h14l2 4M3 9h18v7a1 1 0 01-1 1H4a1 1 0 01-1-1V9z"/><circle cx="7" cy="17" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="17" r="1.5" fill="currentColor" stroke="none"/></svg>,
+  },
+  {
     label: "Mon Profil",
     to: "/profilA",
     icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
@@ -341,8 +422,11 @@ const navItems = [
 /* ══════════════════════════ VALIDATE ══════════════════════════ */
 function validateForm(form, users, editingId = null) {
   const errors = {};
+
+  // Nom — lettres alphabet uniquement
   if (!form.nom.trim()) errors.nom = "Le nom est obligatoire.";
   else if (form.nom.trim().length < 3) errors.nom = "Minimum 3 caractères.";
+  else if (!isAlphaOnly(form.nom.trim())) errors.nom = "Le nom ne doit contenir que des lettres.";
 
   if (!form.email.trim()) errors.email = "L'email est obligatoire.";
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = "Email invalide.";
@@ -351,119 +435,79 @@ function validateForm(form, users, editingId = null) {
     if (dup) errors.email = "Cet email est déjà utilisé.";
   }
 
-  if (!form.telephone.trim()) errors.telephone = "Le téléphone est obligatoire.";
-  else if (!/^[0-9+\s]{8,20}$/.test(form.telephone)) errors.telephone = "Numéro invalide.";
+  // Telephone via country selector
+  const country = COUNTRIES.find(c => c.code === form.phoneCountry) || COUNTRIES[0];
+  if (!form.phoneLocal.trim()) errors.phoneLocal = "Le téléphone est obligatoire.";
+  else if (!/^\d+$/.test(form.phoneLocal)) errors.phoneLocal = "Uniquement des chiffres.";
+  else if (form.phoneLocal.length !== country.digits) errors.phoneLocal = `${country.digits} chiffres requis pour ${country.name}.`;
 
   if (!form.role) errors.role = "Le rôle est obligatoire.";
   return errors;
 }
 
-/* ══════════════════════════ ACTION MENU — FIXED ══════════════════════════ */
+/* ══════════════════════════ ACTION MENU ══════════════════════════ */
 function ActionMenu({ user, isOpen, onToggle, onDetail, onEdit, onBan, onUnban, onDelete }) {
-  const btnRef = useRef(null);
+  const btnRef  = useRef(null);
   const dropRef = useRef(null);
   const [dropPos, setDropPos] = useState({ top: 0, left: 0 });
 
   const updatePosition = () => {
     if (!btnRef.current) return;
-
     const rect = btnRef.current.getBoundingClientRect();
     const dropWidth = 200;
     const gap = 8;
-
     let left = rect.right - dropWidth;
-    let top = rect.bottom + 6;
-
+    let top  = rect.bottom + 6;
     if (left < gap) left = gap;
-    if (left + dropWidth > window.innerWidth - gap) {
-      left = window.innerWidth - dropWidth - gap;
-    }
-
+    if (left + dropWidth > window.innerWidth - gap) left = window.innerWidth - dropWidth - gap;
     const estimatedHeight = 220;
-    if (top + estimatedHeight > window.innerHeight - gap) {
-      top = rect.top - estimatedHeight - 6;
-    }
-
+    if (top + estimatedHeight > window.innerHeight - gap) top = rect.top - estimatedHeight - 6;
     if (top < gap) top = gap;
-
     setDropPos({ top, left });
   };
 
   useEffect(() => {
     if (!isOpen) return;
     updatePosition();
-
     const handleOutside = (e) => {
-      if (
-        dropRef.current &&
-        !dropRef.current.contains(e.target) &&
-        btnRef.current &&
-        !btnRef.current.contains(e.target)
-      ) {
-        onToggle(null);
-      }
+      if (dropRef.current && !dropRef.current.contains(e.target) && btnRef.current && !btnRef.current.contains(e.target)) onToggle(null);
     };
-
-    const handleReposition = () => updatePosition();
-
     document.addEventListener("mousedown", handleOutside);
-    window.addEventListener("scroll", handleReposition, true);
-    window.addEventListener("resize", handleReposition);
-
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
     return () => {
       document.removeEventListener("mousedown", handleOutside);
-      window.removeEventListener("scroll", handleReposition, true);
-      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
     };
   }, [isOpen, onToggle]);
 
   const menu = isOpen ? (
-    <div
-      ref={dropRef}
-      className="am-drop"
-      style={{ top: `${dropPos.top}px`, left: `${dropPos.left}px` }}
-    >
+    <div ref={dropRef} className="am-drop" style={{ top: `${dropPos.top}px`, left: `${dropPos.left}px` }}>
       <button type="button" className="am-item am-blue" onClick={() => { onDetail(user); onToggle(null); }}>
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-        </svg>
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
         Voir le détail
       </button>
-
       <div className="am-sep" />
-
       <button type="button" className="am-item" onClick={() => { onEdit(user); onToggle(null); }}>
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-        </svg>
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
         Modifier
       </button>
-
       <div className="am-sep" />
-
       {user.banned ? (
         <button type="button" className="am-item am-green" onClick={() => { onUnban(user); onToggle(null); }}>
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           Réactiver
         </button>
       ) : (
         <button type="button" className="am-item am-red" onClick={() => { onBan(user); onToggle(null); }}>
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-          </svg>
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
           Bannir
         </button>
       )}
-
       <div className="am-sep" />
-
       <button type="button" className="am-item am-red" onClick={() => { onDelete(user); onToggle(null); }}>
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-        </svg>
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
         Supprimer
       </button>
     </div>
@@ -471,25 +515,13 @@ function ActionMenu({ user, isOpen, onToggle, onDetail, onEdit, onBan, onUnban, 
 
   return (
     <div className="am-wrap">
-      <button
-        ref={btnRef}
-        type="button"
-        className="am-btn"
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle(isOpen ? null : user.id);
-        }}
-      >
+      <button ref={btnRef} type="button" className="am-btn"
+        onClick={(e) => { e.stopPropagation(); onToggle(isOpen ? null : user.id); }}>
         <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24">
-          <circle cx="12" cy="5" r="1.8" />
-          <circle cx="12" cy="12" r="1.8" />
-          <circle cx="12" cy="19" r="1.8" />
+          <circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" />
         </svg>
       </button>
-
-      {typeof document !== "undefined" && menu
-        ? createPortal(menu, document.body)
-        : null}
+      {typeof document !== "undefined" && menu ? createPortal(menu, document.body) : null}
     </div>
   );
 }
@@ -536,23 +568,43 @@ function DetailModal({ user, onClose }) {
 /* ══════════════════════════ USER MODAL ══════════════════════════ */
 function UserModal({ user, users, onClose, onSave }) {
   const isEdit = !!user;
+
+  // Parse existing telephone to country + local
+  const parsed = isEdit ? parsePhone(user.telephone) : { countryCode: "TN", local: "" };
+
   const [form, setForm] = useState(
     user
-      ? { nom: user.nom, email: user.email, telephone: user.telephone, role: user.role }
-      : { nom: "", email: "", telephone: "", role: "Passager" }
+      ? { nom: user.nom, email: user.email, phoneCountry: parsed.countryCode, phoneLocal: parsed.local, role: user.role }
+      : { nom: "", email: "", phoneCountry: "TN", phoneLocal: "", role: "Responsable" }
   );
   const [touched, setTouched] = useState({});
+
+  const selectedCountry = COUNTRIES.find(c => c.code === form.phoneCountry) || COUNTRIES[0];
   const errors  = validateForm(form, users, user?.id);
   const isValid = Object.keys(errors).length === 0;
 
   const blur = (k) => setTouched(p => ({ ...p, [k]: true }));
-  const upd  = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    // Nom: block digits and special chars
+    if (name === "nom" && value !== "" && !/^[a-zA-ZÀ-ÖØ-öø-ÿ\s\-']*$/.test(value)) return;
+    // phoneLocal: only digits
+    if (name === "phoneLocal" && value !== "" && !/^\d*$/.test(value)) return;
+    if (name === "phoneCountry") {
+      setForm(p => ({ ...p, phoneCountry: value, phoneLocal: "" }));
+      return;
+    }
+    setForm(p => ({ ...p, [name]: value }));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setTouched({ nom: true, email: true, telephone: true, role: true });
+    setTouched({ nom: true, email: true, phoneLocal: true, role: true });
     if (!isValid) return;
-    onSave(form);
+    // Build final telephone string: dial + space + local
+    const telephone = buildPhone(form.phoneCountry, form.phoneLocal);
+    onSave({ nom: form.nom, email: form.email, telephone, role: form.role });
   };
 
   return (
@@ -570,34 +622,80 @@ function UserModal({ user, users, onClose, onSave }) {
         </div>
         <form onSubmit={handleSubmit}>
           <div className="mf-grid">
+            {/* Nom */}
             <div className="ef full">
-              <label className="ef-lbl">Nom complet</label>
-              <input type="text" className={`ef-input${touched.nom && errors.nom ? " ef-err" : ""}`}
-                value={form.nom} onChange={e => upd("nom", e.target.value)} onBlur={() => blur("nom")}
-                placeholder="Ex : Ahmed Ben Ali"/>
+              <label className="ef-lbl">Nom complet <span style={{ fontWeight: 400, textTransform: "none", color: "var(--text-muted)" }}>(lettres uniquement)</span></label>
+              <input type="text" name="nom"
+                className={`ef-input${touched.nom && errors.nom ? " ef-err" : ""}`}
+                value={form.nom}
+                onChange={handleChange}
+                onBlur={() => blur("nom")}
+                placeholder="Ex : Ahmed Ben Ali"
+                autoComplete="name"/>
               {touched.nom && errors.nom && <p className="ef-error">{errors.nom}</p>}
             </div>
+
+            {/* Email */}
             <div className="ef full">
               <label className="ef-lbl">Adresse email</label>
-              <input type="email" className={`ef-input${touched.email && errors.email ? " ef-err" : ""}`}
-                value={form.email} onChange={e => upd("email", e.target.value)} onBlur={() => blur("email")}
+              <input type="email" name="email"
+                className={`ef-input${touched.email && errors.email ? " ef-err" : ""}`}
+                value={form.email}
+                onChange={handleChange}
+                onBlur={() => blur("email")}
                 placeholder="Ex : ahmed@nouvelair.com"/>
               {touched.email && errors.email && <p className="ef-error">{errors.email}</p>}
             </div>
-            <div className="ef">
-              <label className="ef-lbl">Téléphone</label>
-              <input type="text" className={`ef-input${touched.telephone && errors.telephone ? " ef-err" : ""}`}
-                value={form.telephone} onChange={e => upd("telephone", e.target.value)} onBlur={() => blur("telephone")}
-                placeholder="Ex : 22 111 333"/>
-              {touched.telephone && errors.telephone && <p className="ef-error">{errors.telephone}</p>}
+
+            {/* Téléphone — country selector + digits */}
+            <div className="ef full">
+              <label className="ef-lbl">
+                Téléphone
+                <span style={{ fontWeight: 400, textTransform: "none", color: "var(--text-muted)", marginLeft: 6 }}>
+                  ({selectedCountry.digits} chiffres pour {selectedCountry.name})
+                </span>
+              </label>
+              <div className="phone-row-m">
+                <select
+                  name="phoneCountry"
+                  className="country-sel-m"
+                  value={form.phoneCountry}
+                  onChange={handleChange}>
+                  {COUNTRIES.map(c => (
+                    <option key={c.code} value={c.code}>{c.flag} {c.dial} ({c.name})</option>
+                  ))}
+                </select>
+                <input
+                  type="tel"
+                  name="phoneLocal"
+                  className={`ef-input phone-local-m${touched.phoneLocal && errors.phoneLocal ? " ef-err" : ""}`}
+                  value={form.phoneLocal}
+                  onChange={handleChange}
+                  onBlur={() => blur("phoneLocal")}
+                  placeholder={"0".repeat(selectedCountry.digits)}
+                  inputMode="numeric"
+                  maxLength={selectedCountry.digits}/>
+              </div>
+              {touched.phoneLocal && errors.phoneLocal && <p className="ef-error">{errors.phoneLocal}</p>}
             </div>
-            <div className="ef">
+
+            {/* Rôle — Add: Responsable + Chauffeur only ; Edit: all roles */}
+            <div className="ef full">
               <label className="ef-lbl">Rôle</label>
-              <select className="ef-sel" value={form.role} onChange={e => upd("role", e.target.value)}>
-                <option value="Admin">Admin</option>
-                <option value="Responsable">Responsable</option>
-                <option value="Chauffeur">Chauffeur</option>
-                <option value="Passager">Passager</option>
+              <select name="role" className="ef-sel" value={form.role}
+                onChange={handleChange}>
+                {isEdit ? (
+                  <>
+                   
+                    <option value="Responsable">Responsable</option>
+                    <option value="Chauffeur">Chauffeur</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="Responsable">Responsable</option>
+                    <option value="Chauffeur">Chauffeur</option>
+                  </>
+                )}
               </select>
             </div>
           </div>
@@ -672,7 +770,8 @@ function Pagination({ total, page, perPage, onPage, onPerPage }) {
 export default function ListeU() {
   const navigate = useNavigate();
 
-  const [users,         setUsers]         = useState(loadUsers);
+  const [users,         setUsers]         = useState([]);
+  const [loading,       setLoading]       = useState(true);
   const [collapsed,     setCollapsed]     = useState(false);
   const [sidebarMobile, setSidebarMobile] = useState(false);
   const [search,        setSearch]        = useState("");
@@ -691,13 +790,38 @@ export default function ListeU() {
   const [adminName,  setAdminName]  = useState(getAdminName);
   const [adminPhoto, setAdminPhoto] = useState(getAdminPhoto);
 
+  // ── Load users from API
+  const loadUsers = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await fetchUsers({ limit: 100 });
+      setUsers((data.data || []).map(u => ({
+        id: u.id || u._id,
+        nom: u.name ?? "—",
+        email: u.email ?? "—",
+        telephone: u.phone ?? "—",
+        role: u.role === "PASSAGER" ? "Passager"
+            : u.role === "CHAUFFEUR" ? "Chauffeur"
+            : u.role === "RESPONSABLE" ? "Responsable"
+            : u.role === "ADMIN" ? "Admin" : u.role,
+        banned: u.availability === "INDISPONIBLE",
+        availability: u.availability,
+        raw: u,
+      })));
+    } catch {
+      setToast("Erreur lors du chargement des utilisateurs.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const sync = () => { setAdminName(getAdminName()); setAdminPhoto(getAdminPhoto()); };
     window.addEventListener("airops-admin-profile-update", sync);
     return () => window.removeEventListener("airops-admin-profile-update", sync);
   }, []);
 
-  useEffect(() => { saveUsers(users); }, [users]);
+  useEffect(() => { loadUsers(); }, [loadUsers]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 2800); return () => clearTimeout(t); }, [toast]);
   useEffect(() => { setPage(1); }, [search, roleFilter]);
 
@@ -732,31 +856,55 @@ export default function ListeU() {
     setToast(`✓ Utilisateur « ${newUser.nom} » ajouté.`);
   };
 
-  const handleEdit = (form) => {
-    setUsers(prev => prev.map(u => u.id === editUser.id
-      ? { ...u, nom: form.nom.trim(), email: form.email.trim(), telephone: form.telephone.trim(), role: form.role }
-      : u
-    ));
-    setToast(`✓ Compte de « ${form.nom.trim()} » modifié.`);
-    setEditUser(null);
+  const handleEdit = async (form) => {
+    try {
+      const role = form.role === "Passager" ? "PASSAGER"
+        : form.role === "Chauffeur" ? "CHAUFFEUR"
+        : form.role === "Responsable" ? "RESPONSABLE"
+        : form.role === "Admin" ? "ADMIN" : form.role;
+      await updateUser(editUser.id, { name: form.nom.trim(), email: form.email.trim(), phone: form.telephone.trim(), role });
+      setUsers(prev => prev.map(u => u.id === editUser.id
+        ? { ...u, nom: form.nom.trim(), email: form.email.trim(), telephone: form.telephone.trim(), role: form.role }
+        : u
+      ));
+      setToast(`✓ Compte de « ${form.nom.trim()} » modifié.`);
+      setEditUser(null);
+    } catch (err) {
+      setToast(err?.response?.data?.message || "Erreur lors de la modification.");
+    }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     const u = users.find(x => x.id === id);
-    setUsers(prev => prev.filter(x => x.id !== id));
-    setToast(`Utilisateur « ${u?.nom} » supprimé.`);
+    try {
+      await updateUser(id, { availability: "INDISPONIBLE" }); // soft delete
+      setUsers(prev => prev.filter(x => x.id !== id));
+      setToast(`Utilisateur « ${u?.nom} » supprimé.`);
+    } catch {
+      setToast("Erreur lors de la suppression.");
+    }
   };
 
-  const handleBan = (id) => {
+  const handleBan = async (id) => {
     const u = users.find(x => x.id === id);
-    setUsers(prev => prev.map(x => x.id === id ? { ...x, banned: true } : x));
-    setToast(`⚠ Compte de « ${u?.nom} » désactivé.`);
+    try {
+      await updateUser(id, { availability: "INDISPONIBLE" });
+      setUsers(prev => prev.map(x => x.id === id ? { ...x, banned: true, availability: "INDISPONIBLE" } : x));
+      setToast(`⚠ Compte de « ${u?.nom} » désactivé.`);
+    } catch {
+      setToast("Erreur lors de la désactivation.");
+    }
   };
 
-  const handleUnban = (id) => {
+  const handleUnban = async (id) => {
     const u = users.find(x => x.id === id);
-    setUsers(prev => prev.map(x => x.id === id ? { ...x, banned: false } : x));
-    setToast(`✓ Compte de « ${u?.nom} » réactivé.`);
+    try {
+      await updateUser(id, { availability: "DISPONIBLE" });
+      setUsers(prev => prev.map(x => x.id === id ? { ...x, banned: false, availability: "DISPONIBLE" } : x));
+      setToast(`✓ Compte de « ${u?.nom} » réactivé.`);
+    } catch {
+      setToast("Erreur lors de la réactivation.");
+    }
   };
 
   const initials = (nom) => nom.split(" ").map(p => p[0]).slice(0, 2).join("").toUpperCase();
@@ -881,7 +1029,7 @@ export default function ListeU() {
                 </button>
               ))}
             </div>
-            <button type="button" className="add-btn" onClick={() => setShowAdd(true)}>
+            <button type="button" className="add-btn" onClick={() => navigate("/ajouterU")}>
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { fetchMyProfile, updateMyProfile } from "../../services/adminService";
 
 /* ══════════════════════════ CSS ══════════════════════════ */
 const profilAdminCSS = `
@@ -151,6 +152,12 @@ const profilAdminCSS = `
 
   .pa-form-err { font-size: 11.5px; color: var(--accent-red); margin-top: 2px; }
 
+  /* Phone row with country select */
+  .pa-phone-row { display: flex; gap: 8px; align-items: flex-start; }
+  .pa-country-sel { height: 46px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 12px; font-family: inherit; color: var(--text-primary); background: var(--bg-page); outline: none; transition: var(--tr); cursor: pointer; padding: 0 8px; flex-shrink: 0; min-width: 130px; }
+  .pa-country-sel:focus { border-color: var(--brand-blue); background: #fff; box-shadow: 0 0 0 3px rgba(41,128,232,0.1); }
+  .pa-phone-local { flex: 1; }
+
   /* password strength */
   .pa-pwd-bars { display: flex; gap: 4px; margin-top: 6px; }
   .pa-pwd-bar { flex: 1; height: 3px; border-radius: 3px; background: var(--border); transition: background 0.3s; }
@@ -205,7 +212,12 @@ const profilAdminCSS = `
 
   /* ── Responsive ── */
   @media (max-width: 1100px) { .pa-grid { grid-template-columns: 280px 1fr; } }
-  @media (max-width: 900px) { .pa-grid { grid-template-columns: 1fr; } .pa-form-grid { grid-template-columns: 1fr; } .pa-form-group.full { grid-column: 1; } .pa-role-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 900px) {
+    .pa-grid { grid-template-columns: 1fr; }
+    .pa-form-grid { grid-template-columns: 1fr; }
+    .pa-form-group.full { grid-column: 1; }
+    .pa-role-grid { grid-template-columns: repeat(2, 1fr); }
+  }
   @media (max-width: 768px) {
     .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 30; transform: translateX(-100%); width: var(--sidebar-full) !important; transition: transform 0.3s ease !important; }
     .sidebar.open  { transform: translateX(0); }
@@ -225,6 +237,8 @@ const profilAdminCSS = `
     .pa-grid { gap: 14px; }
     .pa-avatar-wrap { width: 110px; height: 110px; }
     .pa-form-actions { width: 100%; justify-content: flex-end; }
+    .pa-phone-row { flex-direction: column; }
+    .pa-country-sel { min-width: 100%; }
     .pa-role-grid { grid-template-columns: repeat(2, 1fr); }
     .pa-stats-row { grid-template-columns: 1fr 1fr; }
   }
@@ -236,6 +250,51 @@ if (typeof document !== "undefined" && !document.getElementById("profil-admin-cs
   tag.textContent = profilAdminCSS;
   document.head.appendChild(tag);
 }
+
+/* ══════════════════════════ COUNTRY DIAL CODES ══════════════════════════ */
+const COUNTRIES = [
+  { code: "TN", dial: "+216", flag: "🇹🇳", name: "Tunisie",           digits: 8  },
+  { code: "DZ", dial: "+213", flag: "🇩🇿", name: "Algérie",           digits: 9  },
+  { code: "MA", dial: "+212", flag: "🇲🇦", name: "Maroc",             digits: 9  },
+  { code: "EG", dial: "+20",  flag: "🇪🇬", name: "Égypte",            digits: 10 },
+  { code: "LY", dial: "+218", flag: "🇱🇾", name: "Libye",             digits: 9  },
+  { code: "FR", dial: "+33",  flag: "🇫🇷", name: "France",            digits: 9  },
+  { code: "DE", dial: "+49",  flag: "🇩🇪", name: "Allemagne",         digits: 11 },
+  { code: "GB", dial: "+44",  flag: "🇬🇧", name: "Royaume-Uni",       digits: 10 },
+  { code: "ES", dial: "+34",  flag: "🇪🇸", name: "Espagne",           digits: 9  },
+  { code: "IT", dial: "+39",  flag: "🇮🇹", name: "Italie",            digits: 10 },
+  { code: "PT", dial: "+351", flag: "🇵🇹", name: "Portugal",          digits: 9  },
+  { code: "BE", dial: "+32",  flag: "🇧🇪", name: "Belgique",          digits: 9  },
+  { code: "NL", dial: "+31",  flag: "🇳🇱", name: "Pays-Bas",          digits: 9  },
+  { code: "CH", dial: "+41",  flag: "🇨🇭", name: "Suisse",            digits: 9  },
+  { code: "SA", dial: "+966", flag: "🇸🇦", name: "Arabie Saoudite",   digits: 9  },
+  { code: "AE", dial: "+971", flag: "🇦🇪", name: "Émirats Arabes",    digits: 9  },
+  { code: "QA", dial: "+974", flag: "🇶🇦", name: "Qatar",             digits: 8  },
+  { code: "KW", dial: "+965", flag: "🇰🇼", name: "Koweït",            digits: 8  },
+  { code: "BH", dial: "+973", flag: "🇧🇭", name: "Bahreïn",           digits: 8  },
+  { code: "OM", dial: "+968", flag: "🇴🇲", name: "Oman",              digits: 8  },
+  { code: "JO", dial: "+962", flag: "🇯🇴", name: "Jordanie",          digits: 9  },
+  { code: "LB", dial: "+961", flag: "🇱🇧", name: "Liban",             digits: 8  },
+  { code: "TR", dial: "+90",  flag: "🇹🇷", name: "Turquie",           digits: 10 },
+  { code: "SN", dial: "+221", flag: "🇸🇳", name: "Sénégal",           digits: 9  },
+  { code: "CI", dial: "+225", flag: "🇨🇮", name: "Côte d Ivoire",     digits: 10 },
+  { code: "CM", dial: "+237", flag: "🇨🇲", name: "Cameroun",          digits: 9  },
+  { code: "GN", dial: "+224", flag: "🇬🇳", name: "Guinée",            digits: 9  },
+  { code: "ML", dial: "+223", flag: "🇲🇱", name: "Mali",              digits: 8  },
+  { code: "MR", dial: "+222", flag: "🇲🇷", name: "Mauritanie",        digits: 8  },
+  { code: "US", dial: "+1",   flag: "🇺🇸", name: "États-Unis",        digits: 10 },
+  { code: "CA", dial: "+1",   flag: "🇨🇦", name: "Canada",            digits: 10 },
+  { code: "BR", dial: "+55",  flag: "🇧🇷", name: "Brésil",            digits: 11 },
+  { code: "CN", dial: "+86",  flag: "🇨🇳", name: "Chine",             digits: 11 },
+  { code: "JP", dial: "+81",  flag: "🇯🇵", name: "Japon",             digits: 10 },
+  { code: "KR", dial: "+82",  flag: "🇰🇷", name: "Corée du Sud",      digits: 10 },
+  { code: "AU", dial: "+61",  flag: "🇦🇺", name: "Australie",         digits: 9  },
+  { code: "IN", dial: "+91",  flag: "🇮🇳", name: "Inde",              digits: 10 },
+  { code: "PK", dial: "+92",  flag: "🇵🇰", name: "Pakistan",          digits: 10 },
+  { code: "NG", dial: "+234", flag: "🇳🇬", name: "Nigéria",           digits: 10 },
+  { code: "ZA", dial: "+27",  flag: "🇿🇦", name: "Afrique du Sud",    digits: 9  },
+  { code: "RU", dial: "+7",   flag: "🇷🇺", name: "Russie",            digits: 10 },
+];
 
 /* ══════════════════════════ STORAGE ══════════════════════════ */
 const ADMIN_FORM_KEY  = "airops_admin_profil_form_v1";
@@ -252,13 +311,14 @@ export function getAdminInitials(nom) {
 }
 
 const defaultForm = {
-  nom:       "Ahmed Mansour",
-  email:     "ahmed.mansour@nouvelair.com",
-  telephone: "22 111 333",
-  adresse:   "Tunis, Tunisie",
-  role:      "Admin",
-  password:  "",
-  confirmPwd:"",
+  nom:          "Ahmed Mansour",
+  email:        "ahmed.mansour@nouvelair.com",
+  phoneCountry: "TN",
+  phoneLocal:   "22111333",
+  adresse:      "Tunis, Tunisie",
+  role:         "Admin",
+  password:     "",
+  confirmPwd:   "",
 };
 
 /* ══════════════════════════ NAV ══════════════════════════ */
@@ -272,6 +332,16 @@ const navItems = [
     label: "Liste des Utilisateurs",
     to: "/listeU",
     icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>,
+  },
+  {
+    label: "Ajouter Utilisateur",
+    to: "/ajouterU",
+    icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>,
+  },
+  {
+    label: "Ajouter Véhicule",
+    to: "/ajouterVehicule",
+    icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 17h8M3 9l2-4h14l2 4M3 9h18v7a1 1 0 01-1 1H4a1 1 0 01-1-1V9z"/><circle cx="7" cy="17" r="1" fill="currentColor"/><circle cx="17" cy="17" r="1" fill="currentColor"/></svg>,
   },
   {
     label: "Mon Profil",
@@ -308,6 +378,20 @@ const activityLog = [
   { text: "Ajout d'un nouveau chauffeur",     time: "Hier 09:11",    color: "#16a34a" },
 ];
 
+/* ══════════════════════════ HELPERS ══════════════════════════ */
+function isAlphaOnly(str) {
+  return /^[a-zA-ZÀ-ÖØ-öø-ÿ\s\-']+$/.test(str);
+}
+
+/* Migrate stored telephone to country+local format */
+function parseStoredPhone(stored) {
+  if (!stored) return { phoneCountry: "TN", phoneLocal: "" };
+  const country = COUNTRIES.find(c => stored.startsWith(c.dial + " "));
+  if (country) return { phoneCountry: country.code, phoneLocal: stored.slice(country.dial.length + 1) };
+  // Legacy format: plain digits
+  return { phoneCountry: "TN", phoneLocal: stored.replace(/\D/g, "").slice(0, 8) };
+}
+
 /* ══════════════════════════ MAIN COMPONENT ══════════════════════════ */
 export default function ProfilA() {
   const navigate = useNavigate();
@@ -316,7 +400,15 @@ export default function ProfilA() {
   const [form, setForm] = useState(() => {
     try {
       const s = localStorage.getItem(ADMIN_FORM_KEY);
-      return s ? { ...defaultForm, ...JSON.parse(s), password: "", confirmPwd: "" } : defaultForm;
+      if (s) {
+        const parsed = JSON.parse(s);
+        // If old format had "telephone" key, migrate it
+        const phoneData = parsed.phoneCountry
+          ? { phoneCountry: parsed.phoneCountry, phoneLocal: parsed.phoneLocal || "" }
+          : parseStoredPhone(parsed.telephone || "");
+        return { ...defaultForm, ...parsed, ...phoneData, password: "", confirmPwd: "" };
+      }
+      return defaultForm;
     } catch { return defaultForm; }
   });
 
@@ -352,20 +444,45 @@ export default function ProfilA() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  const selectedCountry = COUNTRIES.find(c => c.code === form.phoneCountry) || COUNTRIES[0];
+
   const errors = {
-    nom:      !form.nom.trim() ? "Le nom est obligatoire." : form.nom.trim().length < 3 ? "Au moins 3 caractères." : "",
-    email:    !form.email.trim() ? "L'email est obligatoire." : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? "Email invalide." : "",
-    telephone:!form.telephone.trim() ? "Le téléphone est obligatoire." : !/^\+?[0-9\s]{8,20}$/.test(form.telephone) ? "Numéro invalide." : "",
-    adresse:  !form.adresse.trim() ? "L'adresse est obligatoire." : "",
-    password: form.password.length > 0 && form.password.length < 6 ? "Minimum 6 caractères." : "",
-    confirmPwd: form.password.length > 0 && form.confirmPwd !== form.password ? "Les mots de passe ne correspondent pas." : "",
+    nom:
+      !form.nom.trim()           ? "Le nom est obligatoire." :
+      form.nom.trim().length < 3 ? "Au moins 3 caractères." :
+      !isAlphaOnly(form.nom.trim()) ? "Le nom ne doit contenir que des lettres." : "",
+    email:
+      !form.email.trim()         ? "L'email est obligatoire." :
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? "Email invalide." : "",
+    phoneLocal:
+      !form.phoneLocal.trim()    ? "Le téléphone est obligatoire." :
+      !/^\d+$/.test(form.phoneLocal) ? "Uniquement des chiffres." :
+      form.phoneLocal.length !== selectedCountry.digits
+        ? `${selectedCountry.digits} chiffres requis pour ${selectedCountry.name}.` : "",
+    adresse:
+      !form.adresse.trim()       ? "L'adresse est obligatoire." : "",
+    password:
+      form.password.length > 0 && form.password.length < 6 ? "Minimum 6 caractères." : "",
+    confirmPwd:
+      form.password.length > 0 && form.confirmPwd !== form.password
+        ? "Les mots de passe ne correspondent pas." : "",
   };
 
-  const isValid = Object.values(errors).every(v => v === "");
+  const isValid  = Object.values(errors).every(v => v === "");
   const strength = pwdStrength(form.password);
 
   const handleChange = e => {
     const { name, value } = e.target;
+    // Nom: block digits and special chars
+    if (name === "nom" && value !== "" && !/^[a-zA-ZÀ-ÖØ-öø-ÿ\s\-']*$/.test(value)) return;
+    // phoneLocal: only digits
+    if (name === "phoneLocal" && value !== "" && !/^\d*$/.test(value)) return;
+    // Country change resets local number
+    if (name === "phoneCountry") {
+      setForm(prev => ({ ...prev, phoneCountry: value, phoneLocal: "" }));
+      setSuccessMessage("");
+      return;
+    }
     setForm(prev => ({ ...prev, [name]: value }));
     setSuccessMessage("");
   };
@@ -376,21 +493,40 @@ export default function ProfilA() {
   const handleReset = () => {
     try {
       const saved = localStorage.getItem(ADMIN_FORM_KEY);
-      setForm(saved ? { ...defaultForm, ...JSON.parse(saved), password: "", confirmPwd: "" } : defaultForm);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const phoneData = parsed.phoneCountry
+          ? { phoneCountry: parsed.phoneCountry, phoneLocal: parsed.phoneLocal || "" }
+          : parseStoredPhone(parsed.telephone || "");
+        setForm({ ...defaultForm, ...parsed, ...phoneData, password: "", confirmPwd: "" });
+      } else {
+        setForm(defaultForm);
+      }
     } catch { setForm(defaultForm); }
     setTouched({});
     setSuccessMessage("");
   };
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault();
-    setTouched({ nom: true, email: true, telephone: true, adresse: true, password: true, confirmPwd: true });
+    setTouched({ nom: true, email: true, phoneLocal: true, adresse: true, password: true, confirmPwd: true });
     if (!isValid) return;
     try {
-      const { password: _p, confirmPwd: _c, ...rest } = form;
-      localStorage.setItem(ADMIN_FORM_KEY, JSON.stringify(rest));
+      const updates = {
+        name: `${form.nom}`.trim(),
+        email: form.email.trim() || undefined,
+        phone: form.phoneLocal ? `${selectedCountry.dial}${form.phoneLocal}` : undefined,
+        address: form.adresse || undefined,
+      };
+      if (form.password && form.password === form.confirmPwd) {
+        updates.password = form.password;
+      }
+      await updateMyProfile(updates);
       window.dispatchEvent(new Event("airops-admin-profile-update"));
-    } catch {}
+    } catch (err) {
+      setToast(err?.response?.data?.message || "Erreur lors de la mise à jour.");
+      return;
+    }
     setSuccessMessage("Profil mis à jour avec succès !");
     setToast("✓ Profil administrateur enregistré !");
     setForm(prev => ({ ...prev, password: "", confirmPwd: "" }));
@@ -409,6 +545,7 @@ export default function ProfilA() {
   const initials = getAdminInitials(form.nom);
   const perms    = rolePerms[form.role] || rolePerms.Admin;
   const allPerms = ["Gérer tous les utilisateurs", "Accès tableau de bord", "Modifier les rôles", "Bannir / Réactiver", "Voir les utilisateurs", "Gérer les missions", "Voir ses missions", "Réserver des transports"];
+  const displayTel = form.phoneLocal ? `${selectedCountry.dial} ${form.phoneLocal}` : "—";
 
   return (
     <div className="pa-wrap">
@@ -523,10 +660,8 @@ export default function ProfilA() {
                 </span>
 
                 <div className="pa-info-row"><p className="pa-info-lbl">Email</p><p className="pa-info-val">{form.email || "—"}</p></div>
-                <div className="pa-info-row"><p className="pa-info-lbl">Téléphone</p><p className="pa-info-val">{form.telephone || "—"}</p></div>
+                <div className="pa-info-row"><p className="pa-info-lbl">Téléphone</p><p className="pa-info-val">{displayTel}</p></div>
                 <div className="pa-info-row"><p className="pa-info-lbl">Adresse</p><p className="pa-info-val">{form.adresse || "—"}</p></div>
-
-                
               </div>
 
               {/* Banner */}
@@ -556,34 +691,69 @@ export default function ProfilA() {
 
                 <form onSubmit={handleSubmit} noValidate>
                   <div className="pa-form-grid">
+                    {/* Nom */}
                     <div className="pa-form-group">
-                      <label className="pa-form-label">Nom complet</label>
-                      <input type="text" name="nom" value={form.nom} onChange={handleChange} onBlur={handleBlur}
-                        className={inputCls("nom")} placeholder="Ahmed Mansour"/>
+                      <label className="pa-form-label">
+                        Nom complet
+                        <span style={{ fontWeight: 400, textTransform: "none", color: "var(--text-muted)", marginLeft: 4 }}>(lettres uniquement)</span>
+                      </label>
+                      <input type="text" name="nom" value={form.nom}
+                        onChange={handleChange} onBlur={handleBlur}
+                        className={inputCls("nom")} placeholder="Ahmed Mansour"
+                        autoComplete="name"/>
                       {touched.nom && errors.nom && <p className="pa-form-err">{errors.nom}</p>}
                     </div>
+
+                    {/* Email */}
                     <div className="pa-form-group">
                       <label className="pa-form-label">Adresse email</label>
-                      <input type="email" name="email" value={form.email} onChange={handleChange} onBlur={handleBlur}
+                      <input type="email" name="email" value={form.email}
+                        onChange={handleChange} onBlur={handleBlur}
                         className={inputCls("email")} placeholder="ahmed@nouvelair.com"/>
                       {touched.email && errors.email && <p className="pa-form-err">{errors.email}</p>}
                     </div>
-                    <div className="pa-form-group">
-                      <label className="pa-form-label">Téléphone</label>
-                      <input type="text" name="telephone" value={form.telephone} onChange={handleChange} onBlur={handleBlur}
-                        className={inputCls("telephone")} placeholder="22 XXX XXX"/>
-                      {touched.telephone && errors.telephone && <p className="pa-form-err">{errors.telephone}</p>}
+
+                    {/* Téléphone — country selector + digits only */}
+                    <div className="pa-form-group full">
+                      <label className="pa-form-label">
+                        Téléphone
+                        <span style={{ fontWeight: 400, textTransform: "none", color: "var(--text-muted)", marginLeft: 6 }}>
+                          ({selectedCountry.digits} chiffres pour {selectedCountry.name})
+                        </span>
+                      </label>
+                      <div className="pa-phone-row">
+                        <select
+                          name="phoneCountry"
+                          className="pa-country-sel"
+                          value={form.phoneCountry}
+                          onChange={handleChange}>
+                          {COUNTRIES.map(c => (
+                            <option key={c.code} value={c.code}>{c.flag} {c.dial} ({c.name})</option>
+                          ))}
+                        </select>
+                        <input
+                          type="tel"
+                          name="phoneLocal"
+                          value={form.phoneLocal}
+                          onChange={handleChange}
+                          onBlur={handleBlur}
+                          className={`pa-form-input pa-phone-local${touched.phoneLocal && errors.phoneLocal ? " pa-error" : ""}`}
+                          placeholder={"0".repeat(selectedCountry.digits)}
+                          inputMode="numeric"
+                          maxLength={selectedCountry.digits}/>
+                      </div>
+                      {touched.phoneLocal && errors.phoneLocal && <p className="pa-form-err">{errors.phoneLocal}</p>}
                     </div>
+
+                    {/* Adresse */}
                     <div className="pa-form-group">
                       <label className="pa-form-label">Adresse</label>
-                      <input type="text" name="adresse" value={form.adresse} onChange={handleChange} onBlur={handleBlur}
+                      <input type="text" name="adresse" value={form.adresse}
+                        onChange={handleChange} onBlur={handleBlur}
                         className={inputCls("adresse")} placeholder="Ville, Pays"/>
                       {touched.adresse && errors.adresse && <p className="pa-form-err">{errors.adresse}</p>}
                     </div>
                   </div>
-
-                  
-
 
                   {/* Security section */}
                   <hr className="pa-section-sep"/>
@@ -593,7 +763,8 @@ export default function ProfilA() {
                   <div className="pa-form-grid">
                     <div className="pa-form-group">
                       <label className="pa-form-label">Nouveau mot de passe</label>
-                      <input type="password" name="password" value={form.password} onChange={handleChange} onBlur={handleBlur}
+                      <input type="password" name="password" value={form.password}
+                        onChange={handleChange} onBlur={handleBlur}
                         className={inputCls("password")} placeholder="Laisser vide si inchangé"/>
                       {touched.password && errors.password && <p className="pa-form-err">{errors.password}</p>}
                       {form.password.length > 0 && (
@@ -607,7 +778,8 @@ export default function ProfilA() {
                     </div>
                     <div className="pa-form-group">
                       <label className="pa-form-label">Confirmer le mot de passe</label>
-                      <input type="password" name="confirmPwd" value={form.confirmPwd} onChange={handleChange} onBlur={handleBlur}
+                      <input type="password" name="confirmPwd" value={form.confirmPwd}
+                        onChange={handleChange} onBlur={handleBlur}
                         className={inputCls("confirmPwd")} placeholder="Répéter le nouveau mot de passe"/>
                       {touched.confirmPwd && errors.confirmPwd && <p className="pa-form-err">{errors.confirmPwd}</p>}
                     </div>
@@ -625,7 +797,19 @@ export default function ProfilA() {
                 </form>
               </div>
 
-              
+              {/* Activity log card */}
+              <div className="pa-card">
+                <div className="pa-activity">
+                  <p className="pa-activity-title">Activité récente</p>
+                  {activityLog.map((log, i) => (
+                    <div key={i} className="pa-log-item">
+                      <div className="pa-log-dot" style={{ background: log.color }}/>
+                      <span className="pa-log-text">{log.text}</span>
+                      <span className="pa-log-time">{log.time}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 

@@ -1,6 +1,12 @@
-import { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { useProfileSync } from "./useProfileSync";
+import { useProfileSync } from "../../services/useProfileSync";
+import {
+  fetchNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  mapNotification,
+} from "../../services/passengerService";
 
 const notifCSS = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
@@ -134,16 +140,14 @@ if (typeof document !== "undefined" && !document.getElementById("notif-page-css"
   document.head.appendChild(tag);
 }
 
-const STORAGE_KEY = "airops_notifications_v2";
-
-const initialNotifications = [
-  { id: 1, type: "validation", title: "Votre demande #DEM-1022 a été validée",   message: "Votre transport a été confirmé avec succès. Vous pouvez suivre son état depuis le tableau de bord.", time: "Il y a 5 min", unread: true },
-  { id: 2, type: "attente",    title: "Votre demande #DEM-1026 est en attente",  message: "Votre réservation est en cours de traitement par l'équipe transport.", time: "Il y a 20 min", unread: true },
-  { id: 3, type: "rappel",     title: "Rappel de trajet à venir",                message: "Votre trajet vers Hammamet commence bientôt. Merci de vérifier vos informations.", time: "Il y a 1 heure", unread: true },
-  { id: 4, type: "annulation", title: "Votre demande #DEM-1018 a été annulée",   message: "La demande a été annulée suite à votre action. Vous pouvez créer une nouvelle réservation.", time: "Hier", unread: false },
-  { id: 5, type: "info",       title: "Mise à jour de votre profil",             message: "Vos informations personnelles ont été enregistrées avec succès.", time: "Hier", unread: false },
-  { id: 6, type: "validation", title: "Votre demande #DEM-1015 a été validée",   message: "Le chauffeur a été assigné et votre trajet est prêt.", time: "Il y a 2 jours", unread: false },
-];
+/* Mapping type backend → type UI pour les icônes */
+const TYPE_MAP = {
+  VALIDATION: "validation",
+  REJET:      "annulation",
+  MISSION:    "rappel",
+  INFO:       "info",
+  GENERAL:    "info",
+};
 
 const typeConfig = {
   validation: { iconBg:"#dcfce7", iconColor:"#16a34a", dot:"#22c55e", itemBg:"#f0fdf4" },
@@ -157,6 +161,7 @@ const navItems = [
   { label: "Tableau de bord",  to: "/dashbordP",     icon: <svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> },
   { label: "Réserver demande", to: "/reserverD",     icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg> },
   { label: "Notifications",    to: "/notificationP", icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> },
+  { label: "Avis des acteurs", to: "/avisP",         icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg> },
   { label: "Profile",          to: "/profilP",       icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
 ];
 
@@ -177,13 +182,53 @@ export default function NotificationP() {
   const navigate = useNavigate();
 
   /* ── Synchronisation nom + photo ── */
-  const { nom, photo, initials } = useProfileSync();
+  const { nom, photo: photoSync, initials } = useProfileSync();
 
-  const [notifications, setNotifications] = useState(() => {
-    try { const saved = localStorage.getItem(STORAGE_KEY); return saved ? JSON.parse(saved) : initialNotifications; }
-    catch { return initialNotifications; }
+  // Photo personnelle par compte
+  const [photo, setPhoto] = React.useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      const uid = u._id || u.id || u.email || "default";
+      return localStorage.getItem(`airops_profil_photo_v2_${uid}`) || sessionStorage.getItem("airops_photo_current") || photoSync || "";
+    } catch { return photoSync || ""; }
   });
-  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications)); } catch {} }, [notifications]);
+  React.useEffect(() => {
+    const sync = () => {
+      try {
+        const u = JSON.parse(localStorage.getItem("user") || "{}");
+        const uid = u._id || u.id || u.email || "default";
+        setPhoto(localStorage.getItem(`airops_profil_photo_v2_${uid}`) || sessionStorage.getItem("airops_photo_current") || "");
+      } catch {}
+    };
+    window.addEventListener("airops-profile-update", sync);
+    return () => window.removeEventListener("airops-profile-update", sync);
+  }, []);
+
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifs, setLoadingNotifs] = useState(true);
+
+  // Chargement des notifications depuis l'API
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingNotifs(true);
+    fetchNotifications({ limit: 50 })
+      .then(res => {
+        if (cancelled) return;
+        const mapped = (res.data || []).map(n => ({
+          id:      n._id || n.id,
+          type:    TYPE_MAP[n.type] || "info",
+          title:   n.message || "Notification",
+          message: n.message || "",
+          time:    mapNotification(n).time,
+          unread:  !n.isRead,
+          _raw:    n,
+        }));
+        setNotifications(mapped);
+      })
+      .catch(() => { if (!cancelled) setNotifications([]); })
+      .finally(() => { if (!cancelled) setLoadingNotifs(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   const [collapsed,     setCollapsed]     = useState(false);
   const [sidebarMobile, setSidebarMobile] = useState(false);
@@ -201,8 +246,28 @@ export default function NotificationP() {
     return matchFilter && (q === "" || `${n.title} ${n.message}`.toLowerCase().includes(q));
   }), [notifications, filter, search]);
 
-  const markAllAsRead     = () => { setNotifications(prev => prev.map(n => ({ ...n, unread: false }))); setToast("Toutes les notifications marquées comme lues."); };
-  const toggleRead        = id  => setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: !n.unread } : n));
+  const markAllAsRead = async () => {
+    try {
+      await markAllNotificationsAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+      setToast("Toutes les notifications marquées comme lues.");
+    } catch {
+      setToast("❌ Erreur lors de la mise à jour.");
+    }
+  };
+  const toggleRead = async (id) => {
+    const notif = notifications.find(n => n.id === id);
+    if (!notif) return;
+    if (notif.unread) {
+      try {
+        await markNotificationAsRead(id);
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+      } catch { setToast("❌ Erreur."); }
+    } else {
+      // Marquer comme non-lu : juste localement (pas d'API pour ça)
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: true } : n));
+    }
+  };
   const removeNotification = id => { setNotifications(prev => prev.filter(n => n.id !== id)); setToast("Notification supprimée."); };
 
   const navWithBadge = navItems.map(item => item.to === "/notificationP" ? { ...item, badge: unreadCount > 0 ? unreadCount : null } : item);
@@ -215,7 +280,7 @@ export default function NotificationP() {
         <button type="button" className="sb-toggle-btn" onClick={() => setCollapsed(v => !v)}>
           <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </button>
-        <div className="sb-brand" onClick={() => navigate("/")}><div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg></div><div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">GESTION INTERNE</span></div></div>
+        <div className="sb-brand" onClick={() => navigate("/")}><div className="sb-brand-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></div><div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">GESTION INTERNE</span></div></div>
         <div className="sb-label">Navigation</div>
         <nav className="sb-nav">
           {navWithBadge.map(item => (
@@ -227,7 +292,7 @@ export default function NotificationP() {
         </nav>
         <div className="sb-footer">
           <div className="sb-label" style={{ paddingTop: 0 }}>Compte</div>
-          <button type="button" className="sb-logout" onClick={() => navigate("/login")}>
+          <button type="button" className="sb-logout" onClick={() => { try { sessionStorage.removeItem("airops_photo_current"); } catch {} navigate("/login"); }}>
             <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></span>
             <span className="sb-logout-lbl">Déconnexion</span>
           </button>

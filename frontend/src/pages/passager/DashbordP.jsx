@@ -1,6 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { NavLink, useNavigate } from "react-router-dom";
-import { useProfileSync } from "./useProfileSync";
+import { useProfileSync } from "../../services/useProfileSync";
+import {
+  fetchMyRequests,
+  fetchPassengerDashboard,
+  updateRequest,
+  cancelRequest,
+  mapRequest,
+  mapNotification,
+} from "../../services/passengerService";
+import { logout } from "../../services/authService";
 
 const dashCSS = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
@@ -30,18 +40,37 @@ const dashCSS = `
 
   .dw { display: flex; height: 100vh; overflow: hidden; background: var(--bg-page); font-family: 'DM Sans','Segoe UI',sans-serif; color: var(--text-primary); }
 
+  /* ═══════════ SIDEBAR ═══════════ */
   .sidebar { width: var(--sidebar-full); background: var(--brand-dark); display: flex; flex-direction: column; flex-shrink: 0; position: relative; z-index: 30; transition: width 0.3s ease; box-shadow: 4px 0 24px rgba(0,0,0,0.2); overflow: hidden; }
   .sidebar.collapsed { width: var(--sidebar-mini); }
   .sb-brand { display: flex; align-items: center; gap: 10px; padding: 18px 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.07); cursor: pointer; flex-shrink: 0; min-height: 68px; overflow: hidden; }
-  .sb-brand-icon { width: 40px; height: 40px; min-width: 40px; background: var(--brand-blue); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(41,128,232,0.4); }
+  .sb-brand-icon { width: 40px; height: 40px; min-width: 40px; background: var(--brand-blue); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(41,128,232,0.4); transition: var(--tr); }
+  .sb-brand-icon:hover { background: #1a6fd4; }
   .sb-brand-text { overflow: hidden; white-space: nowrap; opacity: 1; transition: opacity 0.2s ease; }
   .sidebar.collapsed .sb-brand-text { opacity: 0; }
   .sb-brand-name { font-size: 17px; font-weight: 800; color: #fff; letter-spacing: -0.4px; display: block; }
   .sb-brand-sub  { font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1.8px; font-weight: 600; display: block; }
-  .sb-toggle-btn { position: absolute; top: 22px; right: 10px; width: 22px; height: 22px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; transition: var(--tr); flex-shrink: 0; }
+
+  /* ── Toggle button — FIX: ne jamais se superposer au logo ── */
+  .sb-toggle-btn {
+    position: absolute;
+    top: 22px;
+    /* En mode ouvert: collé à droite du sidebar */
+    right: 10px;
+    width: 22px; height: 22px;
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 10; transition: var(--tr); flex-shrink: 0;
+  }
+  /* En mode collapsed: le bouton sort sur le bord droit du mini-sidebar */
+  .sidebar.collapsed .sb-toggle-btn {
+    right: 10px;
+  }
   .sb-toggle-btn:hover { background: var(--brand-blue); border-color: var(--brand-blue); }
   .sb-toggle-btn svg { transition: transform 0.3s ease; }
+  /* Flèche pointe à gauche quand ouvert, à droite quand collapsed */
   .sidebar.collapsed .sb-toggle-btn svg { transform: rotate(180deg); }
+
   .sb-label { font-size: 9px; font-weight: 700; letter-spacing: 1.8px; color: rgba(255,255,255,0.25); padding: 14px 14px 5px; text-transform: uppercase; white-space: nowrap; overflow: hidden; transition: opacity 0.2s; }
   .sidebar.collapsed .sb-label { opacity: 0; }
   .sb-nav { padding: 0 9px; flex: 1; overflow-y: auto; overflow-x: hidden; }
@@ -65,10 +94,11 @@ const dashCSS = `
   .sidebar.collapsed .sb-logout-lbl { opacity: 0; max-width: 0; }
   .sb-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 25; backdrop-filter: blur(2px); }
 
+  /* ═══════════ MAIN ═══════════ */
   .dm { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
-  .dh { height: var(--header-h); background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex-shrink: 0; box-shadow: var(--shadow-sm); }
+  .dh { height: var(--header-h); background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex-shrink: 0; box-shadow: var(--shadow-sm); overflow: visible; }
   .dh-left  { display: flex; align-items: center; gap: 12px; }
-  .dh-right { display: flex; align-items: center; gap: 10px; }
+  .dh-right { display: flex; align-items: center; gap: 10px; position: relative; }
   .dh-menu-btn { display: none; background: none; border: none; cursor: pointer; color: var(--text-sec); padding: 6px; border-radius: 8px; transition: var(--tr); }
   .dh-menu-btn:hover { background: var(--bg-page); color: var(--text-primary); }
   .dh-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
@@ -79,24 +109,38 @@ const dashCSS = `
   .search-input:focus { border-color: var(--brand-blue); background: #fff; box-shadow: 0 0 0 3px rgba(41,128,232,0.1); }
   .search-input::placeholder { color: var(--text-muted); }
 
+  /* ── Notification button + dropdown ── */
+  .notif-wrap { position: relative; z-index: 100; }
   .notif-btn { position: relative; background: none; border: none; cursor: pointer; color: var(--text-sec); padding: 8px; border-radius: 10px; transition: var(--tr); }
   .notif-btn:hover { background: var(--bg-page); color: var(--brand-blue); }
   .notif-dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; background: #ef4444; border-radius: 50%; border: 1.5px solid #fff; }
+  .notif-dropdown { position: absolute; top: calc(100% + 10px); right: 0; width: 340px; background: #fff; border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 20px 60px rgba(13,43,94,0.22), 0 4px 16px rgba(13,43,94,0.1); z-index: 9999; overflow: hidden; animation: dropIn 0.2s ease; }
+  @keyframes dropIn { from { opacity: 0; transform: translateY(-8px) scale(0.97); } to { opacity: 1; transform: none; } }
+  .notif-drop-hd { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 10px; border-bottom: 1px solid var(--border); }
+  .notif-drop-title { font-size: 13px; font-weight: 800; color: var(--text-primary); }
+  .notif-drop-mark { font-size: 11px; font-weight: 700; color: var(--brand-blue); background: none; border: none; cursor: pointer; font-family: inherit; transition: color 0.2s; }
+  .notif-drop-mark:hover { color: var(--brand-mid); }
+  .notif-item { display: flex; align-items: flex-start; gap: 12px; padding: 13px 18px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.15s; text-decoration: none; }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-item:hover { background: #f8fafc; }
+  .notif-item.unread { background: #eff8ff; }
+  .notif-item.unread:hover { background: #e0f0ff; }
+  .notif-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 15px; }
+  .notif-content { flex: 1; min-width: 0; }
+  .notif-msg { font-size: 12.5px; font-weight: 600; color: var(--text-primary); line-height: 1.4; }
+  .notif-item.unread .notif-msg { font-weight: 700; }
+  .notif-time { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+  .notif-unread-dot { width: 8px; height: 8px; background: var(--brand-blue); border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+  .notif-drop-footer { padding: 10px 18px; text-align: center; border-top: 1px solid var(--border); }
+  .notif-drop-all { font-size: 12px; font-weight: 700; color: var(--brand-blue); background: none; border: none; cursor: pointer; font-family: inherit; transition: color 0.2s; }
+  .notif-drop-all:hover { color: var(--brand-mid); }
 
-  /* ── Avatar header synchronisé ── */
+  /* ── Avatar header ── */
   .user-chip { display: flex; align-items: center; gap: 9px; cursor: default; }
   .user-info-r { text-align: right; }
   .user-name { font-size: 13px; font-weight: 700; color: var(--text-primary); }
   .user-role { font-size: 11px; color: var(--text-muted); }
-  .user-avatar {
-    width: 38px; height: 38px; border-radius: 50%;
-    background: linear-gradient(135deg, var(--brand-blue), var(--brand-mid));
-    display: flex; align-items: center; justify-content: center;
-    color: #fff; font-size: 13px; font-weight: 700;
-    box-shadow: 0 3px 10px rgba(41,128,232,0.35);
-    border: 2.5px solid rgba(41,128,232,0.2); flex-shrink: 0;
-    overflow: hidden;
-  }
+  .user-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--brand-blue), var(--brand-mid)); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; font-weight: 700; box-shadow: 0 3px 10px rgba(41,128,232,0.35); border: 2.5px solid rgba(41,128,232,0.2); flex-shrink: 0; overflow: hidden; }
   .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
   .dc { flex: 1; overflow-y: auto; padding: 26px; }
@@ -104,6 +148,7 @@ const dashCSS = `
   .welcome-title span { color: var(--brand-blue); }
   .welcome-sub   { font-size: 13px; color: var(--text-muted); margin-bottom: 22px; }
 
+  /* ═══════════ STAT CARDS ═══════════ */
   .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
   .sc { background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 20px; box-shadow: var(--shadow-sm); transition: var(--tr); position: relative; overflow: hidden; }
   .sc::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 20px 20px 0 0; }
@@ -117,6 +162,7 @@ const dashCSS = `
   .sc-value { font-size: 30px; font-weight: 800; color: var(--brand-dark); letter-spacing: -1px; }
   .sc-label { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
 
+  /* ═══════════ CHART ═══════════ */
   .charts-row { display: grid; grid-template-columns: 1fr 300px; gap: 14px; margin-bottom: 20px; }
   .cc { background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 20px; box-shadow: var(--shadow-sm); transition: var(--tr); }
   .cc:hover { box-shadow: var(--shadow-md); }
@@ -131,22 +177,45 @@ const dashCSS = `
   .dl-lbl  { color: var(--text-sec); flex: 1; }
   .dl-val  { font-weight: 700; color: var(--text-primary); }
 
-  .tbl-card { background: #fff; border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow-sm); overflow: visible; transition: var(--tr); margin-bottom: 20px; }
-  .tbl-card:hover { box-shadow: var(--shadow-md); }
-  .tbl-hd { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; border-bottom: 1px solid var(--border); }
-  .tbl-hd-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
-  .tbl-count { font-size: 12px; color: var(--text-muted); }
-  .tbl-cols { display: grid; grid-template-columns: 120px 1fr 110px 145px 52px; padding: 9px 22px; background: #f8fafc; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
-  .tbl-row { display: grid; grid-template-columns: 120px 1fr 110px 145px 52px; align-items: center; padding: 13px 22px; border-bottom: 1px solid #f1f5f9; transition: background 0.18s; position: relative; }
-  .tbl-row:last-child { border-bottom: none; }
-  .tbl-row:hover { background: #f8fafc; }
-  .row-ref  { font-size: 13px; font-weight: 700; color: var(--brand-blue); }
-  .row-traj { font-size: 13px; font-weight: 600; color: var(--text-primary); line-height: 1.3; }
-  .row-vers { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-  .row-date { font-size: 12px; color: var(--text-sec); }
-  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; border: 1px solid transparent; white-space: nowrap; }
-  .bdot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  /* ═══════════ TABLE DES DEMANDES - VERSION TABLE FIXE ═══════════ */
+  .tbl-card { background:#fff; border:1px solid var(--border); border-radius:20px; box-shadow:var(--shadow-sm); overflow:visible; transition:var(--tr); margin-bottom:20px; }
+  .tbl-card:hover { box-shadow:var(--shadow-md); }
+  .tbl-hd { display:flex; align-items:center; justify-content:space-between; padding:16px 22px; border-bottom:1px solid var(--border); }
+  .tbl-hd-title { font-size:14px; font-weight:700; color:var(--text-primary); }
+  .tbl-count { font-size:12px; color:var(--text-muted); }
 
+  .requests-table-wrap { width:100%; overflow-x:auto; overflow-y:visible; }
+  .requests-table { width:100%; min-width:980px; border-collapse:collapse; table-layout:fixed; }
+  .requests-table th { background:#f8fafc; border-bottom:1px solid var(--border); padding:9px 18px; font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.8px; text-align:left; white-space:nowrap; }
+  .requests-table td { border-bottom:1px solid #f1f5f9; padding:15px 18px; vertical-align:middle; }
+  .requests-table tr:last-child td { border-bottom:none; }
+  .requests-table tbody tr:hover { background:#f8fafc; }
+
+  .req-col-ref { width:130px; }
+  .req-col-trajet { width:auto; }
+  .req-col-type { width:130px; text-align:center; }
+  .req-col-date { width:130px; text-align:center; }
+  .req-col-statut { width:160px; text-align:center; }
+  .req-col-action { width:80px; text-align:center; }
+
+  .requests-table th.req-col-type,
+  .requests-table th.req-col-date,
+  .requests-table th.req-col-statut,
+  .requests-table th.req-col-action { text-align:center; }
+
+  .row-ref { font-size:13px; font-weight:800; color:var(--brand-blue); white-space:nowrap; }
+  .row-traj { font-size:13px; font-weight:700; color:var(--text-primary); line-height:1.35; }
+  .row-vers { font-size:11px; color:var(--text-muted); margin-top:3px; }
+  .row-date { font-size:12px; color:var(--text-sec); white-space:nowrap; }
+  .type-badge { display:inline-flex; align-items:center; justify-content:center; gap:4px; min-width:74px; font-size:10px; font-weight:800; padding:5px 10px; border-radius:20px; white-space:nowrap; }
+  .type-badge.vip { background:linear-gradient(135deg,#fef3c7,#fde68a); color:#92400e; border:1px solid #fcd34d; }
+  .type-badge.standard { background:#eff6ff; color:var(--brand-blue); border:1px solid #bfdbfe; }
+  .badge { display:inline-flex; align-items:center; justify-content:center; gap:5px; min-width:96px; font-size:10px; font-weight:800; padding:5px 10px; border-radius:20px; border:1px solid transparent; white-space:nowrap; }
+  .bdot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+
+  .req-action-cell { display:flex; align-items:center; justify-content:center; width:100%; }
+
+  /* ═══════════ PAGINATION ═══════════ */
   .pagination { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 10px; border-radius: 0 0 20px 20px; }
   .pag-info { font-size: 12px; color: var(--text-muted); }
   .pag-left { display: flex; align-items: center; gap: 10px; }
@@ -159,18 +228,22 @@ const dashCSS = `
   .pag-size { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: #fff; color: var(--text-sec); font-size: 12px; font-family: inherit; padding: 0 8px; cursor: pointer; outline: none; transition: var(--tr); }
   .pag-size:focus { border-color: var(--brand-blue); }
 
+  /* ═══════════ ACTION MENU ═══════════ */
   .am-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
   .am-btn { width: 32px; height: 32px; border-radius: 8px; background: none; border: 1px solid transparent; color: var(--text-muted); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: var(--tr); }
   .am-btn:hover { background: #f0f5fb; border-color: var(--border); color: var(--brand-blue); }
-  .am-drop { position: absolute; right: 0; top: 38px; z-index: 9999; width: 195px; background: #fff; border-radius: 14px; box-shadow: 0 8px 40px rgba(13,43,94,0.18), 0 2px 8px rgba(13,43,94,0.08); border: 1px solid var(--border); overflow: hidden; animation: dropIn 0.18s ease; }
+  .am-drop { position: fixed; z-index: 99999; width: 195px; background: #fff; border-radius: 14px; box-shadow: 0 8px 40px rgba(13,43,94,0.18), 0 2px 8px rgba(13,43,94,0.08); border: 1px solid var(--border); overflow: hidden; animation: dropIn 0.18s ease; }
   @keyframes dropIn { from { opacity: 0; transform: translateY(-8px) scale(0.97); } to { opacity: 1; transform: none; } }
   .am-item { width: 100%; display: flex; align-items: center; gap: 9px; padding: 11px 15px; background: none; border: none; font-size: 13px; font-weight: 500; font-family: inherit; text-align: left; cursor: pointer; color: var(--text-primary); transition: background 0.15s; white-space: nowrap; }
   .am-item:hover { background: #f0f5fb; }
   .am-item.am-blue:hover { background: #eff6ff; color: var(--brand-blue); }
   .am-item.am-red { color: var(--accent-red); }
   .am-item.am-red:hover { background: #fef2f2; }
+  .am-item.am-disabled { color: var(--text-muted); cursor: not-allowed; opacity: 0.5; }
+  .am-item.am-disabled:hover { background: transparent; }
   .am-sep { height: 1px; background: var(--border); margin: 3px 0; }
 
+  /* ═══════════ MODALS ═══════════ */
   .modal-ov { position: fixed; inset: 0; z-index: 100; background: rgba(13,43,94,0.45); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.2s ease; }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   .modal-box { background: #fff; border-radius: 24px; width: 100%; max-width: 480px; overflow: hidden; box-shadow: var(--shadow-lg); animation: slideUp 0.25s ease; }
@@ -207,47 +280,39 @@ const dashCSS = `
   .btn-cancel-e:hover { background: var(--bg-page); }
   .btn-save-e { padding: 10px 24px; font-size: 13px; font-weight: 700; font-family: inherit; color: #fff; border: none; border-radius: 10px; background: linear-gradient(135deg, var(--brand-blue), #1a6fd4); cursor: pointer; transition: var(--tr); box-shadow: 0 4px 14px rgba(41,128,232,0.3); }
   .btn-save-e:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(41,128,232,0.4); }
+  .btn-save-e:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
   .fab { position: fixed; bottom: 22px; right: 22px; width: 50px; height: 50px; background: linear-gradient(135deg, var(--brand-blue), #1a6fd4); color: #fff; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 40; box-shadow: 0 6px 20px rgba(41,128,232,0.45); transition: var(--tr); }
   .fab:hover  { transform: scale(1.1) translateY(-2px); box-shadow: 0 10px 28px rgba(41,128,232,0.55); }
   .fab:active { transform: scale(0.96); }
-
   .toast { position: fixed; top: 18px; right: 18px; z-index: 200; background: var(--brand-dark); color: #fff; padding: 12px 18px; border-radius: 12px; font-size: 13px; font-weight: 500; box-shadow: var(--shadow-lg); border-left: 3px solid var(--brand-light); animation: toastIn 0.3s ease; }
   @keyframes toastIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:none; } }
-
   .dash-footer { font-size: 10px; color: var(--text-muted); text-align: center; padding: 4px 0 10px; letter-spacing: 1px; text-transform: uppercase; }
 
   @media (max-width: 1200px) { .stats-grid { grid-template-columns: repeat(2,1fr); } .charts-row { grid-template-columns: 1fr; } }
-  @media (max-width: 960px) { .tbl-cols, .tbl-row { grid-template-columns: 110px 1fr 140px 52px; } .col-date-h, .col-date-v { display: none; } .search-input { width: 170px; } }
+  @media (max-width: 960px) { .tbl-cols, .tbl-row { grid-template-columns: 110px minmax(0,1fr) 90px 150px 52px; gap: 6px; } .col-date-h, .col-date-v { display: none; } .search-input { width: 170px; } }
   @media (max-width: 768px) {
     .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 30; transform: translateX(-100%); width: var(--sidebar-full) !important; transition: transform 0.3s ease !important; }
     .sidebar.open { transform: translateX(0); } .sidebar.collapsed { transform: translateX(-100%); } .sidebar.collapsed.open { transform: translateX(0); }
     .sb-overlay { display: block; } .dh-menu-btn { display: flex; } .sb-toggle-btn { display: none; }
     .stats-grid { grid-template-columns: repeat(2,1fr); gap: 12px; } .dc { padding: 16px; } .dh { padding: 0 16px; }
-    .tbl-cols, .tbl-row { grid-template-columns: 100px 1fr 52px; } .col-date-h, .col-date-v, .col-stat-h, .col-stat-v { display: none; }
+    .tbl-cols, .tbl-row { grid-template-columns: 95px minmax(0,1fr) 85px 52px; gap: 6px; } .col-date-h, .col-date-v, .col-stat-h, .col-stat-v { display: none; }
+    .notif-dropdown { width: 290px; right: -50px; }
   }
-  @media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; } .sc-value { font-size: 24px; } .search-wrap { display: none; } .user-info-r { display: none; } .dc { padding: 12px; } .tbl-cols, .tbl-row { grid-template-columns: 85px 1fr 44px; } .edit-grid { grid-template-columns: 1fr; } .ef.full { grid-column: 1; } .ef-note { grid-column: 1; } .pagination { flex-direction: column; align-items: flex-start; } }
+  @media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; } .sc-value { font-size: 24px; } .search-wrap { display: none; } .user-info-r { display: none; } .dc { padding: 12px; } .tbl-cols, .tbl-row { grid-template-columns: 80px minmax(0,1fr) 44px; gap: 4px; } .edit-grid { grid-template-columns: 1fr; } .ef.full { grid-column: 1; } .ef-note { grid-column: 1; } .pagination { flex-direction: column; align-items: flex-start; } .notif-dropdown { width: 260px; right: -20px; } }
 `;
 
-if (typeof document !== "undefined" && !document.getElementById("airops-dash-css")) {
-  const tag = document.createElement("style");
-  tag.id = "airops-dash-css";
+if (typeof document !== "undefined") {
+  let tag = document.getElementById("airops-dash-css");
+  if (!tag) {
+    tag = document.createElement("style");
+    tag.id = "airops-dash-css";
+    document.head.appendChild(tag);
+  }
   tag.textContent = dashCSS;
-  document.head.appendChild(tag);
 }
 
-const STORAGE_KEY = "airops_demandes_v2";
 
-const initialDemandes = [
-  { ref: "#DEM-1021", trajet: "Tunis → Sfax",       vers: "Aéroport Tunis-Carthage (TUN)",           date: "2026-10-01", statut: "EN ATTENTE", detail: { passager: "Ahmed Ben Ali", depart: "Aéroport Tunis-Carthage (TUN)",           arrivee: "Hôtel Les Oliviers Palace (Sfax)",    heure: "09:00" } },
-  { ref: "#DEM-1022", trajet: "Sousse → Tunis",      vers: "Hôtel El Ksar Sousse",                    date: "2026-10-08", statut: "VALIDÉE",    detail: { passager: "Ahmed Ben Ali", depart: "Hôtel El Ksar Sousse",                    arrivee: "Aéroport Tunis-Carthage (TUN)",       heure: "14:00" } },
-  { ref: "#DEM-1023", trajet: "Monastir → Hammamet", vers: "Aéroport Monastir Habib Bourguiba (MIR)", date: "2026-10-15", statut: "EN COURS",   detail: { passager: "Ahmed Ben Ali", depart: "Aéroport Monastir Habib Bourguiba (MIR)", arrivee: "Hôtel Hasdrubal Thalassa (Hammamet)", heure: "17:30" } },
-  { ref: "#DEM-1024", trajet: "Tunis → Bizerte",     vers: "Hôtel Africa Meridien (Tunis Centre)",    date: "2026-10-22", statut: "REFUSÉE",    detail: { passager: "Ahmed Ben Ali", depart: "Hôtel Africa Meridien (Tunis Centre)",    arrivee: "Hôtel Bizerta Resort",                heure: "08:00" } },
-  { ref: "#DEM-1025", trajet: "Djerba → Tunis",      vers: "Aéroport Djerba-Zarzis (DJE)",            date: "2026-10-29", statut: "VALIDÉE",    detail: { passager: "Ahmed Ben Ali", depart: "Aéroport Djerba-Zarzis (DJE)",            arrivee: "Hôtel Africa Meridien (Tunis Centre)", heure: "11:45" } },
-  { ref: "#DEM-1026", trajet: "Nabeul → Tunis",      vers: "Hôtel Nabeul Beach",                      date: "2026-11-03", statut: "EN ATTENTE", detail: { passager: "Ahmed Ben Ali", depart: "Hôtel Nabeul Beach",                      arrivee: "Hôtel Africa Meridien (Tunis Centre)", heure: "13:20" } },
-  { ref: "#DEM-1027", trajet: "Tunis → Tozeur",      vers: "Aéroport Tunis-Carthage (TUN)",           date: "2026-11-10", statut: "VALIDÉE",    detail: { passager: "Ahmed Ben Ali", depart: "Aéroport Tunis-Carthage (TUN)",           arrivee: "Hôtel Yadis Dunes (Tozeur)",           heure: "06:30" } },
-  { ref: "#DEM-1028", trajet: "Sfax → Mahdia",       vers: "Hôtel Les Oliviers Palace (Sfax)",         date: "2026-11-17", statut: "EN ATTENTE", detail: { passager: "Ahmed Ben Ali", depart: "Hôtel Les Oliviers Palace (Sfax)",         arrivee: "Club Palmeraie (Mahdia)",               heure: "10:15" } },
-];
 
 const statutCfg = {
   "EN ATTENTE": { bg: "#fff7ed", text: "#ea580c", dot: "#f97316", border: "#fed7aa" },
@@ -264,11 +329,15 @@ const LOCATION_OPTIONS = [{ group: "✈️ Aéroports", items: AIRPORTS_TN },{ g
 const navItems = [
   { label: "Tableau de bord",  to: "/dashbordP",     icon: <svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> },
   { label: "Réserver demande", to: "/reserverD",     icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg> },
-  { label: "Notifications",    to: "/notificationP", badge: 2, icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> },
+  { label: "Notifications",    to: "/notificationP", icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> },
+  { label: "Avis des acteurs", to: "/avisP",         icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg> },
   { label: "Profile",          to: "/profilP",       icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
 ];
 
-const linePath = "M0,90 C30,85 60,80 90,70 C120,60 140,40 170,38 C200,36 220,55 250,52 C280,49 300,60 330,55 C360,50 390,20 420,10";
+function nowTimeISO() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
 
 function todayISO() {
   const d = new Date();
@@ -303,7 +372,7 @@ function DonutChart({ total, stats }) {
       <svg width="136" height="136" viewBox="0 0 136 136">
         {segs.map((s, i) => {
           const dash = s.pct * circ; const gap = circ - dash;
-          const el = <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={s.color} strokeWidth="13" strokeDasharray={`${dash} ${gap}`} strokeDashoffset={-offset * circ} style={{ transform: "rotate(-90deg)", transformOrigin: `${cx}px ${cy}px` }}/>;
+          const el = <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={s.color} strokeWidth="13" strokeDasharray={`${dash} ${gap}`} strokeDashoffset={-offset * circ} style={{ transform: "rotate(-90deg)", transformOrigin: `${cx}px ${cy}px`, transition: "stroke-dasharray 0.5s ease" }}/>;
           offset += s.pct; return el;
         })}
         <circle cx={cx} cy={cy} r={37} fill="white"/>
@@ -321,44 +390,256 @@ function DonutChart({ total, stats }) {
   );
 }
 
-function ActionMenu({ demande, isOpen, onToggle, onDetail, onEdit, onCancel }) {
+/* ═══════════ PRECISE LINE CHART ═══════════ */
+function LineChart({ demandes }) {
+  // Build last 7 days data
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    const label = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+    const count = demandes.filter(x => x.date === iso).length;
+    days.push({ iso, label, count });
+  }
+
+  // Also show cumulative totals for a richer chart
+  const maxCount = Math.max(...days.map(d => d.count), 1);
+  const W = 420, H = 140, PL = 36, PR = 16, PT = 16, PB = 30;
+  const chartW = W - PL - PR;
+  const chartH = H - PT - PB;
+  const xStep = chartW / (days.length - 1);
+
+  const toY = val => PT + chartH - (val / maxCount) * chartH;
+  const toX = idx => PL + idx * xStep;
+
+  const pts = days.map((d, i) => [toX(i), toY(d.count)]);
+  const pathD = pts.map((p, i) => (i === 0 ? `M${p[0]},${p[1]}` : `C${pts[i-1][0] + xStep/3},${pts[i-1][1]} ${p[0] - xStep/3},${p[1]} ${p[0]},${p[1]}`)).join(" ");
+  const areaD = `${pathD} L${pts[pts.length-1][0]},${PT+chartH} L${pts[0][0]},${PT+chartH} Z`;
+
+  // Y-axis gridlines
+  const yTicks = [0, Math.round(maxCount/2), maxCount];
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ height: H + 10, overflow: "visible" }}>
+      <defs>
+        <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#2980e8" stopOpacity="0.18"/>
+          <stop offset="100%" stopColor="#2980e8" stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      {/* Grid lines + Y labels */}
+      {yTicks.map(tick => {
+        const y = toY(tick);
+        return (
+          <g key={tick}>
+            <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="#e4ecf4" strokeWidth="1" strokeDasharray="4 4"/>
+            <text x={PL - 6} y={y + 4} textAnchor="end" fontSize="9" fill="#94a3b8">{tick}</text>
+          </g>
+        );
+      })}
+      {/* Area + line */}
+      <path d={areaD} fill="url(#chartGrad)"/>
+      <path d={pathD} fill="none" stroke="#2980e8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      {/* Data points */}
+      {pts.map(([x, y], i) => (
+        <g key={i}>
+          <circle cx={x} cy={y} r="9" fill="#2980e8" fillOpacity="0.1"/>
+          <circle cx={x} cy={y} r="4" fill="#2980e8"/>
+          {days[i].count > 0 && (
+            <text x={x} y={y - 10} textAnchor="middle" fontSize="9" fontWeight="700" fill="#2980e8">{days[i].count}</text>
+          )}
+        </g>
+      ))}
+      {/* X labels */}
+      {days.map((d, i) => (
+        <text key={i} x={toX(i)} y={H - 4} textAnchor="middle" fontSize="9" fill="#94a3b8">{d.label}</text>
+      ))}
+      {/* X axis */}
+      <line x1={PL} y1={PT + chartH} x2={W - PR} y2={PT + chartH} stroke="#e4ecf4" strokeWidth="1"/>
+      {/* Y axis */}
+      <line x1={PL} y1={PT} x2={PL} y2={PT + chartH} stroke="#e4ecf4" strokeWidth="1"/>
+    </svg>
+  );
+}
+
+/* ═══════════ NOTIFICATION DROPDOWN ═══════════ */
+function NotifDropdown({ notifs, onMarkAll, onClose, navigate }) {
   const ref = useRef(null);
   useEffect(() => {
-    if (!isOpen) return;
-    const fn = e => { if (ref.current && !ref.current.contains(e.target)) onToggle(null); };
+    const fn = e => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
     document.addEventListener("mousedown", fn);
     return () => document.removeEventListener("mousedown", fn);
-  }, [isOpen, onToggle]);
+  }, [onClose]);
+
+  const unreadCount = notifs.filter(n => n.unread).length;
   return (
-    <div className="am-wrap" ref={ref}>
-      <button type="button" className="am-btn" onClick={e => { e.stopPropagation(); onToggle(isOpen ? null : demande.ref); }}>
-        <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+    <div className="notif-dropdown" ref={ref}>
+      <div className="notif-drop-hd">
+        <span className="notif-drop-title">Notifications {unreadCount > 0 && <span style={{ background:"#ef4444", color:"#fff", borderRadius:"9px", fontSize:"10px", fontWeight:"700", padding:"1px 6px", marginLeft:5 }}>{unreadCount}</span>}</span>
+        {unreadCount > 0 && <button type="button" className="notif-drop-mark" onClick={onMarkAll}>Tout marquer lu</button>}
+      </div>
+      {notifs.slice(0, 4).map(n => (
+        <div key={n.id} className={`notif-item${n.unread ? " unread" : ""}`} onClick={() => { navigate("/notificationP"); onClose(); }}>
+          <div className="notif-icon" style={{ background: n.bg }}>{n.icon}</div>
+          <div className="notif-content">
+            <div className="notif-msg">{n.msg}</div>
+            <div className="notif-time">{n.time}</div>
+          </div>
+          {n.unread && <div className="notif-unread-dot"/>}
+        </div>
+      ))}
+      <div className="notif-drop-footer">
+        <button type="button" className="notif-drop-all" onClick={() => { navigate("/notificationP"); onClose(); }}>Voir toutes les notifications →</button>
+      </div>
+    </div>
+  );
+}
+
+function ActionMenu({ demande, isOpen, onToggle, onDetail, onEdit, onCancel }) {
+  const btnRef = useRef(null);
+  const dropRef = useRef(null);
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0 });
+
+  const canCancel = demande.statut === "EN ATTENTE";
+  const canEdit = demande.statut !== "ANNULÉE" && demande.statut !== "REFUSÉE";
+
+  const updateMenuPosition = useCallback(() => {
+    if (!btnRef.current) return;
+
+    const rect = btnRef.current.getBoundingClientRect();
+    const menuWidth = 195;
+    const menuHeight = canEdit ? 156 : 118;
+    const gap = 8;
+
+    let left = rect.right - menuWidth;
+    let top = rect.bottom + 6;
+
+    if (left < gap) left = gap;
+    if (left + menuWidth > window.innerWidth - gap) {
+      left = window.innerWidth - menuWidth - gap;
+    }
+
+    if (top + menuHeight > window.innerHeight - gap) {
+      top = rect.top - menuHeight - 6;
+    }
+
+    if (top < gap) top = gap;
+
+    setDropPos({ top, left });
+  }, [canEdit]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    updateMenuPosition();
+
+    const handleOutside = (e) => {
+      const clickedButton = btnRef.current && btnRef.current.contains(e.target);
+      const clickedMenu = dropRef.current && dropRef.current.contains(e.target);
+
+      if (!clickedButton && !clickedMenu) {
+        onToggle(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutside);
+    window.addEventListener("scroll", updateMenuPosition, true);
+    window.addEventListener("resize", updateMenuPosition);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      window.removeEventListener("scroll", updateMenuPosition, true);
+      window.removeEventListener("resize", updateMenuPosition);
+    };
+  }, [isOpen, onToggle, updateMenuPosition]);
+
+  const menu = isOpen ? (
+    <div
+      ref={dropRef}
+      className="am-drop"
+      style={{ top: `${dropPos.top}px`, left: `${dropPos.left}px` }}
+    >
+      <button
+        type="button"
+        className="am-item am-blue"
+        onClick={() => {
+          onDetail(demande);
+          onToggle(null);
+        }}
+      >
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+        </svg>
+        Voir le détail
       </button>
-      {isOpen && (
-        <div className="am-drop">
-          <button type="button" className="am-item am-blue" onClick={() => { onDetail(demande); onToggle(null); }}>
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-            Voir le détail
-          </button>
+
+      {canEdit && (
+        <>
           <div className="am-sep"/>
-          {demande.statut !== "ANNULÉE" && demande.statut !== "REFUSÉE" && (
-            <>
-              <button type="button" className="am-item" onClick={() => { onEdit(demande); onToggle(null); }}>
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                Modifier
-              </button>
-              <div className="am-sep"/>
-              <button type="button" className="am-item am-red" onClick={() => { onCancel(demande.ref); onToggle(null); }}>
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                Annuler la demande
-              </button>
-            </>
-          )}
-          {(demande.statut === "ANNULÉE" || demande.statut === "REFUSÉE") && (
-            <div style={{ padding: "10px 15px", fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>Aucune action disponible</div>
-          )}
+          <button
+            type="button"
+            className="am-item"
+            onClick={() => {
+              onEdit(demande);
+              onToggle(null);
+            }}
+          >
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            Modifier
+          </button>
+        </>
+      )}
+
+      <div className="am-sep"/>
+
+      {canCancel ? (
+        <button
+          type="button"
+          className="am-item am-red"
+          onClick={() => {
+            onCancel(demande.ref);
+            onToggle(null);
+          }}
+        >
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+          Annuler la demande
+        </button>
+      ) : (
+        <div className="am-item am-disabled" style={{ fontSize: 11 }}>
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+          Annulation impossible
         </div>
       )}
+    </div>
+  ) : null;
+
+  return (
+    <div className="am-wrap">
+      <button
+        ref={btnRef}
+        type="button"
+        className="am-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle(isOpen ? null : demande.ref);
+        }}
+      >
+        <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="5" r="1.8"/>
+          <circle cx="12" cy="12" r="1.8"/>
+          <circle cx="12" cy="19" r="1.8"/>
+        </svg>
+      </button>
+
+      {typeof document !== "undefined" && menu ? createPortal(menu, document.body) : null}
     </div>
   );
 }
@@ -384,7 +665,13 @@ function DetailModal({ demande, onClose }) {
 
 function EditModal({ demande, onClose, onSave }) {
   const minDate = todayISO();
-  const [form, setForm] = useState({ date: demande.date < minDate ? minDate : demande.date, heure: demande.detail.heure, depart: demande.detail.depart, arrivee: demande.detail.arrivee });
+  const minTime = nowTimeISO(); // heure actuelle
+  const [form, setForm] = useState({
+    date: demande.date < minDate ? minDate : demande.date,
+    heure: demande.detail.heure,
+    depart: demande.detail.depart,
+    arrivee: demande.detail.arrivee
+  });
   const upd = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const handleSave = () => {
     const shortDepart  = form.depart.split("(")[0].trim().replace(/^(Aéroport|Hôtel|Club)\s/i,"").split(",")[0];
@@ -392,6 +679,8 @@ function EditModal({ demande, onClose, onSave }) {
     onSave(demande.ref, { trajet: `${shortDepart} → ${shortArrivee}`, vers: form.depart, date: form.date, statut: demande.statut, detail: { ...demande.detail, heure: form.heure, depart: form.depart, arrivee: form.arrivee } });
     onClose();
   };
+  // Determine min time: only if selected date is today
+  const isToday = form.date === todayISO();
   return (
     <div className="modal-ov" onClick={onClose}>
       <div className="modal-box wide" onClick={e => e.stopPropagation()}>
@@ -400,12 +689,15 @@ function EditModal({ demande, onClose, onSave }) {
           <div className="ef-note"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Le statut est géré uniquement par l'opérateur AirOps.</div>
           <div className="ef full"><label className="ef-lbl">Point de départ</label><LocationSelect value={form.depart}  onChange={v => upd("depart",  v)} placeholder="Choisir l'aéroport ou hôtel de départ…"/></div>
           <div className="ef full"><label className="ef-lbl">Point d'arrivée</label><LocationSelect value={form.arrivee} onChange={v => upd("arrivee", v)} placeholder="Choisir l'aéroport ou hôtel d'arrivée…"/></div>
-          <div className="ef"><label className="ef-lbl">Date de voyage</label><input className="ef-input" type="date" value={form.date} min={minDate} onChange={e => upd("date", e.target.value)}/></div>
-          <div className="ef"><label className="ef-lbl">Heure</label><input className="ef-input" type="time" value={form.heure} onChange={e => upd("heure", e.target.value)}/></div>
+          <div className="ef"><label className="ef-lbl">Date de voyage</label><input className="ef-input" type="date" value={form.date} min={minDate} onChange={e => { upd("date", e.target.value); }}/></div>
+          <div className="ef"><label className="ef-lbl">Heure d'arrivée {isToday && <span style={{ fontSize:10, fontWeight:400, textTransform:"none", color:"#ef4444" }}>(après {minTime})</span>}</label>
+            <input className="ef-input" type="time" value={form.heure} min={isToday ? minTime : undefined} onChange={e => upd("heure", e.target.value)}/>
+            {isToday && form.heure && form.heure <= minTime && <span style={{ fontSize:11, color:"#ef4444", marginTop:3 }}>L'heure doit être supérieure à l'heure actuelle ({minTime}).</span>}
+          </div>
         </div>
         <div className="edit-actions">
           <button type="button" className="btn-cancel-e" onClick={onClose}>Annuler</button>
-          <button type="button" className="btn-save-e" onClick={handleSave} disabled={!form.depart || !form.arrivee || !form.date}>Enregistrer les modifications</button>
+          <button type="button" className="btn-save-e" onClick={handleSave} disabled={!form.depart || !form.arrivee || !form.date || (isToday && form.heure && form.heure <= minTime)}>Enregistrer les modifications</button>
         </div>
       </div>
     </div>
@@ -444,17 +736,44 @@ function Pagination({ total, page, perPage, onPage, onPerPage }) {
   );
 }
 
+
+
+
+
 export default function DashbordP() {
   const navigate = useNavigate();
+  const { nom, photo: photoSync, initials } = useProfileSync();
 
-  /* ── Synchronisation nom + photo depuis ProfilP ── */
-  const { nom, photo, initials } = useProfileSync();
-
-  const [demandes, setDemandes] = useState(() => {
-    try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : initialDemandes; } catch { return initialDemandes; }
+  // Photo personnelle par compte (priorité sur useProfileSync)
+  const [photo, setPhoto] = React.useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      const uid = u._id || u.id || u.email || "default";
+      return localStorage.getItem(`airops_profil_photo_v2_${uid}`) || sessionStorage.getItem("airops_photo_current") || photoSync || "";
+    } catch { return photoSync || ""; }
   });
-  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(demandes)); } catch {} }, [demandes]);
 
+  React.useEffect(() => {
+    const sync = () => {
+      try {
+        const u = JSON.parse(localStorage.getItem("user") || "{}");
+        const uid = u._id || u.id || u.email || "default";
+        const p = localStorage.getItem(`airops_profil_photo_v2_${uid}`) || sessionStorage.getItem("airops_photo_current") || "";
+        setPhoto(p);
+      } catch {}
+    };
+    window.addEventListener("airops-profile-update", sync);
+    return () => window.removeEventListener("airops-profile-update", sync);
+  }, []);
+
+  /* ── État principal ─────────────────────────────────── */
+  const [demandes,      setDemandes]      = useState([]);
+  const [notifs,        setNotifs]        = useState([]);
+  const [dashStats,     setDashStats]     = useState({ totalRequests: 0, pendingRequests: 0, approvedRequests: 0, rejectedRequests: 0, upcomingMissions: 0 });
+  const [loading,       setLoading]       = useState(true);
+  const [apiError,      setApiError]      = useState("");
+
+  /* ── UI state ───────────────────────────────────────── */
   const [collapsed,     setCollapsed]     = useState(false);
   const [sidebarMobile, setSidebarMobile] = useState(false);
   const [openMenu,      setOpenMenu]      = useState(null);
@@ -464,21 +783,53 @@ export default function DashbordP() {
   const [toast,         setToast]         = useState("");
   const [page,          setPage]          = useState(1);
   const [perPage,       setPerPage]       = useState(5);
+  const [notifOpen,     setNotifOpen]     = useState(false);
 
-  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 2800); return () => clearTimeout(t); }, [toast]);
+  /* ── Chargement initial ─────────────────────────────── */
+  const loadDashboard = useCallback(async () => {
+    try {
+      setLoading(true);
+      setApiError("");
+      const [dashData, requestsData] = await Promise.all([
+        fetchPassengerDashboard(),
+        fetchMyRequests({ page: 1, limit: 100 }),
+      ]);
+      setDashStats(dashData.stats || {});
+      setNotifs((dashData.latestNotifications || []).map(mapNotification));
+      setDemandes((requestsData.data || []).map(r => {
+        const mapped = mapRequest(r);
+        // Ajouter le type (vip/standard) depuis la donnée brute
+        mapped.type = (r.type || r.requestType || "standard").toLowerCase();
+        return mapped;
+      }));
+    } catch (err) {
+      console.error("Dashboard load error:", err);
+      setApiError(err?.response?.data?.message || "Impossible de charger les données. Vérifiez votre connexion.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
+  useEffect(() => { loadDashboard(); }, [loadDashboard]);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 3000); return () => clearTimeout(t); }, [toast]);
+
+  /* ── Stats calculées depuis dashStats API ───────────── */
   const stats = useMemo(() => ({
-    attente:  demandes.filter(d => d.statut === "EN ATTENTE").length,
-    validees: demandes.filter(d => d.statut === "VALIDÉE").length,
-    encours:  demandes.filter(d => d.statut === "EN COURS").length,
-    refusees: demandes.filter(d => d.statut === "REFUSÉE" || d.statut === "ANNULÉE").length,
-    total:    demandes.length,
-  }), [demandes]);
+    attente:  dashStats.pendingRequests  ?? demandes.filter(d => d.statut === "EN ATTENTE").length,
+    validees: dashStats.approvedRequests ?? demandes.filter(d => d.statut === "VALIDÉE").length,
+    encours:  dashStats.upcomingMissions ?? demandes.filter(d => d.statut === "EN COURS").length,
+    refusees: dashStats.rejectedRequests ?? demandes.filter(d => d.statut === "REFUSÉE" || d.statut === "ANNULÉE").length,
+    total:    dashStats.totalRequests    ?? demandes.length,
+  }), [dashStats, demandes]);
 
+  /* ── Filtrage / pagination ──────────────────────────── */
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return demandes;
-    return demandes.filter(d => [d.ref, d.trajet, d.vers, d.statut, d.detail.passager, d.detail.depart, d.detail.arrivee].join(" ").toLowerCase().includes(q));
+    return demandes.filter(d =>
+      [d.ref, d.trajet, d.vers, d.statut, d.detail?.passager, d.detail?.depart, d.detail?.arrivee]
+        .join(" ").toLowerCase().includes(q)
+    );
   }, [demandes, search]);
 
   useEffect(() => { setPage(1); }, [search]);
@@ -487,18 +838,73 @@ export default function DashbordP() {
   const safePage   = Math.min(page, totalPages);
   const paginated  = filtered.slice((safePage - 1) * perPage, safePage * perPage);
 
-  const handleCancel  = ref => { setDemandes(prev => prev.map(d => d.ref === ref ? { ...d, statut: "ANNULÉE" } : d)); setToast(`Demande ${ref} annulée.`); };
-  const handleSaveEdit = (ref, updated) => { setDemandes(prev => prev.map(d => d.ref === ref ? { ...d, ...updated } : d)); setToast(`Demande ${ref} modifiée.`); };
+  /* ── Actions API ────────────────────────────────────── */
+  const handleCancel = useCallback(async (ref) => {
+    const demande = demandes.find(d => d.ref === ref);
+    if (!demande) return;
+    try {
+      await cancelRequest(demande._id);
+      setDemandes(prev => prev.map(d => d.ref === ref ? { ...d, statut: "ANNULÉE" } : d));
+      setToast(`✅ Demande ${ref} annulée avec succès.`);
+    } catch (err) {
+      setToast(`❌ ${err?.response?.data?.message || "Erreur lors de l'annulation."}`);
+    }
+  }, [demandes]);
 
+  const handleSaveEdit = useCallback(async (ref, updated) => {
+    const demande = demandes.find(d => d.ref === ref);
+    if (!demande) return;
+    try {
+      // EditModal passe : { trajet, vers, date, statut, detail: { heure, depart, arrivee, ... } }
+      const payload = {
+        from:       updated.detail?.depart      || demande.detail.depart,
+        to:         updated.detail?.arrivee     || demande.detail.arrivee,
+        date:       updated.date                || demande.date,
+        time:       updated.detail?.heure       || demande.detail.heure,
+        passengers: demande.detail.passagers    || 1,
+        comment:    demande.detail.commentaire  || "",
+      };
+      const updatedReq = await updateRequest(demande._id, payload);
+      setDemandes(prev => prev.map(d => d.ref === ref ? { ...mapRequest(updatedReq), type: d.type || "standard" } : d));
+      setToast(`✅ Demande ${ref} modifiée avec succès.`);
+    } catch (err) {
+      setToast(`❌ ${err?.response?.data?.message || "Erreur lors de la modification."}`);
+    }
+  }, [demandes]);
+
+  const handleMarkAllRead = () => setNotifs(prev => prev.map(n => ({ ...n, unread: false })));
+
+  const handleLogout = () => { 
+    try { sessionStorage.removeItem("airops_photo_current"); } catch {}
+    logout(); 
+    navigate("/login"); 
+  };
+
+  /* ── Stat cards ─────────────────────────────────────── */
   const statCards = [
-    { label: "En attente", value: stats.attente,  tag: "En attente", color: "orange", emoji: "⏳" },
-    { label: "Validées",   value: stats.validees, tag: "Validées",   color: "green",  emoji: "✅" },
-    { label: "En cours",   value: stats.encours,  tag: "En cours",   color: "blue",   emoji: "🚀" },
-    { label: "Refusées",   value: stats.refusees, tag: "Refusées",   color: "red",    emoji: "❌" },
+    { label: "En attente", value: stats.attente,  tag: "En attente", color: "orange",
+      icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#ea580c" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+    { label: "Validées",   value: stats.validees, tag: "Validées",   color: "green",
+      icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#15803d" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+    { label: "En cours",   value: stats.encours,  tag: "En cours",   color: "blue",
+      icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#1d4ed8" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> },
+    { label: "Refusées",   value: stats.refusees, tag: "Refusées",   color: "red",
+      icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#dc2626" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
   ];
 
-  /* Prénom seulement pour le message de bienvenue */
-  const prenom = nom.split(" ")[0] || "Ahmed";
+  const prenom      = nom.split(" ")[0] || "Passager";
+  const unreadCount = notifs.filter(n => n.unread).length;
+
+  /* ── Skeleton loader ─────────────────────────────────── */
+  if (loading) {
+    return (
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", background:"#f0f5fb", flexDirection:"column", gap:14, fontFamily:"DM Sans,sans-serif" }}>
+        <div style={{ width:44, height:44, borderRadius:"50%", border:"4px solid #e4ecf4", borderTopColor:"#2980e8", animation:"spin 0.8s linear infinite" }}/>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <p style={{ color:"#5a6e88", fontSize:14, fontWeight:600 }}>Chargement du tableau de bord…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="dw">
@@ -508,19 +914,31 @@ export default function DashbordP() {
         <button type="button" className="sb-toggle-btn" onClick={() => setCollapsed(v => !v)}>
           <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </button>
-        <div className="sb-brand" onClick={() => navigate("/")}><div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg></div><div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">GESTION INTERNE</span></div></div>
+
+        <div className="sb-brand" onClick={() => navigate("/")}>
+          <div className="sb-brand-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+            </svg>
+          </div>
+          <div className="sb-brand-text">
+            <span className="sb-brand-name">AirOps</span>
+            <span className="sb-brand-sub">GESTION INTERNE</span>
+          </div>
+        </div>
+
         <div className="sb-label">Navigation</div>
         <nav className="sb-nav">
           {navItems.map(item => (
             <NavLink key={item.label} to={item.to} data-label={item.label} className={({ isActive }) => `sb-nav-item${isActive ? " active" : ""}`} onClick={() => setSidebarMobile(false)}>
               <span className="sb-nav-icon">{item.icon}</span><span className="sb-nav-lbl">{item.label}</span>
-              {item.badge ? <span className="sb-badge">{item.badge}</span> : null}
+              {item.label === "Notifications" && unreadCount > 0 ? <span className="sb-badge">{unreadCount}</span> : null}
             </NavLink>
           ))}
         </nav>
         <div className="sb-footer">
           <div className="sb-label" style={{ paddingTop: 0 }}>Compte</div>
-          <button type="button" className="sb-logout" onClick={() => navigate("/login")}>
+          <button type="button" className="sb-logout" onClick={handleLogout}>
             <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></span>
             <span className="sb-logout-lbl">Déconnexion</span>
           </button>
@@ -540,11 +958,18 @@ export default function DashbordP() {
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
               <input type="text" className="search-input" placeholder="Rechercher une demande…" value={search} onChange={e => setSearch(e.target.value)}/>
             </div>
-            <button type="button" className="notif-btn" onClick={() => navigate("/notificationP")}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-              <span className="notif-dot"/>
-            </button>
-            {/* ── Avatar synchronisé ── */}
+
+            {/* Notification bell with dropdown */}
+            <div className="notif-wrap">
+              <button type="button" className="notif-btn" onClick={() => setNotifOpen(v => !v)}>
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                {unreadCount > 0 && <span className="notif-dot"/>}
+              </button>
+              {notifOpen && (
+                <NotifDropdown notifs={notifs} onMarkAll={handleMarkAllRead} onClose={() => setNotifOpen(false)} navigate={navigate}/>
+              )}
+            </div>
+
             <div className="user-chip">
               <div className="user-info-r">
                 <div className="user-name">{nom}</div>
@@ -561,10 +986,19 @@ export default function DashbordP() {
           <h1 className="welcome-title">Bienvenue, <span>{prenom}</span> 👋</h1>
           <p className="welcome-sub">Voici un aperçu de vos demandes de transport.</p>
 
+          {/* ── Bandeau erreur API ── */}
+          {apiError && (
+            <div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:14, padding:"12px 18px", marginBottom:18, display:"flex", alignItems:"center", gap:10, fontSize:13, color:"#dc2626", fontWeight:600 }}>
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              {apiError}
+              <button type="button" onClick={loadDashboard} style={{ marginLeft:"auto", fontSize:12, color:"#2980e8", background:"none", border:"none", cursor:"pointer", fontWeight:700 }}>Réessayer</button>
+            </div>
+          )}
+
           <div className="stats-grid">
             {statCards.map(s => (
               <div key={s.label} className={`sc ${s.color}`}>
-                <div className="sc-top"><div className={`sc-icon ${s.color}`}>{s.emoji}</div><span className={`sc-tag ${s.color}`}>{s.tag}</span></div>
+                <div className="sc-top"><div className={`sc-icon ${s.color}`}>{s.icon}</div><span className={`sc-tag ${s.color}`}>{s.tag}</span></div>
                 <div className="sc-value">{s.value}</div><div className="sc-label">Demandes {s.label.toLowerCase()}</div>
               </div>
             ))}
@@ -572,38 +1006,80 @@ export default function DashbordP() {
 
           <div className="charts-row">
             <div className="cc">
-              <div className="cc-hd"><span className="cc-title">Statistiques des demandes</span><button type="button" className="cc-period">Derniers 30 jours</button></div>
-              <svg viewBox="0 0 420 120" width="100%" style={{ height: 150 }}>
-                <defs><linearGradient id="lg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2980e8" stopOpacity="0.16"/><stop offset="100%" stopColor="#2980e8" stopOpacity="0"/></linearGradient></defs>
-                {[20,50,80,110].map(y => <line key={y} x1="0" y1={y} x2="420" y2={y} stroke="#f1f5f9" strokeWidth="1"/>)}
-                <path d={`${linePath} L420,120 L0,120 Z`} fill="url(#lg1)"/>
-                <path d={linePath} fill="none" stroke="#2980e8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="170" cy="38" r="4" fill="#2980e8"/><circle cx="170" cy="38" r="8" fill="#2980e8" fillOpacity="0.16"/>
-                <circle cx="390" cy="11" r="4" fill="#16a34a"/><circle cx="390" cy="11" r="8" fill="#16a34a" fillOpacity="0.16"/>
-              </svg>
+              <div className="cc-hd">
+                <span className="cc-title">Statistiques des demandes — 7 derniers jours</span>
+                <button type="button" className="cc-period">Semaine en cours</button>
+              </div>
+              <LineChart demandes={demandes}/>
             </div>
-            <div className="cc"><div className="cc-hd"><span className="cc-title">Statut des demandes</span></div><DonutChart total={stats.total} stats={stats}/></div>
+            <div className="cc">
+              <div className="cc-hd"><span className="cc-title">Statut des demandes</span></div>
+              <DonutChart total={stats.total} stats={stats}/>
+            </div>
           </div>
 
           <div className="tbl-card">
-            <div className="tbl-hd"><span className="tbl-hd-title">Mes demandes</span><span className="tbl-count">{filtered.length} demande{filtered.length !== 1 ? "s" : ""}</span></div>
-            <div className="tbl-cols"><span>Référence</span><span>Trajet</span><span className="col-date-h">Date</span><span className="col-stat-h">Statut</span><span style={{ textAlign: "center" }}>Action</span></div>
-            {paginated.length === 0 ? (
-              <div style={{ padding: "36px 22px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>Aucune demande trouvée.</div>
-            ) : (
-              paginated.map(d => {
-                const sc = statutCfg[d.statut];
-                return (
-                  <div key={d.ref} className="tbl-row">
-                    <span className="row-ref">{d.ref}</span>
-                    <div><div className="row-traj">{d.trajet}</div><div className="row-vers">{d.vers}</div></div>
-                    <span className="row-date col-date-v">{d.date}</span>
-                    <div className="col-stat-v"><span className="badge" style={{ background: sc.bg, color: sc.text, borderColor: sc.border }}><span className="bdot" style={{ background: sc.dot }}/>{d.statut}</span></div>
-                    <ActionMenu demande={d} isOpen={openMenu === d.ref} onToggle={setOpenMenu} onDetail={setDetailModal} onEdit={setEditModal} onCancel={handleCancel}/>
-                  </div>
-                );
-              })
-            )}
+            <div className="tbl-hd">
+              <span className="tbl-hd-title">Mes demandes</span>
+              <span className="tbl-count">{filtered.length} demande{filtered.length !== 1 ? "s" : ""}</span>
+            </div>
+
+            <div className="requests-table-wrap">
+              <table className="requests-table">
+                <thead>
+                  <tr>
+                    <th className="req-col-ref">Référence</th>
+                    <th className="req-col-trajet">Trajet</th>
+                    <th className="req-col-type">Type</th>
+                    <th className="req-col-date">Date</th>
+                    <th className="req-col-statut">Statut</th>
+                    <th className="req-col-action">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding:"36px 22px", textAlign:"center", color:"var(--text-muted)", fontSize:13 }}>
+                        Aucune demande trouvée.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginated.map(d => {
+                      const sc = statutCfg[d.statut] || statutCfg["EN ATTENTE"];
+                      const type = (d.type || "standard").toLowerCase();
+                      return (
+                        <tr key={d.ref}>
+                          <td className="req-col-ref"><span className="row-ref">{d.ref}</span></td>
+                          <td className="req-col-trajet">
+                            <div className="row-traj">{d.trajet}</div>
+                            <div className="row-vers">{d.vers}</div>
+                          </td>
+                          <td className="req-col-type">
+                            {type === "vip" ? (
+                              <span className="type-badge vip">⭐ VIP</span>
+                            ) : (
+                              <span className="type-badge standard">✈ Standard</span>
+                            )}
+                          </td>
+                          <td className="req-col-date"><span className="row-date">{d.date}</span></td>
+                          <td className="req-col-statut">
+                            <span className="badge" style={{ background: sc.bg, color: sc.text, borderColor: sc.border }}>
+                              <span className="bdot" style={{ background: sc.dot }}/>{d.statut}
+                            </span>
+                          </td>
+                          <td className="req-col-action">
+                            <div className="req-action-cell">
+                              <ActionMenu demande={d} isOpen={openMenu === d.ref} onToggle={setOpenMenu} onDetail={setDetailModal} onEdit={setEditModal} onCancel={handleCancel}/>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
             <Pagination total={filtered.length} page={safePage} perPage={perPage} onPage={setPage} onPerPage={setPerPage}/>
           </div>
           <div className="dash-footer">© 2026 AirOps Transport Management</div>

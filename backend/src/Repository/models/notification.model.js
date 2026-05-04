@@ -8,6 +8,19 @@ const NotificationSchema = new mongoose.Schema(
       required: true,
     },
     message: { type: String, required: true },
+    type: { type: String, required: true },
+    requestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Request",
+    },
+    missionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Mission",
+    },
+    incidentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Incident",
+    },
     isRead: { type: Boolean, default: false },
   },
   { timestamps: true },

@@ -1,23 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import airplaneBg from "../../assets/airplane.png";
-import airopsLogo from "../../assets/Logo_moderne_AirOps_avec_avion.png";
 import { login } from "../../services/authService";
 
-/* ── CSS cohérent avec Home ── */
 const loginCSS = `
   *, *::before, *::after { box-sizing: border-box; }
-
-  .lo-nav-link {
-    text-decoration: none; font-size: 15px;
-    color: rgba(255,255,255,0.85); font-weight: 500;
-    padding: 8px 14px; border-radius: 8px;
-    transition: all 0.2s; display: inline-block;
-  }
-  .lo-nav-link:hover { color:#fff; background:rgba(255,255,255,0.18); }
-
-  .lo-btn-ghost:hover  { background:rgba(255,255,255,0.22)!important; color:#fff!important; }
-  .lo-btn-signup:hover { background:#fff!important; color:#1a6fd4!important; transform:translateY(-2px); }
 
   .lo-input {
     width:100%; padding:13px 16px; border-radius:12px;
@@ -48,19 +35,12 @@ const loginCSS = `
   }
   .lo-social-btn:hover { background:#f0f5fb; border-color:#a8c8f0; transform:translateY(-2px); }
 
-  .lo-checkbox {
-    width:16px; height:16px; accent-color:#1252aa; cursor:pointer;
-  }
-
+  .lo-checkbox { width:16px; height:16px; accent-color:#1252aa; cursor:pointer; }
   .lo-forgot:hover { color:#0d2b5e!important; }
-
-  .lo-card-img:hover img { transform:scale(1.05); }
 
   @media (max-width: 768px) {
     .lo-card-img { display:none!important; }
     .lo-card-form { padding:40px 28px!important; }
-    .lo-nav-links-d { display:none!important; }
-    .lo-nav-auth-d  { display:none!important; }
   }
 `;
 
@@ -71,54 +51,50 @@ if (typeof document !== "undefined" && !document.getElementById("lo-css")) {
   document.head.appendChild(tag);
 }
 
+// ── Mapping rôle → route dashboard ──────────────────────────────
+const ROLE_ROUTES = {
+  admin:       "/dashbordADMIN",
+  chauffeur:   "/dashbordchauffeur",
+  passager:    "/dashbordP",
+  responsable: "/dashbordRES",
+};
+
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [touched, setTouched] = useState({ email: false, password: false });
+  const [email, setEmail]               = useState("");
+  const [password, setPassword]         = useState("");
+  const [remember, setRemember]         = useState(false);
+  const [error, setError]               = useState("");
+  const [loading, setLoading]           = useState(false);
+  const [touched, setTouched]           = useState({ email: false, password: false });
   const [showPassword, setShowPassword] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
 
+  // ── Restauration "Se souvenir de moi" ──────────────────────────
   useEffect(() => {
-    const savedEmail = localStorage.getItem("rememberEmail");
-    if (savedEmail) {
-      setEmail(savedEmail);
-      setRemember(true);
-    }
+    const saved = localStorage.getItem("rememberEmail");
+    if (saved) { setEmail(saved); setRemember(true); }
   }, []);
 
   useEffect(() => {
-    if (remember) {
-      localStorage.setItem("rememberEmail", email);
-    }
+    if (remember) localStorage.setItem("rememberEmail", email);
   }, [email, remember]);
 
   useEffect(() => {
-    if (!remember) {
-      localStorage.removeItem("rememberEmail");
-    }
+    if (!remember) localStorage.removeItem("rememberEmail");
   }, [remember]);
 
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 10);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
-
+  // ── Validation ─────────────────────────────────────────────────
   const emailError = useMemo(() => {
     if (!touched.email) return "";
     if (!email.trim()) return "L'adresse e-mail est obligatoire.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Veuillez entrer une adresse e-mail valide.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Adresse e-mail invalide.";
     return "";
   }, [email, touched.email]);
 
   const passwordError = useMemo(() => {
     if (!touched.password) return "";
     if (!password.trim()) return "Le mot de passe est obligatoire.";
-    if (password.trim().length < 6) return "Le mot de passe doit contenir au moins 6 caractères.";
+    if (password.trim().length < 6) return "Minimum 6 caractères.";
     return "";
   }, [password, touched.password]);
 
@@ -126,54 +102,50 @@ export default function Login() {
 
   const handleBlur = (field) => setTouched((p) => ({ ...p, [field]: true }));
 
+  // ── Soumission ─────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     setTouched({ email: true, password: true });
     setError("");
-
-    if (!email.trim() || !password.trim() || emailError || passwordError) return;
+    if (!isFormValid) return;
 
     setLoading(true);
     try {
+      // ✅ authService sauvegarde token + user automatiquement
       const data = await login(email, password);
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      // ✅ Redirection vers le dashboard selon le rôle
+      const role = data.user?.role?.toLowerCase();
+      const destination = ROLE_ROUTES[role] || "/";
+      navigate(destination);
 
-      if (remember) {
-        localStorage.setItem("rememberEmail", email);
-      } else {
-        localStorage.removeItem("rememberEmail");
-      }
-
-      const role = data.user.role.toLowerCase();
-
-      if (role === "admin") navigate("/dashbordADMIN");
-      else if (role === "chauffeur") navigate("/dashbordchauffeur");
-      else if (role === "passager") navigate("/dashbordP");
-      else if (role === "responsable") navigate("/dashbordRES");
-      else navigate("/");
     } catch (err) {
-      setError(err.message || "Erreur lors de la connexion");
+      // ✅ Affiche l'erreur réelle du backend (ex: "Invalid credentials")
+      if (err?.response?.data?.message) {
+        setError(err.response.data.message);
+      } else if (err?.message) {
+        setError(err.message);
+      } else {
+        setError("Identifiants incorrects. Veuillez réessayer.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // ── Rendu ───────────────────────────────────────────────────────
   return (
     <div style={s.wrapper}>
-      {/* ══ CONTENU ══ */}
       <div style={s.pageBody}>
         <div style={s.card}>
-          {/* ── Côté image ── */}
+
+          {/* Image */}
           <div className="lo-card-img" style={s.cardImg}>
             <img src={airplaneBg} alt="Avion" style={s.cardImgTag} />
             <div style={s.cardImgOverlay} />
             <div style={s.cardImgContent}>
               <div style={s.dots}>
-                <div style={s.dotActive} />
-                <div style={s.dotInactive} />
-                <div style={s.dotInactive} />
+                <div style={s.dotActive} /><div style={s.dotInactive} /><div style={s.dotInactive} />
               </div>
               <h2 style={s.cardImgTitle}>Le ciel, à votre portée.</h2>
               <p style={s.cardImgText}>
@@ -183,13 +155,9 @@ export default function Login() {
             </div>
           </div>
 
-          {/* ── Côté formulaire ── */}
+          {/* Formulaire */}
           <div className="lo-card-form" style={s.cardForm}>
-            <div style={s.formBadge}>
-              <span style={s.badgeDot} />
-              ESPACE MEMBRE
-            </div>
-
+            <div style={s.formBadge}><span style={s.badgeDot} />ESPACE MEMBRE</div>
             <h1 style={s.formTitle}>Connexion</h1>
             <p style={s.formSubtitle}>
               Veuillez saisir vos identifiants pour accéder à votre compte.
@@ -198,49 +166,39 @@ export default function Login() {
             {error && <div style={s.errorBox}>{error}</div>}
 
             <form onSubmit={handleSubmit} style={s.form}>
+
+              {/* Email */}
               <div style={s.fieldGroup}>
                 <label style={s.label}>Adresse e-mail</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onBlur={() => handleBlur("email")}
-                  placeholder="nom@example.com"
-                  className={`lo-input${touched.email && emailError ? " lo-input-error" : ""}`}
-                />
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => handleBlur("email")} placeholder="nom@example.com"
+                  className={`lo-input${touched.email && emailError ? " lo-input-error" : ""}`} />
                 {touched.email && emailError && <p style={s.fieldError}>{emailError}</p>}
               </div>
 
+              {/* Mot de passe */}
               <div style={s.fieldGroup}>
                 <div style={s.labelRow}>
                   <label style={s.label}>Mot de passe</label>
-                  <a href="#" className="lo-forgot" style={s.forgotLink}>
-                    Mot de passe oublié ?
-                  </a>
+                  <a href="/forgot-password" className="lo-forgot" style={s.forgotLink}>Mot de passe oublié ?</a>
                 </div>
                 <div style={{ position: "relative" }}>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
+                  <input type={showPassword ? "text" : "password"} value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    onBlur={() => handleBlur("password")}
-                    placeholder="Votre mot de passe"
+                    onBlur={() => handleBlur("password")} placeholder="Votre mot de passe"
                     style={{ paddingRight: "48px" }}
-                    className={`lo-input${touched.password && passwordError ? " lo-input-error" : ""}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((p) => !p)}
-                    style={s.eyeBtn}
-                  >
+                    className={`lo-input${touched.password && passwordError ? " lo-input-error" : ""}`} />
+                  <button type="button" onClick={() => setShowPassword((p) => !p)} style={s.eyeBtn}>
                     {showPassword ? (
                       <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#7a9abf">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.956 9.956 0 012.204-3.592m2.122-1.65A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7a9.97 9.97 0 01-4.293 5.224M15 12a3 3 0 11-6 0 3 3 0 016 0zm6 9L3 3" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.956 9.956 0 012.204-3.592m2.122-1.65A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7a9.97 9.97 0 01-4.293 5.224M15 12a3 3 0 11-6 0 3 3 0 016 0zm6 9L3 3" />
                       </svg>
                     ) : (
                       <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#7a9abf">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.522 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S3.732 16.057 2.458 12z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.522 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S3.732 16.057 2.458 12z" />
                       </svg>
                     )}
                   </button>
@@ -248,17 +206,11 @@ export default function Login() {
                 {touched.password && passwordError && <p style={s.fieldError}>{passwordError}</p>}
               </div>
 
+              {/* Se souvenir */}
               <div style={s.rememberRow}>
-                <input
-                  type="checkbox"
-                  id="remember"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                  className="lo-checkbox"
-                />
-                <label htmlFor="remember" style={s.rememberLabel}>
-                  Se souvenir de moi
-                </label>
+                <input type="checkbox" id="remember" checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)} className="lo-checkbox" />
+                <label htmlFor="remember" style={s.rememberLabel}>Se souvenir de moi</label>
               </div>
 
               <button type="submit" disabled={loading || !isFormValid} className="lo-submit">
@@ -287,12 +239,7 @@ export default function Login() {
                 </svg>
                 Google
               </button>
-              <button className="lo-social-btn">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#1252aa">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                SSO Pro
-              </button>
+              
             </div>
 
             <p style={s.registerText}>
@@ -306,188 +253,38 @@ export default function Login() {
   );
 }
 
-/* ══ STYLES ══ */
 const s = {
-  wrapper: {
-    minHeight: "100vh",
-    display: "flex",
-    flexDirection: "column",
-    fontFamily: "'DM Sans','Segoe UI',sans-serif",
-    background: "#f0f5fb",
-    overflowX: "hidden",
-  },
-
-  pageBody: {
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "40px clamp(16px,4vw,40px)",
-    minHeight: "100vh",
-  },
-
-  card: {
-    width: "100%",
-    maxWidth: "960px",
-    background: "#fff",
-    borderRadius: "24px",
-    boxShadow: "0 8px 40px rgba(18,82,170,0.10)",
-    border: "1px solid #e4ecf4",
-    overflow: "hidden",
-    display: "flex",
-    minHeight: "580px",
-  },
-
-  cardImg: {
-    width: "42%",
-    position: "relative",
-    overflow: "hidden",
-    flexShrink: 0,
-  },
-  cardImgTag: {
-    position: "absolute",
-    inset: 0,
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    transition: "transform 0.5s ease",
-  },
-  cardImgOverlay: {
-    position: "absolute",
-    inset: 0,
-    background: "linear-gradient(to bottom, rgba(0,0,0,0) 35%, rgba(10,35,100,0.85) 100%)",
-  },
-  cardImgContent: {
-    position: "relative",
-    zIndex: 2,
-    height: "100%",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "flex-end",
-    padding: "36px",
-  },
-  dots: { display: "flex", gap: "6px", marginBottom: "18px" },
-  dotActive: { width: "28px", height: "7px", borderRadius: "4px", background: "#fff" },
-  dotInactive: { width: "7px", height: "7px", borderRadius: "50%", background: "rgba(255,255,255,0.35)" },
-  cardImgTitle: {
-    fontSize: "26px",
-    fontWeight: 800,
-    color: "#fff",
-    lineHeight: 1.2,
-    marginBottom: "10px",
-  },
-  cardImgText: {
-    fontSize: "13px",
-    color: "rgba(200,220,255,0.9)",
-    lineHeight: 1.65,
-  },
-
-  cardForm: {
-    flex: 1,
-    padding: "48px 44px",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-  },
-  formBadge: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "7px",
-    background: "rgba(18,82,170,0.08)",
-    border: "1px solid rgba(18,82,170,0.18)",
-    color: "#1252aa",
-    fontSize: "11px",
-    fontWeight: 700,
-    letterSpacing: "1.2px",
-    padding: "5px 14px",
-    borderRadius: "24px",
-    marginBottom: "20px",
-    alignSelf: "flex-start",
-  },
-  badgeDot: {
-    width: "6px",
-    height: "6px",
-    borderRadius: "50%",
-    background: "#1252aa",
-    display: "inline-block",
-    flexShrink: 0,
-  },
-  formTitle: {
-    fontSize: "28px",
-    fontWeight: 800,
-    color: "#0d2b5e",
-    letterSpacing: "-0.5px",
-    marginBottom: "6px",
-  },
-  formSubtitle: {
-    fontSize: "14px",
-    color: "#5a6e88",
-    lineHeight: 1.6,
-    marginBottom: "28px",
-  },
-  errorBox: {
-    background: "#fff5f5",
-    border: "1.5px solid #fca5a5",
-    color: "#c0392b",
-    padding: "12px 16px",
-    borderRadius: "12px",
-    fontSize: "13px",
-    marginBottom: "16px",
-  },
-  form: { display: "flex", flexDirection: "column", gap: "20px" },
-  fieldGroup: { display: "flex", flexDirection: "column", gap: "6px" },
-  label: { fontSize: "13px", fontWeight: 600, color: "#0d2b5e" },
-  labelRow: { display: "flex", alignItems: "center", justifyContent: "space-between" },
-  forgotLink: {
-    fontSize: "13px",
-    color: "#1252aa",
-    fontWeight: 600,
-    textDecoration: "none",
-    transition: "color 0.2s",
-  },
-  fieldError: { fontSize: "12px", color: "#e74c3c", margin: 0 },
-  eyeBtn: {
-    position: "absolute",
-    right: "14px",
-    top: "50%",
-    transform: "translateY(-50%)",
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    padding: "2px",
-    display: "flex",
-    alignItems: "center",
-  },
-  rememberRow: { display: "flex", alignItems: "center", gap: "10px" },
-  rememberLabel: {
-    fontSize: "13px",
-    color: "#5a6e88",
-    cursor: "pointer",
-    userSelect: "none",
-  },
-
-  divider: { display: "flex", alignItems: "center", gap: "12px", margin: "20px 0" },
-  dividerLine: { flex: 1, height: "1px", background: "#e4ecf4" },
-  dividerText: {
-    fontSize: "11px",
-    color: "#a0b0c8",
-    fontWeight: 700,
-    letterSpacing: "0.8px",
-    textTransform: "uppercase",
-    whiteSpace: "nowrap",
-  },
-
-  socialRow: { display: "flex", gap: "12px" },
-
-  registerText: {
-    textAlign: "center",
-    fontSize: "13px",
-    color: "#5a6e88",
-    marginTop: "20px",
-  },
-  registerLink: {
-    color: "#1252aa",
-    fontWeight: 700,
-    textDecoration: "none",
-  },
+  wrapper:      { minHeight:"100vh", display:"flex", flexDirection:"column", fontFamily:"'DM Sans','Segoe UI',sans-serif", background:"#f0f5fb", overflowX:"hidden" },
+  pageBody:     { flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"40px clamp(16px,4vw,40px)", minHeight:"100vh" },
+  card:         { width:"100%", maxWidth:"960px", background:"#fff", borderRadius:"24px", boxShadow:"0 8px 40px rgba(18,82,170,0.10)", border:"1px solid #e4ecf4", overflow:"hidden", display:"flex", minHeight:"580px" },
+  cardImg:      { width:"42%", position:"relative", overflow:"hidden", flexShrink:0 },
+  cardImgTag:   { position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", transition:"transform 0.5s ease" },
+  cardImgOverlay:{ position:"absolute", inset:0, background:"linear-gradient(to bottom, rgba(0,0,0,0) 35%, rgba(10,35,100,0.85) 100%)" },
+  cardImgContent:{ position:"relative", zIndex:2, height:"100%", display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"36px" },
+  dots:         { display:"flex", gap:"6px", marginBottom:"18px" },
+  dotActive:    { width:"28px", height:"7px", borderRadius:"4px", background:"#fff" },
+  dotInactive:  { width:"7px", height:"7px", borderRadius:"50%", background:"rgba(255,255,255,0.35)" },
+  cardImgTitle: { fontSize:"26px", fontWeight:800, color:"#fff", lineHeight:1.2, marginBottom:"10px" },
+  cardImgText:  { fontSize:"13px", color:"rgba(200,220,255,0.9)", lineHeight:1.65 },
+  cardForm:     { flex:1, padding:"48px 44px", display:"flex", flexDirection:"column", justifyContent:"center" },
+  formBadge:    { display:"inline-flex", alignItems:"center", gap:"7px", background:"rgba(18,82,170,0.08)", border:"1px solid rgba(18,82,170,0.18)", color:"#1252aa", fontSize:"11px", fontWeight:700, letterSpacing:"1.2px", padding:"5px 14px", borderRadius:"24px", marginBottom:"20px", alignSelf:"flex-start" },
+  badgeDot:     { width:"6px", height:"6px", borderRadius:"50%", background:"#1252aa", display:"inline-block", flexShrink:0 },
+  formTitle:    { fontSize:"28px", fontWeight:800, color:"#0d2b5e", letterSpacing:"-0.5px", marginBottom:"6px" },
+  formSubtitle: { fontSize:"14px", color:"#5a6e88", lineHeight:1.6, marginBottom:"28px" },
+  errorBox:     { background:"#fff5f5", border:"1.5px solid #fca5a5", color:"#c0392b", padding:"12px 16px", borderRadius:"12px", fontSize:"13px", marginBottom:"16px" },
+  form:         { display:"flex", flexDirection:"column", gap:"20px" },
+  fieldGroup:   { display:"flex", flexDirection:"column", gap:"6px" },
+  label:        { fontSize:"13px", fontWeight:600, color:"#0d2b5e" },
+  labelRow:     { display:"flex", alignItems:"center", justifyContent:"space-between" },
+  forgotLink:   { fontSize:"13px", color:"#1252aa", fontWeight:600, textDecoration:"none", transition:"color 0.2s" },
+  fieldError:   { fontSize:"12px", color:"#e74c3c", margin:0 },
+  eyeBtn:       { position:"absolute", right:"14px", top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", padding:"2px", display:"flex", alignItems:"center" },
+  rememberRow:  { display:"flex", alignItems:"center", gap:"10px" },
+  rememberLabel:{ fontSize:"13px", color:"#5a6e88", cursor:"pointer", userSelect:"none" },
+  divider:      { display:"flex", alignItems:"center", gap:"12px", margin:"20px 0" },
+  dividerLine:  { flex:1, height:"1px", background:"#e4ecf4" },
+  dividerText:  { fontSize:"11px", color:"#a0b0c8", fontWeight:700, letterSpacing:"0.8px", textTransform:"uppercase", whiteSpace:"nowrap" },
+  socialRow:    { display:"flex", gap:"12px" },
+  registerText: { textAlign:"center", fontSize:"13px", color:"#5a6e88", marginTop:"20px" },
+  registerLink: { color:"#1252aa", fontWeight:700, textDecoration:"none" },
 };

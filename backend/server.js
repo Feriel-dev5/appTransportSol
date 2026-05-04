@@ -2,7 +2,7 @@ require("dotenv").config({ quiet: true });
 const express = require("express");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
-
+const routes = require("./src/Routes");
 const {
   errorHandler,
   notFoundHandler,
@@ -14,6 +14,15 @@ const port = process.env.PORT || 5000;
 const app = express();
 
 app.use(express.json());
+// const local = process.env.VITE_ORIGIN_LOCAL;
+// const remote = process.env.VITE_ORIGIN_REMOTE;
+//
+// const localTest = process.env.VITE_ORIGIN_LOCALT;
+//
+// const remoteT = process.env.VITE_ORIGIN_REMOTET;
+// const origins = [local, remote, localTest, remoteT]
+//   .map((origin) => origin?.trim())
+//   .filter(Boolean);
 
 app.use(
   cors({
@@ -32,6 +41,8 @@ app.use(
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok", message: "Awake" });
 });
+
+app.use("/api", routes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

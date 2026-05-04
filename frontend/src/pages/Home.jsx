@@ -35,6 +35,47 @@ const responsiveCSS = `
   }
   .ao-card:hover { transform:translateY(-7px); box-shadow:0 20px 40px rgba(0,0,0,0.1); }
 
+  /* ── Categories VIP/Normal ── */
+  .ao-cat-grid { display:grid; grid-template-columns:1fr 1fr; gap:28px; margin-top:48px; }
+  .ao-cat-card {
+    border-radius:24px; padding:40px 36px; position:relative; overflow:hidden;
+    display:flex; flex-direction:column; gap:16px;
+    transition: all 0.3s ease;
+    cursor: default;
+  }
+  .ao-cat-card:hover { transform:translateY(-6px); box-shadow:0 28px 56px rgba(0,0,0,0.15); }
+  .ao-cat-card.vip {
+    background: linear-gradient(135deg,#0d2b5e 0%,#1252aa 50%,#2980e8 100%);
+    border: 1.5px solid rgba(126,200,255,0.3);
+  }
+  .ao-cat-card.normal {
+    background: #fff;
+    border: 1.5px solid #e4ecf4;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  }
+  .ao-cat-badge {
+    display: inline-flex; align-items:center; gap:6px;
+    font-size:11px; font-weight:700; letter-spacing:1.5px;
+    padding:5px 14px; border-radius:20px;
+    text-transform:uppercase; width:fit-content;
+  }
+  .ao-cat-badge.vip { background:rgba(255,255,255,0.15); color:#7ec8ff; border:1px solid rgba(126,200,255,0.4); }
+  .ao-cat-badge.normal { background:rgba(18,82,170,0.08); color:#1252aa; }
+  .ao-cat-title { font-size:clamp(20px,2.5vw,28px); font-weight:800; line-height:1.15; }
+  .ao-cat-title.vip { color:#fff; }
+  .ao-cat-title.normal { color:#0d2b5e; }
+  .ao-cat-desc { font-size:14px; line-height:1.7; }
+  .ao-cat-desc.vip { color:rgba(255,255,255,0.72); }
+  .ao-cat-desc.normal { color:#5a6e88; }
+  .ao-cat-features { display:flex; flex-direction:column; gap:8px; }
+  .ao-cat-feature { display:flex; align-items:center; gap:10px; font-size:13px; font-weight:500; }
+  .ao-cat-feature.vip { color:rgba(255,255,255,0.85); }
+  .ao-cat-feature.normal { color:#3a5070; }
+  .ao-cat-feature-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .ao-cat-feature-dot.vip { background:#7ec8ff; }
+  .ao-cat-feature-dot.normal { background:#2980e8; }
+  .ao-cat-deco { position:absolute; right:-20px; bottom:-20px; font-size:120px; opacity:0.06; line-height:1; pointer-events:none; }
+
   .ao-stats-bar {
     display:flex; flex-wrap:wrap;
     justify-content:center; align-items:center;
@@ -53,7 +94,6 @@ const responsiveCSS = `
 
   .ao-btn-hero-primary:hover  { background:#1a6fd4!important; transform:translateY(-3px); box-shadow:0 16px 32px rgba(26,111,212,0.5)!important; }
   .ao-btn-hero-outline:hover  { background:rgba(255,255,255,0.92)!important; color:#1252aa!important; transform:translateY(-3px); }
-  .ao-track-btn:hover         { background:#1a6fd4!important; transform:translateY(-2px); }
   .ao-btn-ghost-d:hover       { background:rgba(255,255,255,0.22)!important; color:#fff!important; }
   .ao-btn-primary-d:hover     { background:#fff!important; color:#1a6fd4!important; transform:translateY(-2px); }
   .ao-trust-cta:hover         { background:#fff!important; color:#0d2b5e!important; transform:translateY(-3px); }
@@ -63,9 +103,26 @@ const responsiveCSS = `
 
   .ao-footer-inner { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
 
+  /* ── Testimonials ── */
+  .ao-testimonials-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:48px; }
+  .ao-testimonial {
+    background:#fff; border:1px solid #e4ecf4; border-radius:20px;
+    padding:28px 24px; display:flex; flex-direction:column; gap:14px;
+    transition:all 0.25s ease; box-shadow:0 2px 12px rgba(0,0,0,0.04);
+  }
+  .ao-testimonial:hover { transform:translateY(-5px); box-shadow:0 16px 36px rgba(13,43,94,0.09); }
+  .ao-testimonial-stars { color:#f59e0b; font-size:14px; letter-spacing:2px; }
+  .ao-testimonial-text { font-size:14px; color:#3a5070; line-height:1.7; font-style:italic; flex:1; }
+  .ao-testimonial-author { display:flex; align-items:center; gap:10px; }
+  .ao-testimonial-avatar { width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid #e4ecf4; }
+  .ao-testimonial-name { font-size:13px; font-weight:700; color:#0d2b5e; }
+  .ao-testimonial-origin { font-size:11px; color:#5a6e88; }
+
   /* ── Tablette ── */
   @media (max-width:1024px) {
     .ao-grid { grid-template-columns:repeat(2,1fr)!important; }
+    .ao-cat-grid { grid-template-columns:1fr!important; }
+    .ao-testimonials-grid { grid-template-columns:repeat(2,1fr)!important; }
   }
 
   /* ── Mobile ── */
@@ -76,12 +133,14 @@ const responsiveCSS = `
     .ao-btn-primary-d  { display:none!important; }
 
     .ao-grid { grid-template-columns:1fr!important; }
+    .ao-cat-grid { grid-template-columns:1fr!important; }
+    .ao-testimonials-grid { grid-template-columns:1fr!important; }
 
     .ao-hero { height:auto!important; min-height:480px!important; }
     .ao-hero-content { padding:90px 20px 40px!important; }
     .ao-hero-title { font-size:26px!important; }
     .ao-hero-subtitle { font-size:14px!important; }
-    .ao-quick-track { max-width:100%!important; }
+    
 
     .ao-stat-item { padding:14px 20px!important; min-width:45%!important; }
     .ao-stat-divider { display:none!important; }
@@ -97,9 +156,9 @@ const responsiveCSS = `
     .ao-hero { min-height:420px!important; }
     .ao-hero-content { padding:80px 16px 32px!important; }
     .ao-hero-title { font-size:21px!important; letter-spacing:-0.3px!important; }
-    .ao-track-row { flex-direction:column!important; }
-    .ao-track-btn { width:100%!important; }
+   
     .ao-stat-item { min-width:50%!important; padding:12px 10px!important; }
+    .ao-cat-card { padding:28px 22px!important; }
   }
 `;
 
@@ -109,6 +168,12 @@ if (typeof document !== "undefined" && !document.getElementById("ao-css")) {
   tag.textContent = responsiveCSS;
   document.head.appendChild(tag);
 }
+
+const TESTIMONIALS = [
+  { text: "Service impeccable ! Le chauffeur était à l'heure et très professionnel. Je recommande vivement AirOps pour tous les transferts aéroport.", name: "Mehdi B.", origin: "Tunis", stars: "★★★★★", src: "https://randomuser.me/api/portraits/men/32.jpg" },
+  { text: "J'ai opté pour la navette VIP et c'était une expérience exceptionnelle. Véhicule luxueux, trajet privé, rien à partager avec personne.", name: "Sarra K.", origin: "Sousse", stars: "★★★★★", src: "https://randomuser.me/api/portraits/women/44.jpg" },
+  { text: "Réservation en 2 minutes, confirmation immédiate. Le suivi GPS en temps réel m'a vraiment rassurée. Je reviendrai !", name: "Fatma L.", origin: "Sfax", stars: "★★★★★", src: "https://randomuser.me/api/portraits/women/68.jpg" },
+];
 
 const Home = () => {
   const navigate = useNavigate();
@@ -140,7 +205,8 @@ const Home = () => {
   const handleTrackingSubmit = () => {
     setTrackingTouched(true);
     if (trackingError || !trackingCode.trim()) return;
-    navigate("/suivre-reservation", { state: { trackingCode: trackingCode.trim() } });
+    // Redirect to login to follow reservation
+    navigate("/login");
   };
 
   return (
@@ -154,9 +220,20 @@ const Home = () => {
         </div>
 
         <ul className="ao-nav-links" style={s.navList}>
-          {["Accueil", "À propos", "Navettes", "Contact"].map((item, i) => (
-            <li key={item} style={{ listStyle: "none" }}>
-              <a href="#" className={i === 0 ? "ao-nav-link-active" : "ao-nav-link"}>{item}</a>
+          {[
+            { label: "Accueil", to: "/" },
+            { label: "À propos", to: "/a-propos" },
+            { label: "Navettes", to: "/navettes" },
+            { label: "Contact", to: "/contact" },
+          ].map((item, i) => (
+            <li key={item.label} style={{ listStyle: "none" }}>
+              <a
+                href={item.to}
+                onClick={e => { e.preventDefault(); navigate(item.to); }}
+                className={i === 0 ? "ao-nav-link-active" : "ao-nav-link"}
+              >
+                {item.label}
+              </a>
             </li>
           ))}
         </ul>
@@ -175,8 +252,16 @@ const Home = () => {
       {/* Mobile menu */}
       {menuOpen && (
         <div style={s.mobileMenu}>
-          {["Accueil", "À propos", "Navettes", "Contact"].map(item => (
-            <a key={item} href="#" style={s.mobileLink} onClick={() => setMenuOpen(false)}>{item}</a>
+          {[
+            { label: "Accueil", to: "/" },
+            { label: "À propos", to: "/a-propos" },
+            { label: "Navettes", to: "/navettes" },
+            { label: "Contact", to: "/contact" },
+          ].map(item => (
+            <a key={item.label} href={item.to} style={s.mobileLink}
+              onClick={e => { e.preventDefault(); navigate(item.to); setMenuOpen(false); }}>
+              {item.label}
+            </a>
           ))}
           <button style={s.mobileBtnLogin} onClick={() => navigate("/login")}>Connexion</button>
           <button style={s.mobileBtnSignup} onClick={() => navigate("/inscription")}>Inscription</button>
@@ -204,100 +289,136 @@ const Home = () => {
           </p>
 
           <div className="ao-hero-buttons">
-            <button className="ao-btn-hero-primary" style={s.btnHeroPrimary} onClick={() => navigate("/reserver")}>
-              Réserver une Navette →
+            <button className="ao-btn-hero-primary" style={s.btnHeroPrimary} onClick={() => navigate("/login")}>
+              ✈ Réserver une Navette
             </button>
-            <button className="ao-btn-hero-outline" style={s.btnHeroOutline} onClick={() => navigate("/suivre-reservation")}>
+            <button className="ao-btn-hero-outline" style={s.btnHeroOutline} onClick={() => navigate("/login")}>
               Suivre ma Réservation
             </button>
           </div>
+         </div>
+</div>
 
-          {/* ── Quick Track ── */}
-          <div className="ao-quick-track" style={s.quickTrack}>
-            <p style={s.quickTrackLabel}>Suivi rapide de réservation</p>
-            <div className="ao-track-row" style={s.trackRow}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <input
-                  value={trackingCode}
-                  onChange={e => setTrackingCode(e.target.value)}
-                  onBlur={() => setTrackingTouched(true)}
-                  onKeyDown={e => e.key === "Enter" && handleTrackingSubmit()}
-                  placeholder="Ex: NAV-2026-001"
-                  style={{
-                    ...s.trackInput,
-                    border: trackingTouched && trackingError
-                      ? "1.5px solid #fca5a5"
-                      : "1.5px solid rgba(255,255,255,0.4)",
-                  }}
-                  onFocus={e => { e.target.style.border = "1.5px solid #fff"; e.target.style.background = "rgba(255,255,255,0.28)"; }}
-                />
-                {trackingTouched && trackingError && <p style={s.errorText}>{trackingError}</p>}
-              </div>
-              <button className="ao-track-btn" style={s.trackBtn} onClick={handleTrackingSubmit}>
-                Vérifier
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+         
+         
 
-      {/* ══ SERVICES ══ */}
-      <section className="ao-services-section" style={s.servicesSection}>
+     
+
+      {/* ══ NOS CATÉGORIES ══ */}
+      <section style={{ padding: "80px clamp(20px,6vw,80px)", background: "#f0f5fb" }}>
         <div style={s.sectionHeader}>
-          <span style={s.sectionTag}>NOS SERVICES</span>
-          <h2 style={s.sectionTitle}>Votre transfert aéroport-hôtel en Tunisie</h2>
+          <span style={s.sectionTag}>NOS CATÉGORIES</span>
+          <h2 style={s.sectionTitle}>Deux formules, un seul standard de qualité</h2>
           <p style={s.sectionSubtitle}>
-            Une solution simple et fiable pour tous vos déplacements entre les aéroports et les hôtels tunisiens.
+            Choisissez l'expérience qui vous correspond : voyage en groupe partagé ou trajet entièrement privatisé.
           </p>
         </div>
-        <div className="ao-grid">
-          {[
-            { icon: "✈️", title: "Tous les Aéroports",     text: "Couverture complète : Tunis-Carthage, Monastir, Sfax, Djerba, Tozeur, Tabarka et plus encore.", color: "#2980e8", bg: "#e8f2fd" },
-            { icon: "🏨", title: "Livraison à l'Hôtel",    text: "Prise en charge directement à votre hébergement, dans toutes les destinations touristiques de Tunisie.", color: "#16a34a", bg: "#e8f5ee" },
-            { icon: "📍", title: "Suivi en Temps Réel",    text: "Suivez l'arrivée de votre navette en direct depuis votre téléphone, à chaque étape du trajet.",  color: "#d97706", bg: "#fef3e2" },
-            { icon: "🛡️", title: "Trajets Sécurisés",      text: "Chauffeurs professionnels agréés et véhicules climatisés régulièrement contrôlés pour votre confort.", color: "#7c3aed", bg: "#f0ebff" },
-          ].map(card => (
-            <div
-              key={card.title}
-              className="ao-card"
-              onMouseEnter={e => { e.currentTarget.style.borderColor = card.color + "55"; e.currentTarget.style.background = card.bg; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e4ecf4"; e.currentTarget.style.background = "#fff"; }}
+        <div className="ao-cat-grid">
+          {/* VIP */}
+          <div className="ao-cat-card vip">
+            <div className="ao-cat-badge vip">⭐ Catégorie VIP</div>
+            <div className="ao-cat-title vip">Navette Privée<br />Exclusivement pour vous</div>
+            <div className="ao-cat-desc vip">
+              Voyagez seul dans votre véhicule dédié, sans partager avec d'autres passagers. Un chauffeur personnel vous attend à votre arrivée et vous conduit directement à destination.
+            </div>
+            <div className="ao-cat-features">
+              {[
+                "Véhicule privatisé — aucun autre passager",
+                "Prise en charge immédiate à la descente d'avion",
+                "Itinéraire direct, sans détour",
+                "Véhicule premium climatisé",
+                "Disponible 24h/24, 7j/7",
+              ].map(f => (
+                <div key={f} className="ao-cat-feature vip">
+                  <span className="ao-cat-feature-dot vip" />
+                  {f}
+                </div>
+              ))}
+            </div>
+            <button
+              style={{ marginTop: "8px", background: "rgba(255,255,255,0.18)", border: "1.5px solid rgba(255,255,255,0.4)", color: "#fff", padding: "13px 28px", borderRadius: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s", width: "fit-content" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.3)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.18)"; }}
+              onClick={() => navigate("/login")}
             >
-              <div style={{ ...s.cardIcon, background: card.bg, color: card.color }}>{card.icon}</div>
-              <h3 style={s.cardTitle}>{card.title}</h3>
-              <p style={s.cardText}>{card.text}</p>
-              <a href="#" className="ao-card-link" style={{ ...s.cardLink, color: card.color }}>En savoir plus →</a>
+              Réserver en VIP →
+            </button>
+            <div className="ao-cat-deco">✈</div>
+          </div>
+
+          {/* Normal */}
+          <div className="ao-cat-card normal">
+            <div className="ao-cat-badge normal">🚐 Catégorie Standard</div>
+            <div className="ao-cat-title normal">Navette Partagée<br />Économique & Confortable</div>
+            <div className="ao-cat-desc normal">
+              Partagez votre navette avec d'autres passagers se dirigeant vers la même destination. Une option économique sans compromis sur le confort ni la sécurité.
+            </div>
+            <div className="ao-cat-features">
+              {[
+                "Navette partagée avec d'autres voyageurs",
+                "Tarifs réduits et accessibles",
+                "Véhicule climatisé confortable",
+                "Chauffeurs professionnels certifiés",
+                "Idéal pour les familles et groupes",
+              ].map(f => (
+                <div key={f} className="ao-cat-feature normal">
+                  <span className="ao-cat-feature-dot normal" />
+                  {f}
+                </div>
+              ))}
+            </div>
+            <button
+              style={{ marginTop: "8px", background: "#2980e8", border: "none", color: "#fff", padding: "13px 28px", borderRadius: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s", width: "fit-content", boxShadow: "0 6px 20px rgba(41,128,232,0.3)" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#1a6fd4"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "#2980e8"; e.currentTarget.style.transform = ""; }}
+              onClick={() => navigate("/login")}
+            >
+              Réserver Standard →
+            </button>
+            <div className="ao-cat-deco">🏨</div>
+          </div>
+        </div>
+      </section>
+
+   
+
+      {/* ══ TÉMOIGNAGES ══ */}
+      <section style={{ padding: "80px clamp(20px,6vw,80px)", background: "#fff" }}>
+        <div style={s.sectionHeader}>
+          <span style={s.sectionTag}>TÉMOIGNAGES</span>
+          <h2 style={s.sectionTitle}>Ce que disent nos voyageurs</h2>
+          <p style={s.sectionSubtitle}>Des milliers de passagers satisfaits nous font confiance chaque année.</p>
+        </div>
+        <div className="ao-testimonials-grid">
+          {TESTIMONIALS.map((t, i) => (
+            <div key={i} className="ao-testimonial">
+              <div className="ao-testimonial-stars">{t.stars}</div>
+              <p className="ao-testimonial-text">"{t.text}"</p>
+              <div className="ao-testimonial-author">
+                <img src={t.src} alt={t.name} className="ao-testimonial-avatar" />
+                <div>
+                  <div className="ao-testimonial-name">{t.name}</div>
+                  <div className="ao-testimonial-origin">{t.origin}</div>
+                </div>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ══ TRUST ══ */}
+      {/* ══ TRUST / CTA ══ */}
       <section className="ao-trust-section" style={s.trustSection}>
         <div style={s.trustContent}>
           <span style={{ ...s.sectionTag, color: "#7ec8ff", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.22)" }}>
             POURQUOI AIROPS
           </span>
           <h2 style={{ ...s.sectionTitle, color: "#fff", marginTop: "14px" }}>
-            La confiance de milliers de voyageurs en Tunisie
+            La confiance de voyageurs à travers toute la Tunisie
           </h2>
           <p style={{ ...s.sectionSubtitle, color: "rgba(255,255,255,0.65)" }}>
             Depuis notre lancement, nous assurons des transferts ponctuels et confortables entre tous les aéroports et hôtels du pays, avec un taux de satisfaction exceptionnel.
           </p>
-          <div style={s.trustAvatars}>
-            {[
-              "https://randomuser.me/api/portraits/men/32.jpg",
-              "https://randomuser.me/api/portraits/women/44.jpg",
-              "https://randomuser.me/api/portraits/men/45.jpg",
-              "https://randomuser.me/api/portraits/women/68.jpg",
-            ].map((src, i) => (
-              <img key={i} src={src} alt="voyageur" style={{ ...s.trustAvatar, marginLeft: i === 0 ? 0 : -12 }} />
-            ))}
-            <span style={s.trustText}>+5 000 voyageurs nous font confiance</span>
-          </div>
-          <button className="ao-trust-cta" style={s.btnTrustCta} onClick={() => navigate("/reserver")}>
-            Réserver maintenant →
-          </button>
+          
         </div>
       </section>
 
@@ -309,11 +430,7 @@ const Home = () => {
             <span style={s.footerBrandName}>AirOps</span>
           </div>
           <p style={s.footerCopy}>© {new Date().getFullYear()} AirOps. Tous droits réservés.</p>
-          <div className="ao-footer-links" style={s.footerLinks}>
-            {["Mentions légales", "Confidentialité", "CGU"].map(link => (
-              <a key={link} href="#" className="ao-footer-link" style={s.footerLink}>{link}</a>
-            ))}
-          </div>
+         
         </div>
       </footer>
     </div>
@@ -371,39 +488,23 @@ const s = {
   mobileBtnSignup: { marginTop: "8px", background: "#f0f8ff", border: "none", color: "#1252aa", fontSize: "15px", fontWeight: 700, padding: "13px", borderRadius: "12px", cursor: "pointer" },
 
   heroWrapper: {
-    position: "relative",
-    width: "100%",
-    height: "520px",
-    marginTop: "72px",
-    overflow: "hidden",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+    position: "relative", width: "100%", height: "580px",
+    marginTop: "72px", overflow: "hidden",
+    display: "flex", alignItems: "center", justifyContent: "center",
   },
   heroBg: {
-    position: "absolute",
-    inset: 0,
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    objectPosition: "center 34%",
-    zIndex: 0,
+    position: "absolute", inset: 0, width: "100%", height: "100%",
+    objectFit: "cover", objectPosition: "center 34%", zIndex: 0,
   },
   heroOverlay: {
-    position: "absolute",
-    inset: 0,
-    background: "linear-gradient(to bottom, rgba(10,35,100,0.50) 0%, rgba(8,28,85,0.68) 100%)",
+    position: "absolute", inset: 0,
+    background: "linear-gradient(to bottom, rgba(10,35,100,0.55) 0%, rgba(8,28,85,0.72) 100%)",
     zIndex: 1,
   },
   heroContent: {
-    position: "relative",
-    zIndex: 2,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    textAlign: "center",
-    width: "100%",
+    position: "relative", zIndex: 2,
+    display: "flex", flexDirection: "column", alignItems: "center",
+    justifyContent: "center", textAlign: "center", width: "100%",
     padding: "100px clamp(20px,6vw,80px) 30px",
   },
   heroBadge: {
@@ -415,7 +516,7 @@ const s = {
   },
   badgeDot: { width: "6px", height: "6px", borderRadius: "50%", background: "#60c4ff", boxShadow: "0 0 8px #60c4ff", display: "inline-block", flexShrink: 0 },
   heroTitle: {
-    fontSize: "clamp(22px,4vw,44px)", fontWeight: 800, color: "#fff",
+    fontSize: "clamp(22px,4vw,46px)", fontWeight: 800, color: "#fff",
     lineHeight: 1.15, letterSpacing: "-0.8px", marginBottom: "12px",
     textShadow: "0 2px 14px rgba(0,0,0,0.25)",
   },
@@ -426,14 +527,14 @@ const s = {
   },
   btnHeroPrimary: {
     background: "#2980e8", color: "#fff", border: "none",
-    padding: "13px 30px", borderRadius: "32px", fontSize: "14px",
+    padding: "14px 32px", borderRadius: "32px", fontSize: "15px",
     fontWeight: 700, cursor: "pointer",
     boxShadow: "0 8px 24px rgba(26,111,212,0.4)", transition: "all 0.25s ease",
   },
   btnHeroOutline: {
     background: "rgba(255,255,255,0.14)", color: "#fff",
     border: "1.5px solid rgba(255,255,255,0.45)",
-    padding: "12px 30px", borderRadius: "32px", fontSize: "14px",
+    padding: "13px 32px", borderRadius: "32px", fontSize: "15px",
     fontWeight: 600, cursor: "pointer", backdropFilter: "blur(8px)", transition: "all 0.25s ease",
   },
 
@@ -484,7 +585,7 @@ const s = {
   cardText: { fontSize: "13px", color: "#5a6e88", lineHeight: 1.65, margin: 0, flex: 1 },
   cardLink: { fontSize: "13px", fontWeight: 600, textDecoration: "none", display: "inline-block" },
 
-  trustSection: { background: "linear-gradient(135deg,#0d2b5e 0%,#1252aa 100%)", padding: "40px clamp(20px,6vw,80px)", display: "flex", justifyContent: "center" },
+  trustSection: { background: "linear-gradient(135deg,#0d2b5e 0%,#1252aa 100%)", padding: "60px clamp(20px,6vw,80px)", display: "flex", justifyContent: "center" },
   trustContent: { maxWidth: "620px", textAlign: "center" },
   trustAvatars: { display: "flex", alignItems: "center", justifyContent: "center", margin: "16px 0 20px", flexWrap: "wrap", rowGap: "12px" },
   trustAvatar: { width: "44px", height: "44px", borderRadius: "50%", border: "3px solid #1252aa", objectFit: "cover", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" },

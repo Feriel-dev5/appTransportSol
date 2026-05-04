@@ -1,5 +1,6 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { fetchAdminDashboard, fetchUsers, formatTimeAgo } from "../../services/adminService";
 
 /* ══════════════════════════ CSS ══════════════════════════ */
 const dashCSS = `
@@ -303,30 +304,78 @@ function DonutChart({ stats }) {
   );
 }
 
-/* ══════════════════════════ PDF BUILDER ══════════════════════════ */
-function buildPdf(stats, chartMode, generatedDate) {
-  const lines = [
-    { text: "NOUVELAIR TRANSPORT", size: 18, bold: true, y: 800 },
-    { text: "Rapport du Tableau de Bord Administrateur", size: 14, bold: false, y: 775 },
-    { text: `Généré le : ${generatedDate}`, size: 11, bold: false, y: 758 },
-    { text: "─────────────────────────────────────────────────────", size: 9, bold: false, y: 745 },
-    { text: "RÉSUMÉ STATISTIQUE", size: 13, bold: true, y: 725 },
-    { text: `  Nombre d'utilisateurs totaux   : ${stats[0].value}`, size: 11, bold: false, y: 706 },
-    { text: `  Utilisateurs actifs             : ${stats[1].value}`, size: 11, bold: false, y: 688 },
-    { text: `  Nouveaux comptes (semaine)       : ${stats[2].value}`, size: 11, bold: false, y: 670 },
-    { text: `  Comptes inactifs                 : ${stats[3].value}`, size: 11, bold: false, y: 652 },
-    { text: "─────────────────────────────────────────────────────", size: 9, bold: false, y: 638 },
-    { text: "ANALYSE DES ACTIVITÉS", size: 13, bold: true, y: 618 },
-    { text: `  Mode d'affichage sélectionné    : ${chartMode}`, size: 11, bold: false, y: 600 },
-    { text: "  Point culminant de la semaine   : Jeudi 14 Mars — 142 activités", size: 11, bold: false, y: 582 },
-    { text: "─────────────────────────────────────────────────────", size: 9, bold: false, y: 566 },
-    { text: "© 2026 AirOps Transport. Tous droits réservés.", size: 10, bold: false, y: 296 },
-  ];
-  const escape = s => s.replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
-  const textObjs = lines.map(l => `BT ${l.bold ? "/F2" : "/F1"} ${l.size} Tf 50 ${l.y} Td (${escape(l.text)}) Tj ET`).join("\n");
-  const pageContent = `1 0.17 0.09 rg\n0 820 595 842 re f\n1 1 1 rg\nBT /F2 20 Tf 50 827 Td (NOUVELAIR TRANSPORT) Tj ET\n0 0 0 rg\n${textObjs}`;
-  const pdf = `%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Count 1 /Kids [3 0 R] >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842]\n   /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >>\n   /Contents 6 0 R >>\nendobj\n4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n6 0 obj\n<< /Length ${pageContent.length} >>\nstream\n${pageContent}\nendstream\nendobj\nxref\n0 7\n0000000000 65535 f \ntrailer\n<< /Root 1 0 R /Size 7 >>\nstartxref\n9\n%%EOF`;
-  return new Blob([pdf], { type: "application/pdf" });
+/* ══════════════════════════ PDF BUILDER (DashbordCH Theme) ══════════════════════════ */
+function buildPdf(stats, chartMode, generatedDate, adminName) {
+  const clean = value => String(value || "").replace(/[<>]/g, "");
+  const now = generatedDate || new Date().toLocaleDateString("fr-FR");
+  const total = stats.find(s => s.label === "Nombre d'Utilisateurs")?.value || "0";
+  const active = stats.find(s => s.label === "Utilisateurs Actifs")?.value || "0";
+  const newAccounts = stats.find(s => s.label === "Nouveaux Comptes")?.value || "0";
+  const inactive = stats.find(s => s.label === "Comptes Inactifs")?.value || "0";
+  const rows = stats.map((s, i) => `
+    <tr style="background:${i % 2 === 0 ? "#fff" : "#f8fafc"}">
+      <td style="padding:12px 14px;font-size:12px;font-weight:700;color:#0d2b5e;">${clean(s.label)}</td>
+      <td style="padding:12px 14px;font-size:12px;font-weight:800;color:#2980e8;">${clean(s.value)}</td>
+      <td style="padding:12px 14px;font-size:12px;color:#5a6e88;">${clean(s.badge)}</td>
+    </tr>`).join("");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+  <title>Rapport Admin</title>
+  <style>
+    @page { size: A4; margin: 16mm; }
+    body{font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:0;background:#f0f5fb;color:#0d2b5e;}
+    .page{padding:30px;}
+    .header{background:linear-gradient(135deg,#0d2b5e,#2980e8);color:#fff;padding:30px;border-radius:16px;margin-bottom:24px;box-shadow:0 8px 32px rgba(13,43,94,0.13);}
+    .header h1{font-size:24px;font-weight:800;margin:0 0 4px;letter-spacing:-0.4px;}
+    .header p{font-size:12px;opacity:0.75;margin:0;}
+    .header-meta{display:flex;gap:14px;margin-top:18px;flex-wrap:wrap;}
+    .meta-item{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.18);border-radius:12px;padding:10px 16px;min-width:120px;}
+    .meta-label{font-size:9px;opacity:0.68;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
+    .meta-val{font-size:18px;font-weight:800;}
+    .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+    .card{background:#fff;border:1px solid #e4ecf4;border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(13,43,94,0.07);}
+    .card:before{content:'';display:block;height:3px;border-radius:3px;background:#2980e8;margin:-16px -16px 12px;}
+    .card.green:before{background:#16a34a}.card.sky:before{background:#0ea5e9}.card.gray:before{background:#94a3b8}
+    .card-value{font-size:24px;font-weight:800;color:#0d2b5e;line-height:1;}
+    .card-label{font-size:10.5px;color:#5a6e88;font-weight:600;margin-top:6px;}
+    table{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(13,43,94,0.08);}
+    th{background:#0d2b5e;color:#fff;padding:12px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;text-align:left;}
+    .section-title{font-size:14px;font-weight:800;color:#0d2b5e;margin:22px 0 10px;}
+    .summary{background:#fff;border:1px solid #e4ecf4;border-radius:16px;padding:18px;margin-top:20px;box-shadow:0 2px 12px rgba(13,43,94,0.07);}
+    .summary-row{display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding:10px 0;font-size:12px;}
+    .summary-row:last-child{border-bottom:none;}
+    .lbl{color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.8px;font-size:10px;}
+    .val{font-weight:800;color:#0d2b5e;}
+    .footer{margin-top:22px;text-align:center;font-size:10px;color:#94a3b8;}
+    @media print{body{background:#fff}.page{padding:0}.header,.card,table,.summary{box-shadow:none}}
+  </style></head><body><div class="page">
+  <div class="header">
+    <h1>Rapport Administrateur</h1>
+    <p>AirOps Transport · Généré par ${clean(adminName || "Administrateur")} le ${clean(now)}</p>
+    <div class="header-meta">
+      <div class="meta-item"><div class="meta-label">Période</div><div class="meta-val">${clean(chartMode)}</div></div>
+      <div class="meta-item"><div class="meta-label">Total</div><div class="meta-val">${clean(total)}</div></div>
+      <div class="meta-item"><div class="meta-label">Actifs</div><div class="meta-val">${clean(active)}</div></div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card"><div class="card-value">${clean(total)}</div><div class="card-label">Nombre d'utilisateurs</div></div>
+    <div class="card green"><div class="card-value">${clean(active)}</div><div class="card-label">Utilisateurs actifs</div></div>
+    <div class="card sky"><div class="card-value">${clean(newAccounts)}</div><div class="card-label">Nouveaux comptes</div></div>
+    <div class="card gray"><div class="card-value">${clean(inactive)}</div><div class="card-label">Comptes inactifs</div></div>
+  </div>
+  <div class="section-title">Détail des statistiques</div>
+  <table><thead><tr><th>Indicateur</th><th>Valeur</th><th>Statut</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="summary">
+    <div class="summary-row"><span class="lbl">Thème</span><span class="val">Même style que le dashboard chauffeur</span></div>
+    <div class="summary-row"><span class="lbl">Graphiques</span><span class="val">Sans widgets dans le PDF</span></div>
+    <div class="summary-row"><span class="lbl">Document</span><span class="val">Rapport interne AirOps</span></div>
+  </div>
+  <div class="footer">AirOps Transport Management — Rapport confidentiel</div>
+  </div></body></html>`;
+
+  const win = window.open("", "_blank");
+  if (win) { win.document.write(html); win.document.close(); win.print(); }
 }
 
 /* ══════════════════════════ NAV ITEMS ══════════════════════════ */
@@ -340,6 +389,16 @@ const navItems = [
     label: "Liste des Utilisateurs",
     to: "/listeU",
     icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>,
+  },
+  {
+    label: "Ajouter Utilisateur",
+    to: "/ajouterU",
+    icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>,
+  },
+  {
+    label: "Ajouter Véhicule",
+    to: "/ajouterVehicule",
+    icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 17h8M3 9l2-4h14l2 4M3 9h18v7a1 1 0 01-1 1H4a1 1 0 01-1-1V9z"/><circle cx="7" cy="17" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="17" r="1.5" fill="currentColor" stroke="none"/></svg>,
   },
   {
     label: "Mon Profil",
@@ -364,18 +423,43 @@ export default function DashbordADMIN() {
   const [adminName,  setAdminName]  = useState(getAdminName);
   const [adminPhoto, setAdminPhoto] = useState(getAdminPhoto);
 
+  // ── API state
+  const [apiStats, setApiStats] = useState(null);
+  const [userCount, setUserCount] = useState(null);
+
+  const loadDashboard = useCallback(async () => {
+    try {
+      const [dashData, usersData] = await Promise.all([
+        fetchAdminDashboard(),
+        fetchUsers({ limit: 1 }),
+      ]);
+      setApiStats(dashData.stats || null);
+      setUserCount(usersData.page !== undefined ? usersData : null);
+    } catch {/* show statics on error */}
+  }, []);
+
   useEffect(() => {
     const sync = () => { setAdminName(getAdminName()); setAdminPhoto(getAdminPhoto()); };
     window.addEventListener("airops-admin-profile-update", sync);
     return () => window.removeEventListener("airops-admin-profile-update", sync);
   }, []);
 
-  const stats = [
-    { label: "Nombre d'Utilisateurs", value: "1,284", badge: "+12%",         color: "blue",  emoji: "👥", donutColor: "#2980e8", donutLabel: "Utilisateurs" },
-    { label: "Utilisateurs Actifs",   value: "942",   badge: "En ligne",     color: "green", emoji: "✅", donutColor: "#16a34a", donutLabel: "Actifs" },
-    { label: "Nouveaux Comptes",      value: "18",    badge: "Cette semaine", color: "sky",   emoji: "➕", donutColor: "#0ea5e9", donutLabel: "Nouveaux" },
-    { label: "Comptes Inactifs",      value: "76",    badge: "À revoir",     color: "gray",  emoji: "🔕", donutColor: "#94a3b8", donutLabel: "Inactifs" },
-  ];
+  useEffect(() => { loadDashboard(); }, [loadDashboard]);
+
+  const stats = useMemo(() => {
+    if (!apiStats) return [
+      { label: "Nombre d'Utilisateurs", value: "—",   badge: "Chargement…",   color: "blue",  emoji: "👥", donutColor: "#2980e8", donutLabel: "Utilisateurs" },
+      { label: "Utilisateurs Actifs",   value: "—",   badge: "Chargement…",   color: "green", emoji: "✅", donutColor: "#16a34a", donutLabel: "Actifs" },
+      { label: "Missions Aujourd'hui",  value: "—",   badge: "Chargement…",   color: "sky",   emoji: "🚗", donutColor: "#0ea5e9", donutLabel: "Missions" },
+      { label: "Alertes Ouvertes",      value: "—",   badge: "Chargement…",   color: "gray",  emoji: "⚠️", donutColor: "#94a3b8", donutLabel: "Alertes" },
+    ];
+    return [
+      { label: "Nombre d'Utilisateurs", value: String(apiStats.usersCount ?? 0),       badge: "Total",          color: "blue",  emoji: "👥", donutColor: "#2980e8", donutLabel: "Utilisateurs" },
+      { label: "Chauffeurs Disponibles",value: String(apiStats.availableDrivers ?? 0),  badge: "Disponibles",    color: "green", emoji: "✅", donutColor: "#16a34a", donutLabel: "Chauffeurs" },
+      { label: "Missions Aujourd'hui",  value: String(apiStats.missionsToday ?? 0),     badge: "Aujourd'hui",    color: "sky",   emoji: "🚗", donutColor: "#0ea5e9", donutLabel: "Missions" },
+      { label: "Alertes Ouvertes",      value: String(apiStats.alerts ?? 0),            badge: "À traiter",      color: "gray",  emoji: "⚠️", donutColor: "#94a3b8", donutLabel: "Alertes" },
+    ];
+  }, [apiStats]);
 
   const donutStats    = stats.map(s => ({ label: s.donutLabel, value: parseInt(s.value.replace(/,/g, "")), color: s.donutColor }));
   const chartPoints   = chartMode === "Hebdomadaire" ? chartPointsHebdo : chartPointsMensuel;
@@ -395,13 +479,8 @@ export default function DashbordADMIN() {
     try {
       const now     = new Date();
       const dateStr = now.toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-      const blob    = buildPdf(stats, chartMode, dateStr);
-      const url     = URL.createObjectURL(blob);
-      const link    = document.createElement("a");
-      link.href = url; link.download = `rapport-admin-${now.toISOString().slice(0, 10)}.pdf`;
-      document.body.appendChild(link); link.click();
-      document.body.removeChild(link); URL.revokeObjectURL(url);
-      setToast("✓ Rapport PDF téléchargé !");
+      buildPdf(stats, chartMode, dateStr, adminName);
+      setToast("✓ Rapport PDF généré avec succès.");
     } catch { setToast("Impossible de générer le PDF."); }
   };
 

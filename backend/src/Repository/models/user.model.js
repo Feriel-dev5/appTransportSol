@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const UserSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
+    numeroPermis: { type: String, trim: true, required: false },
+
     email: {
       type: String,
       required: true,
@@ -15,7 +17,7 @@ const UserSchema = new mongoose.Schema(
       type: String,
       enum: ["ADMIN", "RESPONSABLE", "CHAUFFEUR", "PASSAGER"],
       required: true,
-      default: "PASSAGER",
+      // default: "RESPONSABLE",
     },
     availability: {
       type: String,
@@ -23,7 +25,11 @@ const UserSchema = new mongoose.Schema(
       default: "DISPONIBLE",
     },
     phone: { type: String },
+    passportNumber: { type: String, trim: true },
+    cin: { type: String, trim: true },
+    address: { type: String, trim: true },
   },
+
   { timestamps: true },
 );
 

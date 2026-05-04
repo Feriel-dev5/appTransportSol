@@ -13,6 +13,10 @@ const RequestSchema = new mongoose.Schema(
     time: { type: String, trim: true },
     passengers: { type: Number, required: true, min: 1 },
     comment: { type: String, trim: true },
+    type: { type: String, enum: ["standard", "vip"], default: "standard" },
+    phone: { type: String, trim: true },
+    email: { type: String, trim: true },
+    passengerList: { type: Array, default: [] },
     status: {
       type: String,
       enum: ["EN_ATTENTE", "APPROUVEE", "REJETEE", "ANNULEE"],
