@@ -15,7 +15,17 @@ const listAvisSchema = z.object({
     page: z.string().optional(),
     limit: z.string().optional(),
     categorie: z.enum(avisCategories).optional(),
+    statut: z.enum(["EN_ATTENTE", "ACCEPTER", "REFUSER"]).optional(),
   }),
 });
 
-module.exports = { createAvisSchema, listAvisSchema };
+const modererAvisSchema = z.object({
+  params: z.object({
+    id: z.string().min(1),
+  }),
+  body: z.object({
+    statut: z.enum(["ACCEPTER", "REFUSER"]),
+  }),
+});
+
+module.exports = { createAvisSchema, listAvisSchema, modererAvisSchema };

@@ -38,6 +38,13 @@ const listIncidentsForPassager = (passagerId, { skip, take, status }) =>
 const countIncidents = (status) =>
   Incident.countDocuments(status ? { status } : {}).exec();
 
+const countIncidentsForUser = (query) =>
+  Incident.countDocuments(query).exec();
+
+const deleteIncidentById = (id) => Incident.findByIdAndDelete(id).exec();
+
+const deleteAllIncidentsForUser = (query) => Incident.deleteMany(query).exec();
+
 module.exports = {
   createIncident,
   findIncidentById,
@@ -45,4 +52,7 @@ module.exports = {
   listIncidentsForDriver,
   listIncidentsForPassager,
   countIncidents,
+  countIncidentsForUser,
+  deleteIncidentById,
+  deleteAllIncidentsForUser,
 };

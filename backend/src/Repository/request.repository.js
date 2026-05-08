@@ -89,6 +89,9 @@ const findRequestIdsBeforeDate = (before) =>
     .select("_id")
     .exec();
 
+const deleteRequestById = (id) =>
+  Request.findByIdAndDelete(id).exec();
+
 module.exports = {
   createRequest,
   findRequestById,
@@ -101,4 +104,5 @@ module.exports = {
   findRequestIdsByDateRange,
   findRequestIdsAfterDate,
   findRequestIdsBeforeDate,
+  deleteRequestById,
 };

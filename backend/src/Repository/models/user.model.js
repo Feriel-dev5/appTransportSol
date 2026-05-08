@@ -21,13 +21,14 @@ const UserSchema = new mongoose.Schema(
     },
     availability: {
       type: String,
-      enum: ["DISPONIBLE", "OCCUPE"],
+      enum: ["DISPONIBLE", "OCCUPE", "INDISPONIBLE"],
       default: "DISPONIBLE",
     },
     phone: { type: String },
     passportNumber: { type: String, trim: true },
     cin: { type: String, trim: true },
     address: { type: String, trim: true },
+    photo: { type: String },
   },
 
   { timestamps: true },

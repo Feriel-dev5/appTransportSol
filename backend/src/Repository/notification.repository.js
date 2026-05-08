@@ -17,10 +17,16 @@ const markNotificationAsRead = (id) =>
 const markAllNotificationsAsRead = (userId) =>
   Notification.updateMany({ userId, isRead: false }, { isRead: true }).exec();
 
+const deleteNotificationById = (id) => Notification.findByIdAndDelete(id).exec();
+
+const deleteAllNotificationsForUser = (userId) => Notification.deleteMany({ userId }).exec();
+
 module.exports = {
   createNotification,
   findNotificationById,
   listNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  deleteNotificationById,
+  deleteAllNotificationsForUser,
 };

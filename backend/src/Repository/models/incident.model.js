@@ -35,6 +35,11 @@ const IncidentSchema = new mongoose.Schema(
       enum: ["OUVERT", "RESOLU"],
       default: "OUVERT",
     },
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high"],
+      default: "low",
+    },
   },
   { timestamps: true },
 );

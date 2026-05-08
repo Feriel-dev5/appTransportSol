@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import vehicleBus from "../../assets/vehicle_bus.png";
 import vehicleMinivan from "../../assets/vehicle_minivan.png";
 import vehicleBerline from "../../assets/vehicle_berline.png";
-import { createVehicle } from "../../services/adminService";
+import { createVehicle, fetchPendingAvisCount } from "../../services/adminService";
 
 /* ══════════════════════════ CSS ══════════════════════════ */
 const css = `
@@ -58,6 +58,8 @@ const css = `
   .sb-nav-icon { flex-shrink: 0; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
   .sb-nav-lbl  { flex: 1; overflow: hidden; transition: opacity 0.2s, max-width 0.3s; max-width: 160px; }
   .sidebar.collapsed .sb-nav-lbl { opacity: 0; max-width: 0; }
+  .sb-badge { background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; flex-shrink: 0; transition: opacity 0.2s; margin-left: auto; }
+  .sidebar.collapsed .sb-badge { opacity: 0; }
   .sidebar.collapsed .sb-nav-item::after { content: attr(data-label); position: absolute; left: calc(var(--sidebar-mini) + 6px); top: 50%; transform: translateY(-50%); background: var(--brand-dark); color: #fff; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-md); border: 1px solid rgba(255,255,255,0.1); z-index: 200; opacity: 0; transition: opacity 0.15s; }
   .sidebar.collapsed .sb-nav-item:hover::after { opacity: 1; }
   .sb-footer { padding: 6px 9px 16px; border-top: 1px solid rgba(255,255,255,0.07); flex-shrink: 0; }
@@ -118,19 +120,22 @@ const css = `
 
   /* ── Type selector ── */
   .av-type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 16px 24px 20px; }
-  .av-type-card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 10px; border-radius: 14px; border: 2px solid var(--border); cursor: pointer; transition: var(--tr); background: #fff; text-align: center; }
-  .av-type-card:hover { border-color: var(--brand-blue); background: #f8fbff; }
-  .av-type-card.selected { border-color: var(--brand-blue); background: #eff6ff; }
+  .av-type-card { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 20px 14px; border-radius: 20px; border: 2px solid var(--border); cursor: pointer; transition: var(--tr); background: #fff; text-align: center; }
+  .av-type-card:hover { border-color: var(--brand-blue); background: #f8fbff; transform: translateY(-2px); }
+  .av-type-card.selected { border-color: var(--brand-blue); background: #eff6ff; box-shadow: 0 8px 20px rgba(41,128,232,0.1); }
 .av-type-emoji {
   width: 100%;
-  height: 120px;
+  height: 150px;
   overflow: hidden;
   border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .av-type-emoji img {
-  width: 120%;
-  height: 120%;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   display: block;
 }
@@ -139,7 +144,7 @@ const css = `
 
   /* ── Preview ── */
   .av-preview-body { padding: 22px 20px; display: flex; flex-direction: column; gap: 16px; align-items: center; }
-  .av-vehicle-icon { width: 88px; height: 88px; border-radius: 22px; background: linear-gradient(135deg, #eff6ff, #dbeafe); display: flex; align-items: center; justify-content: center; font-size: 40px; box-shadow: 0 8px 24px rgba(41,128,232,0.15); border: 2px solid rgba(41,128,232,0.12); }
+  .av-vehicle-icon { width: 100%; max-width: 240px; height: 140px; border-radius: 18px; background: linear-gradient(135deg, #eff6ff, #f8fbff); display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px rgba(41,128,232,0.12); border: 1.5px solid rgba(41,128,232,0.1); margin-bottom: 8px; }
   .av-preview-plate { font-size: 22px; font-weight: 800; color: var(--brand-dark); letter-spacing: 2px; font-family: 'DM Sans', monospace; }
   .av-preview-model { font-size: 13px; color: var(--text-muted); }
   .av-preview-divider { width: 100%; height: 1px; background: var(--border); }
@@ -196,54 +201,125 @@ if (typeof document !== "undefined" && !document.getElementById("av-css")) {
 
 /* ══════════════════════════ NAV ITEMS ══════════════════════════ */
 const navItems = [
-  { label:"Tableau de Bord",       to:"/dashbordADMIN",   icon:<svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> },
-  { label:"Liste des Utilisateurs",to:"/listeU",          icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg> },
-  { label:"Ajouter Utilisateur",   to:"/ajouterU",        icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg> },
-  { label:"Ajouter Véhicule",      to:"/ajouterVehicule", icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 17h8M3 9l2-4h14l2 4M3 9h18v7a1 1 0 01-1 1H4a1 1 0 01-1-1V9z"/><circle cx="7" cy="17" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="17" r="1.5" fill="currentColor" stroke="none"/></svg> },
-  { label:"Mon Profil",            to:"/profilA",         icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+  {
+    label: "Tableau de Bord", to: "/dashbordADMIN",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>,
+  },
+  {
+    label: "Liste des Utilisateurs", to: "/listeU",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
+  },
+  {
+    label: "Liste des Véhicules", to: "/listeV",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="22" height="13" rx="2" ry="2" /><circle cx="7" cy="21" r="2" /><circle cx="17" cy="21" r="2" /></svg>,
+  },
+  {
+    label: "Ajouter Utilisateur", to: "/ajouterU",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="16" y1="11" x2="22" y2="11" /></svg>,
+  },
+  {
+    label: "Ajouter Véhicule", to: "/ajouterVehicule",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>,
+  },
+  {
+    label: "Gestion des Avis", to: "/avisAdmin",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>,
+  },
+  {
+    label: "Mon Profil", to: "/profilA",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>,
+  },
 ];
 
 const VEHICLE_TYPES = [
-  { key:"Bus",      emoji:"🚌", desc:"Transport collectif" },
-  { key:"Minibus",  emoji:"🚐", desc:"Petit groupe" },
-  { key:"Berline",  emoji:"🚗", desc:"Voiture standard" },
+  { key: "Bus", emoji: "🚌", desc: "Transport collectif" },
+  { key: "Minibus", emoji: "🚐", desc: "Petit groupe" },
+  { key: "Berline", emoji: "🚗", desc: "Voiture standard" },
 ];
 
 const ANNEES = Array.from({ length: 20 }, (_, i) => 2026 - i);
-const CARBURANTS = ["Diesel","Essence","Hybride","Électrique","GPL"];
-const MARQUES = ["Renault","Peugeot","Citroën","Volkswagen","Mercedes","Toyota","Ford","Iveco","Fiat","Opel","Autre"];
+const CARBURANTS = ["Diesel", "Essence", "Hybride", "Électrique", "GPL"];
+const MARQUES = ["Renault", "Peugeot", "Citroën", "Volkswagen", "Mercedes", "Toyota", "Ford", "Iveco", "Fiat", "Opel", "Autre"];
 
-const defaultForm = { marque:"", modele:"", immatriculation:"", annee:"", capacite:"", carburant:"", couleur:"", kilometrage:"", type:"" };
+function getAdminName() {
+  try {
+    const s = localStorage.getItem("user");
+    return s ? (JSON.parse(s).name || "Admin") : "Admin";
+  } catch { return "Admin"; }
+}
+function getAdminPhoto() {
+  try { return localStorage.getItem("airops_admin_profil_photo_v1") || ""; } catch { return ""; }
+}
+function getAdminInitials(nom) {
+  return (nom || "").trim().split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+}
+
+const defaultForm = { marque: "", modele: "", immatriculation: "", annee: "", capacite: "", carburant: "", couleur: "", kilometrage: "", type: "" };
 
 function validate(form) {
   const e = {};
-  if (!form.immatriculation.trim()) e.immatriculation = "L'immatriculation est obligatoire.";
-  else if (!/^[A-Z0-9\s\-]+$/i.test(form.immatriculation)) e.immatriculation = "Format invalide (ex: TU 123 456).";
+  // ── Immatriculation (Tunisian formats: "123 TU 4567" or "TU-123-456")
+  if (!form.immatriculation.trim()) {
+    e.immatriculation = "L'immatriculation est obligatoire.";
+  } else if (form.immatriculation.trim().length < 4) {
+    e.immatriculation = "Minimum 4 caractères.";
+  } else if (!/^(\d{1,4}\s?(TU|TUN|TUNIS)\s?\d{1,4}|(TU|TUN|TUNIS)[-\s]?\d{3}[-\s]?\d{3})$/i.test(form.immatriculation.trim())) {
+    e.immatriculation = "Format invalide. Exemples valides: '123 TU 4567' ou 'TU-123-456'.";
+  }
+  // ── Marque
   if (!form.marque) e.marque = "La marque est obligatoire.";
+  // ── Modèle
   if (!form.modele.trim()) e.modele = "Le modèle est obligatoire.";
+  else if (form.modele.trim().length < 2) e.modele = "Minimum 2 caractères.";
+  else if (!/^[a-zA-Z0-9À-ÖØ-öø-ÿ\s\-\.]+$/.test(form.modele.trim())) e.modele = "Caractères invalides (lettres et chiffres uniquement).";
+  // ── Année
   if (!form.annee) e.annee = "L'année est obligatoire.";
+  // ── Capacité
   if (!form.capacite.trim()) e.capacite = "La capacité est obligatoire.";
-  else if (isNaN(+form.capacite) || +form.capacite < 1 || +form.capacite > 100) e.capacite = "Entre 1 et 100 places.";
-  if (!form.type) e.type = "Choisissez un type de véhicule.";
+  else if (!/^\d+$/.test(form.capacite.trim())) e.capacite = "Entrez un nombre entier valide.";
+  else if (+form.capacite < 1) e.capacite = "La capacité doit être au moins 1 place.";
+  else if (+form.capacite > 100) e.capacite = "La capacité ne peut pas dépasser 100 places.";
+  // ── Type
+  if (!form.type) e.type = "Veuillez choisir un type de véhicule.";
+  // ── Couleur (optionnelle mais si remplie doit être valide)
+  if (form.couleur.trim() && !/^[a-zA-ZÀ-ÖØ-öø-ÿ\s\-]+$/.test(form.couleur.trim())) {
+    e.couleur = "La couleur doit être en lettres (ex: Blanc, Noir).";
+  }
+  // ── Kilométrage (optionnel mais si rempli doit être valide)
+  if (form.kilometrage.trim() && (!/^\d+$/.test(form.kilometrage.trim()) || +form.kilometrage < 0)) {
+    e.kilometrage = "Entrez un kilométrage valide (nombre entier positif).";
+  }
   return e;
 }
 
 
 export default function AjouterVehicule() {
   const navigate = useNavigate();
+  const [adminInfo] = useState(() => ({ name: getAdminName(), photo: getAdminPhoto() }));
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarMobile, setSidebarMobile] = useState(false);
-  const [toast, setToast] = useState({ msg:"", type:"" });
+  const [toast, setToast] = useState({ msg: "", type: "" });
   const [submitted, setSubmitted] = useState(false);
+  const [pendingAvis, setPendingAvis] = useState(0);
+
+  useEffect(() => {
+    fetchPendingAvisCount().then(setPendingAvis);
+  }, []);
   const [form, setForm] = useState(defaultForm);
   const [errors, setErrors] = useState({});
 
-  function showToast(msg, type="") {
+  function showToast(msg, type = "") {
     setToast({ msg, type });
-    setTimeout(() => setToast({ msg:"", type:"" }), 3000);
+    setTimeout(() => setToast({ msg: "", type: "" }), 3000);
   }
 
   function handleChange(field, val) {
+    // Filtrage en temps réel : couleur = lettres seulement
+    if (field === "couleur" && val !== "" && !/^[a-zA-ZÀ-ÖØ-öø-ÿ\s\-]*$/.test(val)) return;
+    // Kilométrage = chiffres seulement
+    if (field === "kilometrage" && val !== "" && !/^\d*$/.test(val)) return;
+    // Capacité = chiffres seulement
+    if (field === "capacite" && val !== "" && !/^\d*$/.test(val)) return;
     setForm(f => ({ ...f, [field]: val }));
     if (submitted) setErrors(prev => ({ ...prev, [field]: undefined }));
   }
@@ -252,17 +328,20 @@ export default function AjouterVehicule() {
     setSubmitted(true);
     const errs = validate(form);
     setErrors(errs);
-    if (Object.keys(errs).length > 0) { showToast("Veuillez corriger les erreurs."); return; }
+    if (Object.keys(errs).length > 0) {
+      showToast(`Veuillez corriger les ${Object.keys(errs).length} erreur(s) dans le formulaire.`);
+      return;
+    }
 
     const payload = {
-      plate: form.immatriculation.trim(),
+      plate: form.immatriculation.trim().toUpperCase(),
       model: `${form.marque.trim()} ${form.modele.trim()}`.trim(),
       type: form.type || "BERLINE",
       capacity: parseInt(form.capacite) || 4,
       year: parseInt(form.annee) || undefined,
-      color: form.couleur || undefined,
+      color: form.couleur.trim() || undefined,
       fuelType: form.carburant || undefined,
-      mileage: parseInt(form.kilometrage) || undefined,
+      mileage: form.kilometrage.trim() ? parseInt(form.kilometrage) : undefined,
     };
 
     try {
@@ -279,16 +358,16 @@ export default function AjouterVehicule() {
 
   return (
     <div className="av-wrap">
-      {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)}/>}
+      {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)} />}
 
       {/* ── Sidebar ── */}
       <aside className={["sidebar", collapsed ? "collapsed" : "", sidebarMobile ? "open" : ""].filter(Boolean).join(" ")}>
         <button type="button" className="sb-toggle-btn" onClick={() => setCollapsed(v => !v)}>
-          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
         </button>
         <div className="sb-brand" onClick={() => navigate("/")}>
           <div className="sb-brand-icon">
-            <svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            <svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" /></svg>
           </div>
           <div className="sb-brand-text">
             <span className="sb-brand-name">AirOps</span>
@@ -303,12 +382,15 @@ export default function AjouterVehicule() {
               onClick={() => setSidebarMobile(false)}>
               <span className="sb-nav-icon">{item.icon}</span>
               <span className="sb-nav-lbl">{item.label}</span>
+              {item.label === "Gestion des Avis" && pendingAvis > 0 && (
+                <span className="sb-badge">{pendingAvis}</span>
+              )}
             </NavLink>
           ))}
         </nav>
         <div className="sb-footer">
-          <button type="button" className="sb-logout" onClick={() => navigate("/login")}>
-            <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></span>
+          <button type="button" className="sb-logout" onClick={() => { localStorage.clear(); navigate("/login", { replace: true }); }}>
+            <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></span>
             <span className="sb-logout-lbl">Déconnexion</span>
           </button>
         </div>
@@ -319,17 +401,19 @@ export default function AjouterVehicule() {
         <header className="av-header">
           <div className="av-hdr-left">
             <button type="button" className="av-menu-btn" onClick={() => setSidebarMobile(v => !v)}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
             <span className="av-hdr-title">Ajouter un véhicule</span>
           </div>
           <div className="av-hdr-right">
             <div className="user-chip">
               <div className="user-info">
-                <div className="user-name">Ahmed Mansour</div>
+                <div className="user-name">{adminInfo.name}</div>
                 <div className="user-role">Administrateur</div>
               </div>
-              <div className="user-avatar" onClick={() => navigate("/profilA")}>AM</div>
+              <div className="user-avatar" onClick={() => navigate("/profilA")}>
+                {adminInfo.photo ? <img src={adminInfo.photo} alt="profil" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : <span>{getAdminInitials(adminInfo.name)}</span>}
+              </div>
             </div>
           </div>
         </header>
@@ -337,11 +421,8 @@ export default function AjouterVehicule() {
         <main className="av-content">
           {/* Page header */}
           <div className="av-page-header">
-            <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-              <button type="button" className="av-back-btn" onClick={() => navigate("/dashbordADMIN")}>
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                Retour
-              </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+
               <div>
                 <div className="av-page-title">Nouveau Véhicule</div>
                 <div className="av-page-sub">Enregistrez un véhicule dans la flotte AirOps.</div>
@@ -351,12 +432,12 @@ export default function AjouterVehicule() {
 
           <div className="av-layout">
             {/* Left — main form */}
-            <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               {/* Identification */}
               <div className="av-card">
                 <div className="av-card-hd">
-                  <div className="av-card-icon" style={{ background:"#eff6ff" }}>
-                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#2980e8" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                  <div className="av-card-icon" style={{ background: "#eff6ff" }}>
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#2980e8" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                   </div>
                   <div>
                     <div className="av-card-title">Identification du véhicule</div>
@@ -367,8 +448,8 @@ export default function AjouterVehicule() {
                   <div className="av-field full">
                     <label className="av-label">Immatriculation *</label>
                     <input type="text" className={`av-input${errors.immatriculation ? " err" : ""}`}
-                      placeholder="Ex: TU 123 456" style={{ textTransform:"uppercase", letterSpacing:2, fontWeight:700 }}
-                      value={form.immatriculation} onChange={e => handleChange("immatriculation", e.target.value.toUpperCase())}/>
+                      placeholder="Ex: TU 123 456" style={{ textTransform: "uppercase", letterSpacing: 2, fontWeight: 700 }}
+                      value={form.immatriculation} onChange={e => handleChange("immatriculation", e.target.value.toUpperCase())} />
                     {errors.immatriculation && <span className="av-error">{errors.immatriculation}</span>}
                     {!errors.immatriculation && <span className="av-hint">Format tunisien ou international</span>}
                   </div>
@@ -385,7 +466,7 @@ export default function AjouterVehicule() {
                     <label className="av-label">Modèle *</label>
                     <input type="text" className={`av-input${errors.modele ? " err" : ""}`}
                       placeholder="Ex: Sprinter 316" value={form.modele}
-                      onChange={e => handleChange("modele", e.target.value)}/>
+                      onChange={e => handleChange("modele", e.target.value)} />
                     {errors.modele && <span className="av-error">{errors.modele}</span>}
                   </div>
                   <div className="av-field">
@@ -401,7 +482,7 @@ export default function AjouterVehicule() {
                     <label className="av-label">Capacité (places) *</label>
                     <input type="number" min="1" max="100" className={`av-input${errors.capacite ? " err" : ""}`}
                       placeholder="Ex: 20" value={form.capacite}
-                      onChange={e => handleChange("capacite", e.target.value)}/>
+                      onChange={e => handleChange("capacite", e.target.value)} />
                     {errors.capacite && <span className="av-error">{errors.capacite}</span>}
                   </div>
                   <div className="av-field">
@@ -412,14 +493,16 @@ export default function AjouterVehicule() {
                     </select>
                   </div>
                   <div className="av-field">
-                    <label className="av-label">Couleur</label>
-                    <input type="text" className="av-input" placeholder="Ex: Blanc" value={form.couleur}
-                      onChange={e => handleChange("couleur", e.target.value)}/>
+                    <label className="av-label">Couleur <span style={{ fontWeight: 400, textTransform: "none", color: "var(--text-muted)" }}>(lettres uniquement)</span></label>
+                    <input type="text" className={`av-input${errors.couleur ? " err" : ""}`} placeholder="Ex: Blanc, Bleu, Rouge" value={form.couleur}
+                      onChange={e => handleChange("couleur", e.target.value)} />
+                    {errors.couleur && <span className="av-error">{errors.couleur}</span>}
                   </div>
                   <div className="av-field">
-                    <label className="av-label">Kilométrage (km)</label>
-                    <input type="number" min="0" className="av-input" placeholder="Ex: 45000" value={form.kilometrage}
-                      onChange={e => handleChange("kilometrage", e.target.value)}/>
+                    <label className="av-label">Kilométrage (km) <span style={{ fontWeight: 400, textTransform: "none", color: "var(--text-muted)" }}>(chiffres seulement)</span></label>
+                    <input type="text" inputMode="numeric" className={`av-input${errors.kilometrage ? " err" : ""}`} placeholder="Ex: 45000" value={form.kilometrage}
+                      onChange={e => handleChange("kilometrage", e.target.value)} />
+                    {errors.kilometrage && <span className="av-error">{errors.kilometrage}</span>}
                   </div>
                 </div>
               </div>
@@ -427,8 +510,8 @@ export default function AjouterVehicule() {
               {/* Type */}
               <div className="av-card">
                 <div className="av-card-hd">
-                  <div className="av-card-icon" style={{ background:"#fff7ed" }}>
-                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#f97316" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 17h8M3 9l2-4h14l2 4M3 9h18v7a1 1 0 01-1 1H4a1 1 0 01-1-1V9z"/></svg>
+                  <div className="av-card-icon" style={{ background: "#fff7ed" }}>
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#f97316" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 17h8M3 9l2-4h14l2 4M3 9h18v7a1 1 0 01-1 1H4a1 1 0 01-1-1V9z" /></svg>
                   </div>
                   <div>
                     <div className="av-card-title">Type de véhicule *</div>
@@ -440,30 +523,30 @@ export default function AjouterVehicule() {
                     <div key={t.key} className={`av-type-card${form.type === t.key ? " selected" : ""}`}
                       onClick={() => handleChange("type", t.key)}>
                       <div className="av-type-emoji">
-  <img
-    src={
-      t.key === "Bus"
-        ? vehicleBus
-        : t.key === "Minibus"
-        ? vehicleMinivan
-        : vehicleBerline
-    }
-    alt={t.key}
-  />
-</div>
+                        <img
+                          src={
+                            t.key === "Bus"
+                              ? vehicleBus
+                              : t.key === "Minibus"
+                                ? vehicleMinivan
+                                : vehicleBerline
+                          }
+                          alt={t.key}
+                        />
+                      </div>
                       <div className="av-type-name">{t.key}</div>
                       <div className="av-type-desc">{t.desc}</div>
                     </div>
                   ))}
                 </div>
-                {errors.type && <div style={{ padding:"0 24px 12px", fontSize:11, color:"var(--accent-red)" }}>{errors.type}</div>}
+                {errors.type && <div style={{ padding: "0 24px 12px", fontSize: 11, color: "var(--accent-red)" }}>{errors.type}</div>}
               </div>
 
               <div className="av-card">
                 <div className="av-form-actions">
                   <button type="button" className="av-btn-cancel" onClick={() => navigate("/dashbordADMIN")}>Annuler</button>
                   <button type="button" className="av-btn-save" onClick={handleSubmit}>
-                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                     Enregistrer le véhicule
                   </button>
                 </div>
@@ -474,8 +557,8 @@ export default function AjouterVehicule() {
             <div>
               <div className="av-card">
                 <div className="av-card-hd">
-                  <div className="av-card-icon" style={{ background:"#f0fdf4" }}>
-                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#16a34a" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  <div className="av-card-icon" style={{ background: "#f0fdf4" }}>
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#16a34a" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                   </div>
                   <div>
                     <div className="av-card-title">Aperçu</div>
@@ -483,20 +566,32 @@ export default function AjouterVehicule() {
                   </div>
                 </div>
                 <div className="av-preview-body">
-                  <div className="av-vehicle-icon">{typeInfo?.emoji || "🚗"}</div>
-                  <div style={{ textAlign:"center" }}>
+                  <div className="av-vehicle-icon" style={{ padding: 0, overflow: "hidden" }}>
+                    {form.type ? (
+                      <img
+                        src={form.type === "Bus" ? vehicleBus : form.type === "Minibus" ? vehicleMinivan : vehicleBerline}
+                        alt={form.type}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : (
+                      <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} style={{ color: "var(--brand-blue)" }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 17h8M3 9l2-4h14l2 4M3 9h18v7a1 1 0 01-1 1H4a1 1 0 01-1-1V9z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div style={{ textAlign: "center" }}>
                     <div className="av-preview-plate">{form.immatriculation || "— — —"}</div>
                     <div className="av-preview-model">{form.marque && form.modele ? `${form.marque} ${form.modele}` : "Marque / Modèle"}</div>
                   </div>
-                  <div className="av-preview-divider"/>
-                  <div style={{ width:"100%", display:"flex", flexDirection:"column", gap:10 }}>
+                  <div className="av-preview-divider" />
+                  <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 10 }}>
                     {[
-                      { lbl:"Type",      val: form.type || "—" },
-                      { lbl:"Année",     val: form.annee || "—" },
-                      { lbl:"Capacité",  val: form.capacite ? `${form.capacite} places` : "—" },
-                      { lbl:"Carburant", val: form.carburant || "—" },
-                      { lbl:"Couleur",   val: form.couleur || "—" },
-                      { lbl:"Km",        val: form.kilometrage ? `${parseInt(form.kilometrage).toLocaleString()} km` : "—" },
+                      { lbl: "Type", val: form.type || "—" },
+                      { lbl: "Année", val: form.annee || "—" },
+                      { lbl: "Capacité", val: form.capacite ? `${form.capacite} places` : "—" },
+                      { lbl: "Carburant", val: form.carburant || "—" },
+                      { lbl: "Couleur", val: form.couleur || "—" },
+                      { lbl: "Km", val: form.kilometrage ? `${parseInt(form.kilometrage).toLocaleString()} km` : "—" },
                     ].map(row => (
                       <div key={row.lbl} className="av-preview-row">
                         <span className="av-preview-lbl">{row.lbl}</span>
@@ -506,14 +601,14 @@ export default function AjouterVehicule() {
                   </div>
                 </div>
                 <div className="av-tips">
-                  <div style={{ fontSize:10.5, fontWeight:700, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>Conseils</div>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Conseils</div>
                   {[
                     "Vérifiez la plaque avant d'enregistrer.",
                     "La capacité inclut le chauffeur.",
                     "Mettez à jour le kilométrage régulièrement.",
                   ].map((tip, i) => (
                     <div key={i} className="av-tip">
-                      <span className="av-tip-dot"/>
+                      <span className="av-tip-dot" />
                       {tip}
                     </div>
                   ))}
@@ -524,8 +619,10 @@ export default function AjouterVehicule() {
         </main>
 
         <footer className="av-footer">
-          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-            <svg width="12" height="12" fill="#22c55e" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#22c55e" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
             Système de gestion sécurisé — AirOps Transport 2026
           </div>
           <span>Flotte de véhicules</span>

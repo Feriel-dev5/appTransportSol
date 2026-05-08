@@ -4,6 +4,7 @@ const {
   addVehicle,
   getVehicles,
   editVehicle,
+  removeVehicle,
 } = require("../Services/vehicles.service");
 
 const createVehicle = asyncHandler(async (req, res) => {
@@ -22,4 +23,9 @@ const updateVehicle = asyncHandler(async (req, res) => {
   res.json({ vehicle });
 });
 
-module.exports = { createVehicle, listVehicles, updateVehicle };
+const deleteVehicle = asyncHandler(async (req, res) => {
+  await removeVehicle(req.params.id, req.user.id);
+  res.json({ message: "Vehicle deleted successfully" });
+});
+
+module.exports = { createVehicle, listVehicles, updateVehicle, deleteVehicle };

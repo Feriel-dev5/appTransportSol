@@ -7,6 +7,7 @@ const {
   updateMission,
   startMissionHandler,
   endMissionHandler,
+  cancelMissionHandler,
 } = require("../Controllers/missions.controller");
 const { verifyToken } = require("../middlewares/verifyToken");
 const { checkRole } = require("../middlewares/checkRole");
@@ -74,6 +75,14 @@ router.put(
   checkRole(["CHAUFFEUR"]),
   validateRequest(missionActionSchema),
   endMissionHandler,
+);
+
+router.put(
+  "/:id/cancel",
+  verifyToken,
+  checkRole(["CHAUFFEUR"]),
+  validateRequest(missionActionSchema),
+  cancelMissionHandler,
 );
 
 module.exports = router;

@@ -56,7 +56,7 @@ const updateUserSchema = z.object({
       role: z
         .enum(["ADMIN", "RESPONSABLE", "CHAUFFEUR", "PASSAGER"])
         .optional(),
-      availability: z.enum(["DISPONIBLE", "OCCUPE"]).optional(),
+      availability: z.enum(["DISPONIBLE", "OCCUPE", "INDISPONIBLE"]).optional(),
     })
     .refine(
       (data) => Object.values(data).some((value) => value !== undefined),

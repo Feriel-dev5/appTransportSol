@@ -9,6 +9,7 @@ const {
   rejectRequestHandler,
   updateMyRequestHandler,
   cancelMyRequestHandler,
+  deleteRequestHandler,
 } = require("../Controllers/requests.controller");
 const { verifyToken } = require("../middlewares/verifyToken");
 const { checkRole } = require("../middlewares/checkRole");
@@ -94,6 +95,14 @@ router.put(
   checkRole(["RESPONSABLE"]),
   validateRequest(requestActionSchema),
   rejectRequestHandler,
+);
+
+router.delete(
+  "/:id",
+  verifyToken,
+  checkRole(["RESPONSABLE", "ADMIN"]),
+  validateRequest(requestActionSchema),
+  deleteRequestHandler,
 );
 
 module.exports = router;

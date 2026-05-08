@@ -8,6 +8,7 @@ const {
   updateMissionByManager,
   startMission,
   endMission,
+  cancelMission,
 } = require("../Services/missions.service");
 
 const listMissions = asyncHandler(async (req, res) => {
@@ -51,6 +52,11 @@ const endMissionHandler = asyncHandler(async (req, res) => {
   res.json({ mission });
 });
 
+const cancelMissionHandler = asyncHandler(async (req, res) => {
+  const mission = await cancelMission(req.params.id, req.user.id);
+  res.json({ mission });
+});
+
 module.exports = {
   listMissions,
   listMyMissions,
@@ -59,4 +65,5 @@ module.exports = {
   updateMission,
   startMissionHandler,
   endMissionHandler,
+  cancelMissionHandler,
 };

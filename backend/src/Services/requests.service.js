@@ -6,10 +6,12 @@ const {
   listRequests,
   updateRequestStatus,
   updateRequestById,
+  deleteRequestById,
 } = require("../Repository/request.repository");
 const {
   createMission,
   updateMission,
+  deleteMissionByRequestId,
 } = require("../Repository/mission.repository");
 const {
   listAvailableDrivers,
@@ -21,7 +23,7 @@ const {
   findVehicleById,
   updateVehicle,
 } = require("../Repository/vehicle.repository");
-const { notifyUser } = require("./notifications.service");
+const { notifyUser, notifyResponsables } = require("./notifications.service");
 const { logAction } = require("./logs.service");
 const { getDayRange } = require("../utils/date");
 
@@ -77,6 +79,10 @@ const createNewRequest = async (userId, payload) => {
     email: payload.email,
     passengerList: payload.passengerList || [],
     status: "EN_ATTENTE",
+  });
+  await notifyResponsables(`Nouvelle demande de transport de ${payload.from} vers ${payload.to}`, {
+    type: "GENERAL",
+    requestId: request.id,
   });
   await logAction(userId, `REQUEST_CREATED:${request.id}`);
   return request;
@@ -346,6 +352,33 @@ const cancelRequestByPassenger = async (requestId, userId) => {
   return updatedRequest;
 };
 
+const deleteRequest = async (requestId, actorId) => {
+  const request = await findRequestById(requestId);
+  if (!request) {
+    throw new AppError("Request not found", 404);
+  }
+
+  // 1. If there's a mission, we need to release driver and vehicle
+  if (request.mission) {
+    const mission = request.mission;
+    if (mission.driverId) {
+      const dId = mission.driverId._id || mission.driverId;
+      await updateUserById(dId, { availability: "DISPONIBLE" });
+    }
+    if (mission.vehicleId) {
+      const vId = mission.vehicleId._id || mission.vehicleId;
+      await updateVehicle(vId, { status: "DISPONIBLE" });
+    }
+    // 2. Delete the mission
+    await deleteMissionByRequestId(requestId);
+  }
+
+  // 3. Delete the request
+  const deleted = await deleteRequestById(requestId);
+  await logAction(actorId, `REQUEST_DELETED:${requestId}`);
+  return deleted;
+};
+
 module.exports = {
   createNewRequest,
   getMyRequests,
@@ -356,4 +389,5 @@ module.exports = {
   rejectRequest,
   updateRequestByPassenger,
   cancelRequestByPassenger,
+  deleteRequest,
 };

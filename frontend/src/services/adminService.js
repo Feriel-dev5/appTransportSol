@@ -1,12 +1,21 @@
 import api from "./api";
 
 /* ─────────────────────────────────────────────────────────
-   DASHBOARD (admin uses responsable-dashboard endpoint)
+   DASHBOARD ADMIN — stats + user profile + week chart
 ───────────────────────────────────────────────────────── */
 export const fetchAdminDashboard = async () => {
-  const { data } = await api.get("/users/me/responsable-dashboard");
+  const { data } = await api.get("/users/me/admin-dashboard");
   return data;
-  // { stats: { pendingRequests, missionsToday, availableDrivers, availableVehicles, alerts, usersCount } }
+};
+
+export const fetchPendingAvisCount = async () => {
+  try {
+    const { data } = await api.get("/avis", { params: { limit: 500 } });
+    const list = Array.isArray(data?.data) ? data.data : [];
+    return list.filter(a => a.statut === "EN_ATTENTE").length;
+  } catch {
+    return 0;
+  }
 };
 
 /* ─────────────────────────────────────────────────────────
@@ -40,14 +49,15 @@ export const updateMyProfile = async (payload) => {
     const current = JSON.parse(localStorage.getItem("user") || "{}");
     const merged = { ...current, ...data.user };
     localStorage.setItem("user", JSON.stringify(merged));
-    window.dispatchEvent(new Event("airops-admin-update"));
+    window.dispatchEvent(new Event("airops-admin-profile-update"));
   } catch {/* ignore */}
   return data.user;
 };
+export const deleteUser = async (id) => {
+  const { data } = await api.delete(`/users/${id}`);
+  return data;
+};
 
-/* ─────────────────────────────────────────────────────────
-   VEHICLES
-───────────────────────────────────────────────────────── */
 export const fetchVehicles = async (params = {}) => {
   const { data } = await api.get("/vehicles", { params });
   return data; // { page, limit, data: Vehicle[] }
@@ -60,6 +70,11 @@ export const createVehicle = async (payload) => {
 
 export const updateVehicle = async (id, payload) => {
   const { data } = await api.put(`/vehicles/${id}`, payload);
+  return data;
+};
+
+export const deleteVehicle = async (id) => {
+  const { data } = await api.delete(`/vehicles/${id}`);
   return data;
 };
 

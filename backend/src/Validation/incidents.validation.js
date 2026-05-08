@@ -5,6 +5,7 @@ const createIncidentSchema = z.object({
   body: z.object({
     missionId: z.string().regex(objectIdRegex, "Invalid id").optional(),
     description: z.string().min(5).max(1000),
+    priority: z.enum(["low", "medium", "high"]).optional(),
   }),
 });
 
@@ -14,6 +15,7 @@ const createPassagerIncidentSchema = z.object({
     categorie: z.enum(["APPLICATION", "CHAUFFEUR", "SERVICE"]),
     description: z.string().min(5).max(1000),
     missionId: z.string().regex(objectIdRegex, "Invalid id").optional(),
+    priority: z.enum(["low", "medium", "high"]).optional(),
   }),
 });
 

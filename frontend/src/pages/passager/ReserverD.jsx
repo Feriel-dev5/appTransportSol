@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useProfileSync } from "../../services/useProfileSync";
 import { createRequest } from "../../services/passengerService";
+import { logout } from "../../services/authService";
 
 /* ═══════════════════════════ CSS ═══════════════════════════ */
 const CSS = `
@@ -200,8 +201,8 @@ if (typeof document !== "undefined" && !document.getElementById("rd-css")) {
 }
 
 /* ════ DATA ════ */
-const AIRPORTS = ["Aéroport Tunis-Carthage (TUN)","Aéroport Monastir Habib Bourguiba (MIR)","Aéroport Djerba-Zarzis (DJE)","Aéroport Sfax-Thyna (SFA)","Aéroport Tozeur-Nefta (TOE)","Aéroport Tabarka-Aïn Draham (TBJ)","Aéroport Gafsa-Ksar (GAF)"];
-const HOTELS   = ["The Residence Tunis (La Marsa)","Hôtel Africa Meridien (Tunis Centre)","Hôtel El Mouradi Africa (Tunis)","Hôtel Les Berges du Lac (Tunis)","Golden Tulip El Mechtel (Tunis)","Hôtel Hasdrubal Thalassa & Spa (Hammamet)","One Resort Aqua Park & Spa (Hammamet)","Hôtel Riu Palace Hammamet","Hôtel El Ksar Sousse","Marhaba Palace (Sousse)","Hôtel Royal Jinene (Sousse)","Hôtel Iberostar Selection Kuriat Palace (Monastir)","Club Med Djerba la Douce","Hôtel Radisson Blu Palace Resort (Djerba)","Hôtel Hasdrubal Prestige (Djerba)","Hôtel Djerba Plaza Thalassa & Spa","Hôtel Dar Horchani (Tozeur)","Hôtel Yadis Dunes (Tozeur)","Hôtel Mehari Tabarka","Hôtel Les Oliviers Palace (Sfax)","Hôtel Thyna (Sfax)","Hôtel Nabeul Beach","Hôtel Aqua Palace (Nabeul)","Club Palmeraie (Mahdia)","Hôtel Iberostar Averroes (Mahdia)","Hôtel Bizerta Resort","Hôtel Les Nymphes (Zaghouan)"];
+const AIRPORTS = ["Aéroport Tunis-Carthage (TUN)", "Aéroport Monastir Habib Bourguiba (MIR)", "Aéroport Djerba-Zarzis (DJE)", "Aéroport Sfax-Thyna (SFA)", "Aéroport Tozeur-Nefta (TOE)", "Aéroport Tabarka-Aïn Draham (TBJ)", "Aéroport Gafsa-Ksar (GAF)"];
+const HOTELS = ["The Residence Tunis (La Marsa)", "Hôtel Africa Meridien (Tunis Centre)", "Hôtel El Mouradi Africa (Tunis)", "Hôtel Les Berges du Lac (Tunis)", "Golden Tulip El Mechtel (Tunis)", "Hôtel Hasdrubal Thalassa & Spa (Hammamet)", "One Resort Aqua Park & Spa (Hammamet)", "Hôtel Riu Palace Hammamet", "Hôtel El Ksar Sousse", "Marhaba Palace (Sousse)", "Hôtel Royal Jinene (Sousse)", "Hôtel Iberostar Selection Kuriat Palace (Monastir)", "Club Med Djerba la Douce", "Hôtel Radisson Blu Palace Resort (Djerba)", "Hôtel Hasdrubal Prestige (Djerba)", "Hôtel Djerba Plaza Thalassa & Spa", "Hôtel Dar Horchani (Tozeur)", "Hôtel Yadis Dunes (Tozeur)", "Hôtel Mehari Tabarka", "Hôtel Les Oliviers Palace (Sfax)", "Hôtel Thyna (Sfax)", "Hôtel Nabeul Beach", "Hôtel Aqua Palace (Nabeul)", "Club Palmeraie (Mahdia)", "Hôtel Iberostar Averroes (Mahdia)", "Hôtel Bizerta Resort", "Hôtel Les Nymphes (Zaghouan)"];
 
 const LOCAL_REQUESTS_KEY = "airops_passenger_requests_v1";
 
@@ -230,7 +231,7 @@ function saveLocalRequest(item) {
   const key = String(item._id || item.id || item.ref);
   const exists = current.some(d => String(d._id || d.id || d.ref) === key);
   const updated = exists ? current.map(d => String(d._id || d.id || d.ref) === key ? item : d) : [item, ...current];
-  try { localStorage.setItem(getLocalRequestsKey(), JSON.stringify(updated)); } catch {}
+  try { localStorage.setItem(getLocalRequestsKey(), JSON.stringify(updated)); } catch { }
 }
 
 function makeLocalRequest(payload, created, fallbackRef) {
@@ -261,201 +262,208 @@ function makeLocalRequest(payload, created, fallbackRef) {
 
 
 const COUNTRIES_PHONE = [
-  {code:"TN",dial:"+216",flag:"🇹🇳",name:"Tunisie",digits:8},{code:"DZ",dial:"+213",flag:"🇩🇿",name:"Algérie",digits:9},
-  {code:"MA",dial:"+212",flag:"🇲🇦",name:"Maroc",digits:9},{code:"EG",dial:"+20",flag:"🇪🇬",name:"Égypte",digits:10},
-  {code:"LY",dial:"+218",flag:"🇱🇾",name:"Libye",digits:9},{code:"FR",dial:"+33",flag:"🇫🇷",name:"France",digits:9},
-  {code:"DE",dial:"+49",flag:"🇩🇪",name:"Allemagne",digits:11},{code:"GB",dial:"+44",flag:"🇬🇧",name:"Royaume-Uni",digits:10},
-  {code:"SA",dial:"+966",flag:"🇸🇦",name:"Arabie Saoudite",digits:9},{code:"AE",dial:"+971",flag:"🇦🇪",name:"Émirats",digits:9},
-  {code:"US",dial:"+1",flag:"🇺🇸",name:"États-Unis",digits:10},{code:"CA",dial:"+1",flag:"🇨🇦",name:"Canada",digits:10},
+  { code: "TN", dial: "+216", flag: "🇹🇳", name: "Tunisie", digits: 8 }, { code: "DZ", dial: "+213", flag: "🇩🇿", name: "Algérie", digits: 9 },
+  { code: "MA", dial: "+212", flag: "🇲🇦", name: "Maroc", digits: 9 }, { code: "EG", dial: "+20", flag: "🇪🇬", name: "Égypte", digits: 10 },
+  { code: "LY", dial: "+218", flag: "🇱🇾", name: "Libye", digits: 9 }, { code: "FR", dial: "+33", flag: "🇫🇷", name: "France", digits: 9 },
+  { code: "DE", dial: "+49", flag: "🇩🇪", name: "Allemagne", digits: 11 }, { code: "GB", dial: "+44", flag: "🇬🇧", name: "Royaume-Uni", digits: 10 },
+  { code: "SA", dial: "+966", flag: "🇸🇦", name: "Arabie Saoudite", digits: 9 }, { code: "AE", dial: "+971", flag: "🇦🇪", name: "Émirats", digits: 9 },
+  { code: "US", dial: "+1", flag: "🇺🇸", name: "États-Unis", digits: 10 }, { code: "CA", dial: "+1", flag: "🇨🇦", name: "Canada", digits: 10 },
 ];
 
 /* NAV — no badge on Notifications */
 const navItems = [
-  { label:"Tableau de bord",  to:"/dashbordP",     icon:<svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> },
-  { label:"Réserver demande", to:"/reserverD",     icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg> },
-  { label:"Notifications",    to:"/notificationP", icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> },
-  { label:"Avis des acteurs", to:"/avisP",         icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg> },
-  { label:"Profile",          to:"/profilP",       icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+  {
+    label: "Tableau de bord",
+    to: "/dashbordP",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
+  },
+  {
+    label: "Réserver demande",
+    to: "/reserverD",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg>,
+  },
+  {
+    label: "Notifications",
+    to: "/notificationP",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
+  },
+  {
+    label: "Avis des acteurs",
+    to: "/avisP",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>,
+  },
+  {
+    label: "Profile",
+    to: "/profilP",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
+  },
 ];
 
-function todayISO() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function todayISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
 function LocationSelect({ value, onChange, hasErr, placeholder }) {
   return (
-    <select className={`rd-select${hasErr?" err":""}`} value={value} onChange={e=>onChange(e.target.value)}>
+    <select className={`rd-select${hasErr ? " err" : ""}`} value={value} onChange={e => onChange(e.target.value)}>
       <option value="">{placeholder}</option>
-      <optgroup label="✈️ Aéroports tunisiens">{AIRPORTS.map(a=><option key={a} value={a}>{a}</option>)}</optgroup>
-      <optgroup label="🏨 Hôtels tunisiens">{HOTELS.map(h=><option key={h} value={h}>{h}</option>)}</optgroup>
+      <optgroup label="✈️ Aéroports tunisiens">{AIRPORTS.map(a => <option key={a} value={a}>{a}</option>)}</optgroup>
+      <optgroup label="🏨 Hôtels tunisiens">{HOTELS.map(h => <option key={h} value={h}>{h}</option>)}</optgroup>
     </select>
   );
 }
 
 /* ════════════════════ INIT FORMS ════════════════════ */
-const INIT_STD = { depart:"", destination:"", dateArrivee:"", heureArrivee:"", nombrePassagers:"2", telephoneCountry:"TN", telephoneLocal:"", email:"", commentaire:"" };
-const INIT_VIP_PAX = () => ({ nom:"", prenom:"", email:"", telephoneCountry:"TN", telephoneLocal:"" });
-const INIT_VIP = { depart:"", destination:"", dateArrivee:"", heureArrivee:"", telephoneCountry:"TN", telephoneLocal:"", email:"", commentaire:"", passagers:[INIT_VIP_PAX()] };
+const INIT_STD = { depart: "", destination: "", dateArrivee: "", heureArrivee: "", nombrePassagers: "2", telephoneCountry: "TN", telephoneLocal: "", email: "", commentaire: "" };
+const INIT_VIP_PAX = () => ({ nom: "", prenom: "", email: "", telephoneCountry: "TN", telephoneLocal: "" });
+const INIT_VIP = { depart: "", destination: "", dateArrivee: "", heureArrivee: "", telephoneCountry: "TN", telephoneLocal: "", email: "", commentaire: "", passagers: [INIT_VIP_PAX()] };
 
 /* ════════════════════ MAIN ════════════════════ */
 export default function ReserverD() {
   const navigate = useNavigate();
-  const { nom, photo: photoSync, initials } = useProfileSync();
-
-  // Photo personnelle par compte
-  const [photo, setPhoto] = React.useState(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      const uid = u._id || u.id || u.email || "default";
-      return localStorage.getItem(`airops_profil_photo_v2_${uid}`) || sessionStorage.getItem("airops_photo_current") || photoSync || "";
-    } catch { return photoSync || ""; }
-  });
-  React.useEffect(() => {
-    const sync = () => {
-      try {
-        const u = JSON.parse(localStorage.getItem("user") || "{}");
-        const uid = u._id || u.id || u.email || "default";
-        setPhoto(localStorage.getItem(`airops_profil_photo_v2_${uid}`) || sessionStorage.getItem("airops_photo_current") || "");
-      } catch {}
-    };
-    window.addEventListener("airops-profile-update", sync);
-    return () => window.removeEventListener("airops-profile-update", sync);
-  }, []);
-  const [collapsed,     setCollapsed]     = useState(false);
+  const { nom, photo, initials } = useProfileSync();
+  const [collapsed, setCollapsed] = useState(false);
   const [sidebarMobile, setSidebarMobile] = useState(false);
-  const [toast,         setToast]         = useState("");
-  const [reservType,    setReservType]    = useState("standard"); // "standard" | "vip"
-  const [submitting,    setSubmitting]    = useState(false);
+  const [toast, setToast] = useState("");
+  const [reservType, setReservType] = useState("standard"); // "standard" | "vip"
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
 
   /* ── Standard form ── */
-  const [std,    setStd]    = useState(INIT_STD);
-  const [stdT,   setStdT]   = useState({});
+  const [std, setStd] = useState(INIT_STD);
+  const [stdT, setStdT] = useState({});
 
   /* ── VIP form ── */
-  const [vip,    setVip]    = useState(INIT_VIP);
-  const [vipT,   setVipT]   = useState({});
+  const [vip, setVip] = useState(INIT_VIP);
+  const [vipT, setVipT] = useState({});
 
-  useEffect(()=>{ if(!toast)return; const t=setTimeout(()=>setToast(""),3500); return()=>clearTimeout(t); },[toast]);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 3500); return () => clearTimeout(t); }, [toast]);
 
-  const nowTime=()=>{ const d=new Date(); return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; };
-  const minDate=todayISO();
+  const nowTime = () => { const d = new Date(); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+  const minDate = todayISO();
 
-  const getCountry=(code)=>COUNTRIES_PHONE.find(c=>c.code===code)||COUNTRIES_PHONE[0];
+  const getCountry = (code) => COUNTRIES_PHONE.find(c => c.code === code) || COUNTRIES_PHONE[0];
 
   /* ── STD Errors ── */
-  const stdErr = useMemo(()=>{
-    const c=getCountry(std.telephoneCountry);
+  const stdErr = useMemo(() => {
+    const c = getCountry(std.telephoneCountry);
     return {
-      depart:!std.depart?"Le lieu de départ est obligatoire.":"",
-      destination:!std.destination?"La destination est obligatoire.":"",
-      dateArrivee:!std.dateArrivee?"La date est obligatoire.":std.dateArrivee<minDate?"La date ne peut pas être dans le passé.":"",
-      heureArrivee:!std.heureArrivee?"L'heure est obligatoire.":(std.dateArrivee===minDate&&std.heureArrivee<=nowTime())?"L'heure doit être dans le futur.":"",
-      nombrePassagers:Number(std.nombrePassagers)<2?"Minimum 2 passagers.":Number(std.nombrePassagers)>50?"Maximum 50.":"",
-      telephoneLocal:!std.telephoneLocal.trim()?"Le téléphone est obligatoire.":!/^\d+$/.test(std.telephoneLocal)?"Chiffres uniquement.":std.telephoneLocal.length!==c.digits?`${c.digits} chiffres requis.`:"",
-      email:!std.email.trim()?"L'email est obligatoire.":/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(std.email)?"":"Email invalide.",
-      commentaire:std.commentaire.length>300?"Maximum 300 caractères.":"",
+      depart: !std.depart ? "Le lieu de départ est obligatoire." : "",
+      destination: !std.destination ? "La destination est obligatoire." : "",
+      dateArrivee: !std.dateArrivee ? "La date est obligatoire." : std.dateArrivee < minDate ? "La date ne peut pas être dans le passé." : "",
+      heureArrivee: !std.heureArrivee ? "L'heure est obligatoire." : (std.dateArrivee === minDate && std.heureArrivee <= nowTime()) ? "L'heure doit être dans le futur." : "",
+      nombrePassagers: Number(std.nombrePassagers) < 2 ? "Minimum 2 passagers." : Number(std.nombrePassagers) > 50 ? "Maximum 50." : "",
+      telephoneLocal: !std.telephoneLocal.trim() ? "Le téléphone est obligatoire." : !/^\d+$/.test(std.telephoneLocal) ? "Chiffres uniquement." : std.telephoneLocal.length !== c.digits ? `${c.digits} chiffres requis.` : "",
+      email: !std.email.trim() ? "L'email est obligatoire." : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(std.email) ? "" : "Email invalide.",
+      commentaire: std.commentaire.length > 300 ? "Maximum 300 caractères." : "",
     };
-  },[std]);
+  }, [std]);
 
   /* ── VIP Errors ── */
-  const vipErr = useMemo(()=>{
-    const c=getCountry(vip.telephoneCountry);
-    const errs={
-      depart:!vip.depart?"Le lieu de départ est obligatoire.":"",
-      destination:!vip.destination?"La destination est obligatoire.":"",
-      dateArrivee:!vip.dateArrivee?"La date est obligatoire.":vip.dateArrivee<minDate?"La date ne peut pas être dans le passé.":"",
-      heureArrivee:!vip.heureArrivee?"L'heure est obligatoire.":(vip.dateArrivee===minDate&&vip.heureArrivee<=nowTime())?"L'heure doit être dans le futur.":"",
-      telephoneLocal:!vip.telephoneLocal.trim()?"Le téléphone est obligatoire.":!/^\d+$/.test(vip.telephoneLocal)?"Chiffres uniquement.":vip.telephoneLocal.length!==c.digits?`${c.digits} chiffres requis.`:"",
-      email:!vip.email.trim()?"L'email est obligatoire.":/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vip.email)?"":"Email invalide.",
-      commentaire:vip.commentaire.length>400?"Maximum 400 caractères.":"",
-      passagers:vip.passagers.length<1?"Au moins 1 passager requis.":"",
+  const vipErr = useMemo(() => {
+    const c = getCountry(vip.telephoneCountry);
+    const errs = {
+      depart: !vip.depart ? "Le lieu de départ est obligatoire." : "",
+      destination: !vip.destination ? "La destination est obligatoire." : "",
+      dateArrivee: !vip.dateArrivee ? "La date est obligatoire." : vip.dateArrivee < minDate ? "La date ne peut pas être dans le passé." : "",
+      heureArrivee: !vip.heureArrivee ? "L'heure est obligatoire." : (vip.dateArrivee === minDate && vip.heureArrivee <= nowTime()) ? "L'heure doit être dans le futur." : "",
+      telephoneLocal: !vip.telephoneLocal.trim() ? "Le téléphone est obligatoire." : !/^\d+$/.test(vip.telephoneLocal) ? "Chiffres uniquement." : vip.telephoneLocal.length !== c.digits ? `${c.digits} chiffres requis.` : "",
+      email: !vip.email.trim() ? "L'email est obligatoire." : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vip.email) ? "" : "Email invalide.",
+      commentaire: vip.commentaire.length > 400 ? "Maximum 400 caractères." : "",
+      passagers: vip.passagers.length < 1 ? "Au moins 1 passager requis." : "",
     };
     return errs;
-  },[vip]);
+  }, [vip]);
 
-  const stdValid=Object.values(stdErr).every(v=>!v);
-  const vipValid=Object.values(vipErr).every(v=>!v) && vip.passagers.length>=1;
+  const stdValid = Object.values(stdErr).every(v => !v);
+  const vipValid = Object.values(vipErr).every(v => !v) && vip.passagers.length >= 1;
 
   /* ── STD update ── */
-  const updStd=(f,v)=>setStd(p=>({...p,[f]:v}));
-  const blurStd=(f)=>setStdT(p=>({...p,[f]:true}));
+  const updStd = (f, v) => setStd(p => ({ ...p, [f]: v }));
+  const blurStd = (f) => setStdT(p => ({ ...p, [f]: true }));
 
   /* ── VIP update ── */
-  const updVip=(f,v)=>setVip(p=>({...p,[f]:v}));
-  const blurVip=(f)=>setVipT(p=>({...p,[f]:true}));
-  const updPax=(i,f,v)=>setVip(p=>({...p,passagers:p.passagers.map((px,idx)=>idx===i?{...px,[f]:v}:px)}));
-  const addPax=()=>{ if(vip.passagers.length<10) setVip(p=>({...p,passagers:[...p.passagers,INIT_VIP_PAX()]})); };
-  const removePax=(i)=>{ if(vip.passagers.length>1) setVip(p=>({...p,passagers:p.passagers.filter((_,idx)=>idx!==i)})); };
+  const updVip = (f, v) => setVip(p => ({ ...p, [f]: v }));
+  const blurVip = (f) => setVipT(p => ({ ...p, [f]: true }));
+  const updPax = (i, f, v) => setVip(p => ({ ...p, passagers: p.passagers.map((px, idx) => idx === i ? { ...px, [f]: v } : px) }));
+  const addPax = () => { if (vip.passagers.length < 10) setVip(p => ({ ...p, passagers: [...p.passagers, INIT_VIP_PAX()] })); };
+  const removePax = (i) => { if (vip.passagers.length > 1) setVip(p => ({ ...p, passagers: p.passagers.filter((_, idx) => idx !== i) })); };
 
   /* ── Submit Standard ── */
-  const handleSubmitStd=async(e)=>{
+  const handleSubmitStd = async (e) => {
     e.preventDefault();
-    setStdT(Object.fromEntries(Object.keys(stdErr).map(k=>[k,true])));
-    if(!stdValid)return;
+    setStdT(Object.fromEntries(Object.keys(stdErr).map(k => [k, true])));
+    if (!stdValid) return;
     setSubmitting(true);
     try {
-      const c=getCountry(std.telephoneCountry);
-      const payload={ from:std.depart,to:std.destination,date:std.dateArrivee,time:std.heureArrivee,passengers:Number(std.nombrePassagers),phone:`${c.dial} ${std.telephoneLocal}`,email:std.email,comment:std.commentaire,type:"standard" };
-      const created=await createRequest(payload);
+      const c = getCountry(std.telephoneCountry);
+      const payload = { from: std.depart, to: std.destination, date: std.dateArrivee, time: std.heureArrivee, passengers: Number(std.nombrePassagers), phone: `${c.dial} ${std.telephoneLocal}`, email: std.email, comment: std.commentaire, type: "standard" };
+      const created = await createRequest(payload);
       const fallbackRef = `#DEM-${Date.now().toString().slice(-6)}`;
       const localRequest = makeLocalRequest(payload, created, fallbackRef);
       saveLocalRequest(localRequest);
       window.dispatchEvent(new Event("airops-requests-update"));
-      const ref = localRequest.ref;
-      setToast(`✅ Demande standard ${ref} envoyée !`);
+      const ref = created?.ref || localRequest.ref;
+      setToast(`✅ Demande standard ${ref} envoyée avec succès !`);
       setStd(INIT_STD); setStdT({});
-    } catch(err){ setToast("❌ "+(err?.response?.data?.message||"Erreur lors de l'envoi.")); }
-    finally{ setSubmitting(false); }
+      setTimeout(() => navigate("/dashbordP"), 1500);
+    } catch (err) { setToast("❌ " + (err?.response?.data?.message || "Erreur lors de l'envoi.")); }
+    finally { setSubmitting(false); }
   };
 
   /* ── Submit VIP ── */
-  const handleSubmitVip=async(e)=>{
+  const handleSubmitVip = async (e) => {
     e.preventDefault();
-    setVipT(Object.fromEntries(Object.keys(vipErr).map(k=>[k,true])));
-    if(!vipValid)return;
+    setVipT(Object.fromEntries(Object.keys(vipErr).map(k => [k, true])));
+    if (!vipValid) return;
     setSubmitting(true);
     try {
-      const c=getCountry(vip.telephoneCountry);
-      const payload={ from:vip.depart,to:vip.destination,date:vip.dateArrivee,time:vip.heureArrivee,passengers:vip.passagers.length,phone:`${c.dial} ${vip.telephoneLocal}`,email:vip.email,comment:vip.commentaire,type:"vip",passengerList:vip.passagers };
-      const created=await createRequest(payload);
+      const c = getCountry(vip.telephoneCountry);
+      const payload = { from: vip.depart, to: vip.destination, date: vip.dateArrivee, time: vip.heureArrivee, passengers: vip.passagers.length, phone: `${c.dial} ${vip.telephoneLocal}`, email: vip.email, comment: vip.commentaire, type: "vip", passengerList: vip.passagers };
+      const created = await createRequest(payload);
       const fallbackRef = `#VIP-${Date.now().toString().slice(-6)}`;
       const localRequest = makeLocalRequest(payload, created, fallbackRef);
       saveLocalRequest(localRequest);
       window.dispatchEvent(new Event("airops-requests-update"));
-      const ref = localRequest.ref;
-      setToast(`⭐ Demande VIP ${ref} envoyée !`);
+      const ref = created?.ref || localRequest.ref;
+      setToast(`⭐ Demande VIP ${ref} envoyée avec succès !`);
       setVip(INIT_VIP); setVipT({});
-    } catch(err){ setToast("❌ "+(err?.response?.data?.message||"Erreur lors de l'envoi.")); }
-    finally{ setSubmitting(false); }
+      setTimeout(() => navigate("/dashbordP"), 1500);
+    } catch (err) { setToast("❌ " + (err?.response?.data?.message || "Erreur lors de l'envoi.")); }
+    finally { setSubmitting(false); }
   };
 
-  const isStd=reservType==="standard";
-  const curPax=isStd?std.nombrePassagers:vip.passagers.length;
+  const isStd = reservType === "standard";
+  const curPax = isStd ? std.nombrePassagers : vip.passagers.length;
 
   return (
     <div className="rd-wrap">
-      {sidebarMobile&&<div className="rd-sb-overlay" onClick={()=>setSidebarMobile(false)}/>}
+      {sidebarMobile && <div className="rd-sb-overlay" onClick={() => setSidebarMobile(false)} />}
 
       {/* ── Sidebar ── */}
-      <aside className={["rd-sidebar",collapsed?"collapsed":"",sidebarMobile?"open":""].filter(Boolean).join(" ")}>
-        <button type="button" className="rd-sb-toggle" onClick={()=>setCollapsed(v=>!v)}>
-          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      <aside className={["rd-sidebar", collapsed ? "collapsed" : "", sidebarMobile ? "open" : ""].filter(Boolean).join(" ")}>
+        <button type="button" className="rd-sb-toggle" onClick={() => setCollapsed(v => !v)}>
+          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
         </button>
-        <div className="rd-sb-brand" onClick={()=>navigate("/")}>
+        <div className="rd-sb-brand" onClick={() => navigate("/")}>
           <div className="rd-sb-brand-icon">
-            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" /></svg>
           </div>
-          <div className="rd-sb-brand-text"><span className="rd-sb-brand-name">AirOps</span><span className="rd-sb-brand-sub">GESTION INTERNE</span></div>
+          <div className="rd-sb-brand-text"><span className="rd-sb-brand-name">AirOps</span><span className="rd-sb-brand-sub">ESPACE PASSAGER</span></div>
         </div>
         <div className="rd-sb-lbl">Navigation</div>
         <nav className="rd-sb-nav">
-          {navItems.map(item=>(
-            <NavLink key={item.label} to={item.to} data-label={item.label} className={({isActive})=>`rd-nav-item${isActive?" active":""}`} onClick={()=>setSidebarMobile(false)}>
+          {navItems.map(item => (
+            <NavLink key={item.label} to={item.to} data-label={item.label} className={({ isActive }) => `rd-nav-item${isActive ? " active" : ""}`} onClick={() => setSidebarMobile(false)}>
               <span className="rd-nav-icon">{item.icon}</span><span className="rd-nav-lbl">{item.label}</span>
             </NavLink>
           ))}
         </nav>
         <div className="rd-sb-footer">
-          <div className="rd-sb-lbl" style={{paddingTop:0}}>Compte</div>
-          <button type="button" className="rd-sb-logout" onClick={() => { try { sessionStorage.removeItem("airops_photo_current"); } catch {} navigate("/login"); }}>
-            <span className="rd-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></span>
+          <div className="rd-sb-lbl" style={{ paddingTop: 0 }}>Compte</div>
+          <button type="button" className="rd-sb-logout" onClick={handleLogout}>
+            <span className="rd-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></span>
             <span className="rd-logout-lbl">Déconnexion</span>
           </button>
         </div>
@@ -465,23 +473,23 @@ export default function ReserverD() {
       <div className="rd-main">
         <header className="rd-header">
           <div className="rd-h-left">
-            <button type="button" className="rd-menu-btn" onClick={()=>setSidebarMobile(v=>!v)}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <button type="button" className="rd-menu-btn" onClick={() => setSidebarMobile(v => !v)}>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
             <span className="rd-h-title">Réserver une demande</span>
           </div>
           <div className="rd-h-right">
             <div className="rd-search-wrap">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              <input type="text" className="rd-search-input" placeholder="Rechercher…"/>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <input type="text" className="rd-search-input" placeholder="Rechercher…" />
             </div>
-            <button type="button" className="rd-notif-btn" onClick={()=>navigate("/notificationP")}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            <button type="button" className="rd-notif-btn" onClick={() => navigate("/notificationP")}>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
             </button>
             <div className="rd-user-chip">
               <div className="rd-user-info"><div className="rd-user-name">{nom}</div><div className="rd-user-role">Passager</div></div>
-              <div className="rd-avatar" onClick={()=>navigate("/profilP")}>
-                {photo?<img src={photo} alt="profil"/>:initials}
+              <div className="rd-avatar" onClick={() => navigate("/profilP")}>
+                {photo ? <img src={photo} alt="profil" /> : initials}
               </div>
             </div>
           </div>
@@ -494,99 +502,99 @@ export default function ReserverD() {
           {/* ── TYPE SELECTOR ── */}
           <div className="rd-type-tabs">
             {/* Standard */}
-            <div className={`rd-type-tab${reservType==="standard"?" active-std":""}`} onClick={()=>setReservType("standard")}>
+            <div className={`rd-type-tab${reservType === "standard" ? " active-std" : ""}`} onClick={() => setReservType("standard")}>
               <div className="rd-type-tab-icon">
-                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke={reservType==="standard"?"white":"#94a3b8"} strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke={reservType === "standard" ? "white" : "#94a3b8"} strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </div>
               <div>
                 <div className="rd-type-tab-title">Réservation Standard</div>
                 <div className="rd-type-tab-sub">Groupe de 2 à 50 passagers • Regroupement possible</div>
               </div>
-              {reservType==="standard"&&<span className="rd-type-badge">SÉLECTIONNÉ</span>}
+              {reservType === "standard" && <span className="rd-type-badge">SÉLECTIONNÉ</span>}
             </div>
             {/* VIP */}
-            <div className={`rd-type-tab${reservType==="vip"?" active-vip":""}`} onClick={()=>setReservType("vip")}>
+            <div className={`rd-type-tab${reservType === "vip" ? " active-vip" : ""}`} onClick={() => setReservType("vip")}>
               <div className="rd-type-tab-icon">
-                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke={reservType==="vip"?"white":"#94a3b8"} strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke={reservType === "vip" ? "white" : "#94a3b8"} strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                 </svg>
               </div>
               <div>
                 <div className="rd-type-tab-title">Réservation VIP</div>
                 <div className="rd-type-tab-sub">1 ou plusieurs passagers • Service exclusif • Pas de regroupement</div>
               </div>
-              {reservType==="vip"&&<span className="rd-type-badge">VIP</span>}
+              {reservType === "vip" && <span className="rd-type-badge">VIP</span>}
             </div>
           </div>
 
           <div className="rd-grid">
             {/* ════════════ FORM CARD ════════════ */}
             <div className="rd-form-card">
-              <div className={`rd-form-header ${isStd?"std":"vip"}`}>
+              <div className={`rd-form-header ${isStd ? "std" : "vip"}`}>
                 <div>
-                  <p className="rd-fh-badge">{isStd?"RÉSERVATION STANDARD":"RÉSERVATION VIP ⭐"}</p>
-                  <p className="rd-fh-title">{isStd?"Formulaire de demande":"Formulaire VIP exclusif"}</p>
-                  <p className="rd-fh-sub">{isStd?"Regroupement possible avec d'autres passagers de même destination.":"Service privatisé — aucun regroupement avec d'autres passagers."}</p>
+                  <p className="rd-fh-badge">{isStd ? "RÉSERVATION STANDARD" : "RÉSERVATION VIP ⭐"}</p>
+                  <p className="rd-fh-title">{isStd ? "Formulaire de demande" : "Formulaire VIP exclusif"}</p>
+                  <p className="rd-fh-sub">{isStd ? "Regroupement possible avec d'autres passagers de même destination." : "Service privatisé — aucun regroupement avec d'autres passagers."}</p>
                 </div>
                 <div className="rd-fh-icon">
-                  {isStd?(
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                  ):(
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                  {isStd ? (
+                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  ) : (
+                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
                   )}
                 </div>
               </div>
 
               {/* ══ STANDARD FORM ══ */}
-              {isStd&&(
+              {isStd && (
                 <form className="rd-form-body" onSubmit={handleSubmitStd} noValidate>
                   <div className={`rd-note std`}>
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{flexShrink:0,marginTop:1}}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     Les passagers standard peuvent être regroupés avec d'autres passagers ayant la même destination pour optimiser le transport.
                   </div>
                   <div className="rd-row-2">
-                    <div className="rd-field"><label className="rd-label">Point de départ *</label><LocationSelect value={std.depart} onChange={v=>updStd("depart",v)} hasErr={!!(stdT.depart&&stdErr.depart)} placeholder="Choisir le lieu de départ…"/>{stdT.depart&&stdErr.depart&&<span className="rd-err-msg">{stdErr.depart}</span>}</div>
-                    <div className="rd-field"><label className="rd-label">Destination *</label><LocationSelect value={std.destination} onChange={v=>updStd("destination",v)} hasErr={!!(stdT.destination&&stdErr.destination)} placeholder="Choisir la destination…"/>{stdT.destination&&stdErr.destination&&<span className="rd-err-msg">{stdErr.destination}</span>}</div>
+                    <div className="rd-field"><label className="rd-label">Point de départ *</label><LocationSelect value={std.depart} onChange={v => updStd("depart", v)} hasErr={!!(stdT.depart && stdErr.depart)} placeholder="Choisir le lieu de départ…" />{stdT.depart && stdErr.depart && <span className="rd-err-msg">{stdErr.depart}</span>}</div>
+                    <div className="rd-field"><label className="rd-label">Destination *</label><LocationSelect value={std.destination} onChange={v => updStd("destination", v)} hasErr={!!(stdT.destination && stdErr.destination)} placeholder="Choisir la destination…" />{stdT.destination && stdErr.destination && <span className="rd-err-msg">{stdErr.destination}</span>}</div>
                   </div>
                   <div className="rd-row-2">
-                    <div className="rd-field"><label className="rd-label">Date de voyage *</label><input type="date" className={`rd-input${stdT.dateArrivee&&stdErr.dateArrivee?" err":""}`} value={std.dateArrivee} min={minDate} onChange={e=>updStd("dateArrivee",e.target.value)} onBlur={()=>blurStd("dateArrivee")}/>{stdT.dateArrivee&&stdErr.dateArrivee&&<span className="rd-err-msg">{stdErr.dateArrivee}</span>}</div>
-                    <div className="rd-field"><label className="rd-label">Heure d'arrivée *</label><input type="time" className={`rd-input${stdT.heureArrivee&&stdErr.heureArrivee?" err":""}`} value={std.heureArrivee} onChange={e=>updStd("heureArrivee",e.target.value)} onBlur={()=>blurStd("heureArrivee")}/>{stdT.heureArrivee&&stdErr.heureArrivee&&<span className="rd-err-msg">{stdErr.heureArrivee}</span>}</div>
+                    <div className="rd-field"><label className="rd-label">Date de voyage *</label><input type="date" className={`rd-input${stdT.dateArrivee && stdErr.dateArrivee ? " err" : ""}`} value={std.dateArrivee} min={minDate} onChange={e => updStd("dateArrivee", e.target.value)} onBlur={() => blurStd("dateArrivee")} />{stdT.dateArrivee && stdErr.dateArrivee && <span className="rd-err-msg">{stdErr.dateArrivee}</span>}</div>
+                    <div className="rd-field"><label className="rd-label">Heure d'arrivée *</label><input type="time" className={`rd-input${stdT.heureArrivee && stdErr.heureArrivee ? " err" : ""}`} value={std.heureArrivee} onChange={e => updStd("heureArrivee", e.target.value)} onBlur={() => blurStd("heureArrivee")} />{stdT.heureArrivee && stdErr.heureArrivee && <span className="rd-err-msg">{stdErr.heureArrivee}</span>}</div>
                   </div>
                   <div className="rd-row-2">
                     <div className="rd-field">
-                      <label className="rd-label">Nombre de passagers * <span style={{color:"var(--tm)",fontWeight:400,textTransform:"none"}}>(min. 2)</span></label>
-                      <input type="number" min="2" max="50" className={`rd-input${stdT.nombrePassagers&&stdErr.nombrePassagers?" err":""}`} value={std.nombrePassagers} onChange={e=>updStd("nombrePassagers",e.target.value)} onBlur={()=>blurStd("nombrePassagers")}/>
-                      {stdT.nombrePassagers&&stdErr.nombrePassagers&&<span className="rd-err-msg">{stdErr.nombrePassagers}</span>}
+                      <label className="rd-label">Nombre de passagers * <span style={{ color: "var(--tm)", fontWeight: 400, textTransform: "none" }}>(min. 2)</span></label>
+                      <input type="number" min="2" max="50" className={`rd-input${stdT.nombrePassagers && stdErr.nombrePassagers ? " err" : ""}`} value={std.nombrePassagers} onChange={e => updStd("nombrePassagers", e.target.value)} onBlur={() => blurStd("nombrePassagers")} />
+                      {stdT.nombrePassagers && stdErr.nombrePassagers && <span className="rd-err-msg">{stdErr.nombrePassagers}</span>}
                     </div>
                     <div className="rd-field">
-                      <label className="rd-label">Téléphone * <span style={{color:"var(--tm)",fontWeight:400,textTransform:"none"}}>({getCountry(std.telephoneCountry).digits} chiffres)</span></label>
+                      <label className="rd-label">Téléphone * <span style={{ color: "var(--tm)", fontWeight: 400, textTransform: "none" }}>({getCountry(std.telephoneCountry).digits} chiffres)</span></label>
                       <div className="rd-phone-row">
-                        <select className={`rd-country-select${stdT.telephoneLocal&&stdErr.telephoneLocal?" err":""}`} value={std.telephoneCountry} onChange={e=>{updStd("telephoneCountry",e.target.value);updStd("telephoneLocal","");}}>
-                          {COUNTRIES_PHONE.map(c=><option key={c.code} value={c.code}>{c.flag} {c.dial} ({c.name})</option>)}
+                        <select className={`rd-country-select${stdT.telephoneLocal && stdErr.telephoneLocal ? " err" : ""}`} value={std.telephoneCountry} onChange={e => { updStd("telephoneCountry", e.target.value); updStd("telephoneLocal", ""); }}>
+                          {COUNTRIES_PHONE.map(c => <option key={c.code} value={c.code}>{c.flag} {c.dial} ({c.name})</option>)}
                         </select>
-                        <input type="tel" inputMode="numeric" maxLength={getCountry(std.telephoneCountry).digits} className={`rd-input rd-phone-local${stdT.telephoneLocal&&stdErr.telephoneLocal?" err":""}`} value={std.telephoneLocal} placeholder={"0".repeat(getCountry(std.telephoneCountry).digits)} onChange={e=>{if(/^\d*$/.test(e.target.value))updStd("telephoneLocal",e.target.value);}} onBlur={()=>blurStd("telephoneLocal")}/>
+                        <input type="tel" inputMode="numeric" maxLength={getCountry(std.telephoneCountry).digits} className={`rd-input rd-phone-local${stdT.telephoneLocal && stdErr.telephoneLocal ? " err" : ""}`} value={std.telephoneLocal} placeholder={"0".repeat(getCountry(std.telephoneCountry).digits)} onChange={e => { if (/^\d*$/.test(e.target.value)) updStd("telephoneLocal", e.target.value); }} onBlur={() => blurStd("telephoneLocal")} />
                       </div>
-                      {stdT.telephoneLocal&&stdErr.telephoneLocal&&<span className="rd-err-msg">{stdErr.telephoneLocal}</span>}
+                      {stdT.telephoneLocal && stdErr.telephoneLocal && <span className="rd-err-msg">{stdErr.telephoneLocal}</span>}
                     </div>
                   </div>
                   <div className="rd-row-1">
-                    <div className="rd-field"><label className="rd-label">Adresse email *</label><input type="email" className={`rd-input${stdT.email&&stdErr.email?" err":""}`} value={std.email} placeholder="passager@email.com" onChange={e=>updStd("email",e.target.value)} onBlur={()=>blurStd("email")}/>{stdT.email&&stdErr.email&&<span className="rd-err-msg">{stdErr.email}</span>}</div>
+                    <div className="rd-field"><label className="rd-label">Adresse email *</label><input type="email" className={`rd-input${stdT.email && stdErr.email ? " err" : ""}`} value={std.email} placeholder="passager@email.com" onChange={e => updStd("email", e.target.value)} onBlur={() => blurStd("email")} />{stdT.email && stdErr.email && <span className="rd-err-msg">{stdErr.email}</span>}</div>
                   </div>
-                  <div className="rd-row-1" style={{marginBottom:0}}>
+                  <div className="rd-row-1" style={{ marginBottom: 0 }}>
                     <div className="rd-field">
                       <label className="rd-label">Commentaire</label>
-                      <textarea className={`rd-textarea${stdT.commentaire&&stdErr.commentaire?" err":""}`} value={std.commentaire} placeholder="Détails utiles : bagage, terminal, besoins spéciaux…" onChange={e=>updStd("commentaire",e.target.value)} onBlur={()=>blurStd("commentaire")}/>
-                      <div className="rd-char-row">{stdT.commentaire&&stdErr.commentaire?<span className="rd-err-msg">{stdErr.commentaire}</span>:<span className="rd-char-hint">Optionnel — max 300 caractères</span>}<span className="rd-char-hint">{std.commentaire.length}/300</span></div>
+                      <textarea className={`rd-textarea${stdT.commentaire && stdErr.commentaire ? " err" : ""}`} value={std.commentaire} placeholder="Détails utiles : bagage, terminal, besoins spéciaux…" onChange={e => updStd("commentaire", e.target.value)} onBlur={() => blurStd("commentaire")} />
+                      <div className="rd-char-row">{stdT.commentaire && stdErr.commentaire ? <span className="rd-err-msg">{stdErr.commentaire}</span> : <span className="rd-char-hint">Optionnel — max 300 caractères</span>}<span className="rd-char-hint">{std.commentaire.length}/300</span></div>
                     </div>
                   </div>
                   <div className="rd-form-footer">
                     <p className="rd-form-footer-msg">Les champs * sont obligatoires.</p>
                     <div className="rd-btn-row">
-                      <button type="button" className="rd-btn-cancel" onClick={()=>{setStd(INIT_STD);setStdT({});}}>Réinitialiser</button>
+                      <button type="button" className="rd-btn-cancel" onClick={() => { setStd(INIT_STD); setStdT({}); }}>Réinitialiser</button>
                       <button type="submit" className="rd-btn-submit std" disabled={submitting}>
-                        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                         Envoyer la demande
                       </button>
                     </div>
@@ -595,78 +603,78 @@ export default function ReserverD() {
               )}
 
               {/* ══ VIP FORM ══ */}
-              {!isStd&&(
+              {!isStd && (
                 <form className="rd-form-body" onSubmit={handleSubmitVip} noValidate>
                   <div className="rd-note vip">
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#92400e" strokeWidth={2} style={{flexShrink:0,marginTop:1}}><path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#92400e" strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }}><path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
                     Service VIP exclusif — votre véhicule est réservé uniquement pour vous. Aucun autre passager ne sera ajouté à votre trajet.
                   </div>
                   <div className="rd-row-2">
-                    <div className="rd-field"><label className="rd-label">Point de départ *</label><LocationSelect value={vip.depart} onChange={v=>updVip("depart",v)} hasErr={!!(vipT.depart&&vipErr.depart)} placeholder="Choisir le lieu de départ…"/>{vipT.depart&&vipErr.depart&&<span className="rd-err-msg">{vipErr.depart}</span>}</div>
-                    <div className="rd-field"><label className="rd-label">Destination *</label><LocationSelect value={vip.destination} onChange={v=>updVip("destination",v)} hasErr={!!(vipT.destination&&vipErr.destination)} placeholder="Choisir la destination…"/>{vipT.destination&&vipErr.destination&&<span className="rd-err-msg">{vipErr.destination}</span>}</div>
+                    <div className="rd-field"><label className="rd-label">Point de départ *</label><LocationSelect value={vip.depart} onChange={v => updVip("depart", v)} hasErr={!!(vipT.depart && vipErr.depart)} placeholder="Choisir le lieu de départ…" />{vipT.depart && vipErr.depart && <span className="rd-err-msg">{vipErr.depart}</span>}</div>
+                    <div className="rd-field"><label className="rd-label">Destination *</label><LocationSelect value={vip.destination} onChange={v => updVip("destination", v)} hasErr={!!(vipT.destination && vipErr.destination)} placeholder="Choisir la destination…" />{vipT.destination && vipErr.destination && <span className="rd-err-msg">{vipErr.destination}</span>}</div>
                   </div>
                   <div className="rd-row-2">
-                    <div className="rd-field"><label className="rd-label">Date de voyage *</label><input type="date" className={`rd-input${vipT.dateArrivee&&vipErr.dateArrivee?" err":""}`} value={vip.dateArrivee} min={minDate} onChange={e=>updVip("dateArrivee",e.target.value)} onBlur={()=>blurVip("dateArrivee")}/>{vipT.dateArrivee&&vipErr.dateArrivee&&<span className="rd-err-msg">{vipErr.dateArrivee}</span>}</div>
-                    <div className="rd-field"><label className="rd-label">Heure d'arrivée *</label><input type="time" className={`rd-input${vipT.heureArrivee&&vipErr.heureArrivee?" err":""}`} value={vip.heureArrivee} onChange={e=>updVip("heureArrivee",e.target.value)} onBlur={()=>blurVip("heureArrivee")}/>{vipT.heureArrivee&&vipErr.heureArrivee&&<span className="rd-err-msg">{vipErr.heureArrivee}</span>}</div>
+                    <div className="rd-field"><label className="rd-label">Date de voyage *</label><input type="date" className={`rd-input${vipT.dateArrivee && vipErr.dateArrivee ? " err" : ""}`} value={vip.dateArrivee} min={minDate} onChange={e => updVip("dateArrivee", e.target.value)} onBlur={() => blurVip("dateArrivee")} />{vipT.dateArrivee && vipErr.dateArrivee && <span className="rd-err-msg">{vipErr.dateArrivee}</span>}</div>
+                    <div className="rd-field"><label className="rd-label">Heure d'arrivée *</label><input type="time" className={`rd-input${vipT.heureArrivee && vipErr.heureArrivee ? " err" : ""}`} value={vip.heureArrivee} onChange={e => updVip("heureArrivee", e.target.value)} onBlur={() => blurVip("heureArrivee")} />{vipT.heureArrivee && vipErr.heureArrivee && <span className="rd-err-msg">{vipErr.heureArrivee}</span>}</div>
                   </div>
                   <div className="rd-row-2">
                     <div className="rd-field">
-                      <label className="rd-label">Téléphone * <span style={{color:"var(--tm)",fontWeight:400,textTransform:"none"}}>({getCountry(vip.telephoneCountry).digits} chiffres)</span></label>
+                      <label className="rd-label">Téléphone * <span style={{ color: "var(--tm)", fontWeight: 400, textTransform: "none" }}>({getCountry(vip.telephoneCountry).digits} chiffres)</span></label>
                       <div className="rd-phone-row">
-                        <select className={`rd-country-select${vipT.telephoneLocal&&vipErr.telephoneLocal?" err":""}`} value={vip.telephoneCountry} onChange={e=>{updVip("telephoneCountry",e.target.value);updVip("telephoneLocal","");}}>
-                          {COUNTRIES_PHONE.map(c=><option key={c.code} value={c.code}>{c.flag} {c.dial} ({c.name})</option>)}
+                        <select className={`rd-country-select${vipT.telephoneLocal && vipErr.telephoneLocal ? " err" : ""}`} value={vip.telephoneCountry} onChange={e => { updVip("telephoneCountry", e.target.value); updVip("telephoneLocal", ""); }}>
+                          {COUNTRIES_PHONE.map(c => <option key={c.code} value={c.code}>{c.flag} {c.dial} ({c.name})</option>)}
                         </select>
-                        <input type="tel" inputMode="numeric" maxLength={getCountry(vip.telephoneCountry).digits} className={`rd-input rd-phone-local${vipT.telephoneLocal&&vipErr.telephoneLocal?" err":""}`} value={vip.telephoneLocal} placeholder={"0".repeat(getCountry(vip.telephoneCountry).digits)} onChange={e=>{if(/^\d*$/.test(e.target.value))updVip("telephoneLocal",e.target.value);}} onBlur={()=>blurVip("telephoneLocal")}/>
+                        <input type="tel" inputMode="numeric" maxLength={getCountry(vip.telephoneCountry).digits} className={`rd-input rd-phone-local${vipT.telephoneLocal && vipErr.telephoneLocal ? " err" : ""}`} value={vip.telephoneLocal} placeholder={"0".repeat(getCountry(vip.telephoneCountry).digits)} onChange={e => { if (/^\d*$/.test(e.target.value)) updVip("telephoneLocal", e.target.value); }} onBlur={() => blurVip("telephoneLocal")} />
                       </div>
-                      {vipT.telephoneLocal&&vipErr.telephoneLocal&&<span className="rd-err-msg">{vipErr.telephoneLocal}</span>}
+                      {vipT.telephoneLocal && vipErr.telephoneLocal && <span className="rd-err-msg">{vipErr.telephoneLocal}</span>}
                     </div>
-                    <div className="rd-field"><label className="rd-label">Email de contact *</label><input type="email" className={`rd-input${vipT.email&&vipErr.email?" err":""}`} value={vip.email} placeholder="contact@email.com" onChange={e=>updVip("email",e.target.value)} onBlur={()=>blurVip("email")}/>{vipT.email&&vipErr.email&&<span className="rd-err-msg">{vipErr.email}</span>}</div>
+                    <div className="rd-field"><label className="rd-label">Email de contact *</label><input type="email" className={`rd-input${vipT.email && vipErr.email ? " err" : ""}`} value={vip.email} placeholder="contact@email.com" onChange={e => updVip("email", e.target.value)} onBlur={() => blurVip("email")} />{vipT.email && vipErr.email && <span className="rd-err-msg">{vipErr.email}</span>}</div>
                   </div>
 
                   {/* ── Passager list ── */}
-                  <div style={{marginBottom:8}}>
-                    <label className="rd-label" style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  <div style={{ marginBottom: 8 }}>
+                    <label className="rd-label" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                       Passagers VIP ({vip.passagers.length}/10)
                     </label>
                     <div className="vip-pax-list">
-                      {vip.passagers.map((px,i)=>(
+                      {vip.passagers.map((px, i) => (
                         <div key={i} className="vip-pax-item">
                           <div className="vip-pax-header">
                             <span className="vip-pax-title">
-                              <svg width="13" height="13" fill="#92400e" viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
-                              Passager {i+1}
+                              <svg width="13" height="13" fill="#92400e" viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" /></svg>
+                              Passager {i + 1}
                             </span>
-                            {vip.passagers.length>1&&<button type="button" className="vip-pax-remove" onClick={()=>removePax(i)}>✕</button>}
+                            {vip.passagers.length > 1 && <button type="button" className="vip-pax-remove" onClick={() => removePax(i)}>✕</button>}
                           </div>
                           <div className="vip-pax-grid">
-                            <div className="rd-field"><label className="rd-label" style={{fontSize:9}}>Nom</label><input type="text" className="rd-input" style={{fontSize:12}} placeholder="Nom" value={px.nom} onChange={e=>updPax(i,"nom",e.target.value)}/></div>
-                            <div className="rd-field"><label className="rd-label" style={{fontSize:9}}>Prénom</label><input type="text" className="rd-input" style={{fontSize:12}} placeholder="Prénom" value={px.prenom} onChange={e=>updPax(i,"prenom",e.target.value)}/></div>
+                            <div className="rd-field"><label className="rd-label" style={{ fontSize: 9 }}>Nom</label><input type="text" className="rd-input" style={{ fontSize: 12 }} placeholder="Nom" value={px.nom} onChange={e => updPax(i, "nom", e.target.value)} /></div>
+                            <div className="rd-field"><label className="rd-label" style={{ fontSize: 9 }}>Prénom</label><input type="text" className="rd-input" style={{ fontSize: 12 }} placeholder="Prénom" value={px.prenom} onChange={e => updPax(i, "prenom", e.target.value)} /></div>
                           </div>
                         </div>
                       ))}
                     </div>
-                    {vip.passagers.length<10&&(
+                    {vip.passagers.length < 10 && (
                       <button type="button" className="btn-add-pax" onClick={addPax}>
-                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                         Ajouter un passager VIP
                       </button>
                     )}
                   </div>
 
-                  <div className="rd-row-1" style={{marginBottom:0}}>
+                  <div className="rd-row-1" style={{ marginBottom: 0 }}>
                     <div className="rd-field">
                       <label className="rd-label">Commentaire</label>
-                      <textarea className={`rd-textarea${vipT.commentaire&&vipErr.commentaire?" err":""}`} value={vip.commentaire} placeholder="Exigences particulières, préférences véhicule, point de rendez-vous…" onChange={e=>updVip("commentaire",e.target.value)} onBlur={()=>blurVip("commentaire")}/>
+                      <textarea className={`rd-textarea${vipT.commentaire && vipErr.commentaire ? " err" : ""}`} value={vip.commentaire} placeholder="Exigences particulières, préférences véhicule, point de rendez-vous…" onChange={e => updVip("commentaire", e.target.value)} onBlur={() => blurVip("commentaire")} />
                       <div className="rd-char-row"><span className="rd-char-hint">Optionnel — max 400 caractères</span><span className="rd-char-hint">{vip.commentaire.length}/400</span></div>
                     </div>
                   </div>
                   <div className="rd-form-footer">
                     <p className="rd-form-footer-msg">Les champs * sont obligatoires.</p>
                     <div className="rd-btn-row">
-                      <button type="button" className="rd-btn-cancel" onClick={()=>{setVip(INIT_VIP);setVipT({});}}>Réinitialiser</button>
+                      <button type="button" className="rd-btn-cancel" onClick={() => { setVip(INIT_VIP); setVipT({}); }}>Réinitialiser</button>
                       <button type="submit" className="rd-btn-submit vip" disabled={submitting}>
-                        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                         Confirmer la réservation VIP
                       </button>
                     </div>
@@ -679,36 +687,36 @@ export default function ReserverD() {
             <div className="rd-preview">
               <div className="rd-preview-card">
                 <p className="rd-preview-tag">Aperçu rapide</p>
-                {!isStd&&<div className="rd-vip-badge">⭐ Service VIP</div>}
-                <div style={{marginTop:10}}>
-                  <div className="rd-pv-block"><p className="rd-pv-lbl">Départ</p><p className={`rd-pv-val${!(isStd?std.depart:vip.depart)?" muted":""}`}>{(isStd?std.depart:vip.depart)||"Non sélectionné"}</p></div>
-                  <div className="rd-pv-block"><p className="rd-pv-lbl">Destination</p><p className={`rd-pv-val${!(isStd?std.destination:vip.destination)?" muted":""}`}>{(isStd?std.destination:vip.destination)||"Non sélectionnée"}</p></div>
+                {!isStd && <div className="rd-vip-badge">⭐ Service VIP</div>}
+                <div style={{ marginTop: 10 }}>
+                  <div className="rd-pv-block"><p className="rd-pv-lbl">Départ</p><p className={`rd-pv-val${!(isStd ? std.depart : vip.depart) ? " muted" : ""}`}>{(isStd ? std.depart : vip.depart) || "Non sélectionné"}</p></div>
+                  <div className="rd-pv-block"><p className="rd-pv-lbl">Destination</p><p className={`rd-pv-val${!(isStd ? std.destination : vip.destination) ? " muted" : ""}`}>{(isStd ? std.destination : vip.destination) || "Non sélectionnée"}</p></div>
                   <div className="rd-pv-row2">
-                    <div className="rd-pv-block" style={{marginBottom:0}}><p className="rd-pv-lbl">Date</p><p className={`rd-pv-val${!(isStd?std.dateArrivee:vip.dateArrivee)?" muted":""}`}>{(isStd?std.dateArrivee:vip.dateArrivee)||"--"}</p></div>
-                    <div className="rd-pv-block" style={{marginBottom:0}}><p className="rd-pv-lbl">Heure</p><p className={`rd-pv-val${!(isStd?std.heureArrivee:vip.heureArrivee)?" muted":""}`}>{(isStd?std.heureArrivee:vip.heureArrivee)||"--"}</p></div>
+                    <div className="rd-pv-block" style={{ marginBottom: 0 }}><p className="rd-pv-lbl">Date</p><p className={`rd-pv-val${!(isStd ? std.dateArrivee : vip.dateArrivee) ? " muted" : ""}`}>{(isStd ? std.dateArrivee : vip.dateArrivee) || "--"}</p></div>
+                    <div className="rd-pv-block" style={{ marginBottom: 0 }}><p className="rd-pv-lbl">Heure</p><p className={`rd-pv-val${!(isStd ? std.heureArrivee : vip.heureArrivee) ? " muted" : ""}`}>{(isStd ? std.heureArrivee : vip.heureArrivee) || "--"}</p></div>
                   </div>
-                  <div className={`rd-pax-card ${isStd?"std":"vip"}`} style={{marginTop:10}}>
-                    <p className="rd-pax-lbl">{isStd?"Passagers":"Passagers VIP"}</p>
+                  <div className={`rd-pax-card ${isStd ? "std" : "vip"}`} style={{ marginTop: 10 }}>
+                    <p className="rd-pax-lbl">{isStd ? "Passagers" : "Passagers VIP"}</p>
                     <p className="rd-pax-num">{curPax}</p>
-                    <p className="rd-pax-sub">{isStd?"✈️ Transport AirOps Standard":"⭐ Transport AirOps VIP Exclusif"}</p>
-                    <div className="rd-pax-ring"/>
+                    <p className="rd-pax-sub">{isStd ? "✈️ Transport AirOps Standard" : "⭐ Transport AirOps VIP Exclusif"}</p>
+                    <div className="rd-pax-ring" />
                   </div>
                 </div>
               </div>
               <div className="rd-tip-card">
                 <p className="rd-tip-lbl">CONSEIL</p>
-                <h3 className="rd-tip-title">{isStd?"Précisez votre point de rencontre":"Profitez du service exclusif"}</h3>
-                <p className="rd-tip-text">{isStd?"Indiquez le terminal exact, le numéro de vol ou l'entrée de l'hôtel dans le commentaire pour un service optimal.":"En mode VIP, votre véhicule est 100% privatisé. Ajoutez tous vos passagers et précisez vos exigences particulières."}</p>
+                <h3 className="rd-tip-title">{isStd ? "Précisez votre point de rencontre" : "Profitez du service exclusif"}</h3>
+                <p className="rd-tip-text">{isStd ? "Indiquez le terminal exact, le numéro de vol ou l'entrée de l'hôtel dans le commentaire pour un service optimal." : "En mode VIP, votre véhicule est 100% privatisé. Ajoutez tous vos passagers et précisez vos exigences particulières."}</p>
                 <span className="rd-tip-badge">
-                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
-                  {isStd?"Regroupement optimisé":"Service 100% privatisé"}
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  {isStd ? "Regroupement optimisé" : "Service 100% privatisé"}
                 </span>
               </div>
             </div>
           </div>
         </main>
       </div>
-      {toast&&<div className="rd-toast">{toast}</div>}
+      {toast && <div className="rd-toast">{toast}</div>}
     </div>
   );
 }

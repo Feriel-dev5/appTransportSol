@@ -17,8 +17,14 @@ const resetPasswordUser = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
+const logoutUser = asyncHandler(async (req, res) => {
+  // Optionnel: On pourrait ici blacklister le token ou logger la déconnexion
+  res.json({ message: "Déconnexion réussie (API)" });
+});
+
 module.exports = {
   registerUser,
   loginUser,
   resetPasswordUser,
+  logoutUser,
 };

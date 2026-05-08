@@ -10,6 +10,7 @@ const {
   rejectRequest,
   updateRequestByPassenger,
   cancelRequestByPassenger,
+  deleteRequest,
 } = require("../Services/requests.service");
 
 const createRequest = asyncHandler(async (req, res) => {
@@ -63,6 +64,11 @@ const cancelMyRequestHandler = asyncHandler(async (req, res) => {
   res.json({ request });
 });
 
+const deleteRequestHandler = asyncHandler(async (req, res) => {
+  await deleteRequest(req.params.id, req.user.id);
+  res.json({ message: "Request deleted successfully" });
+});
+
 module.exports = {
   createRequest,
   listMyRequests,
@@ -73,4 +79,5 @@ module.exports = {
   rejectRequestHandler,
   updateMyRequestHandler,
   cancelMyRequestHandler,
+  deleteRequestHandler,
 };

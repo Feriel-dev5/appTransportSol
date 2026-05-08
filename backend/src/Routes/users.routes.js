@@ -5,9 +5,11 @@ const {
   getMyProfile,
   updateMyProfile,
   updateUser,
+  deleteUser,
   passengerDashboard,
   driverDashboard,
   responsableDashboard,
+  adminDashboard,
 } = require("../Controllers/users.controller");
 const { verifyToken } = require("../middlewares/verifyToken");
 const { checkRole } = require("../middlewares/checkRole");
@@ -24,7 +26,7 @@ const router = Router();
 router.post(
   "/",
   verifyToken,
-  checkRole(["ADMIN"]),
+  checkRole(["ADMIN", "RESPONSABLE"]),
   validateRequest(createUserSchema),
   createUser,
 );
@@ -49,7 +51,7 @@ router.patch(
 router.patch(
   "/:id",
   verifyToken,
-  checkRole(["ADMIN"]),
+  checkRole(["ADMIN", "RESPONSABLE"]),
   validateRequest(updateUserSchema),
   updateUser,
 );
@@ -73,6 +75,20 @@ router.get(
   verifyToken,
   checkRole(["RESPONSABLE", "ADMIN"]),
   responsableDashboard,
+);
+
+router.get(
+  "/me/admin-dashboard",
+  verifyToken,
+  checkRole(["ADMIN"]),
+  adminDashboard,
+);
+
+router.delete(
+  "/:id",
+  verifyToken,
+  checkRole(["ADMIN", "RESPONSABLE"]),
+  deleteUser
 );
 
 module.exports = router;

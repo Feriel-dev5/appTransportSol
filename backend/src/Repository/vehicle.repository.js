@@ -10,6 +10,8 @@ const listVehicles = ({ skip, take }) =>
 const updateVehicle = (id, data) =>
   Vehicle.findByIdAndUpdate(id, data, { new: true }).exec();
 
+const deleteVehicle = (id) => Vehicle.findByIdAndDelete(id).exec();
+
 const listAvailableVehicles = (minCapacity = 1) =>
   Vehicle.find({
     status: { $in: ["DISPONIBLE", "AVAILABLE"] },
@@ -23,11 +25,15 @@ const countAvailableVehicles = () =>
     status: { $in: ["DISPONIBLE", "AVAILABLE"] },
   }).exec();
 
+const countVehicles = () => Vehicle.countDocuments().exec();
+
 module.exports = {
   createVehicle,
   findVehicleById,
   listVehicles,
   updateVehicle,
+  deleteVehicle,
   listAvailableVehicles,
   countAvailableVehicles,
+  countVehicles,
 };

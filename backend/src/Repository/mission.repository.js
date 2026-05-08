@@ -107,6 +107,9 @@ const countDriverMissions = ({ driverId, status, requestIds } = {}) =>
     buildMissionFilter({ driverId, status, requestIds }),
   ).exec();
 
+const deleteMissionByRequestId = (requestId) =>
+  Mission.deleteMany({ requestId }).exec();
+
 module.exports = {
   createMission,
   findMissionById,
@@ -118,4 +121,5 @@ module.exports = {
   listMissionsByRequestIds,
   countMissions,
   countDriverMissions,
+  deleteMissionByRequestId,
 };

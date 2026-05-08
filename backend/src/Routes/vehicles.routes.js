@@ -3,6 +3,7 @@ const {
   createVehicle,
   listVehicles,
   updateVehicle,
+  deleteVehicle,
 } = require("../Controllers/vehicles.controller");
 const { verifyToken } = require("../middlewares/verifyToken");
 const { checkRole } = require("../middlewares/checkRole");
@@ -31,6 +32,13 @@ router.put(
   checkRole(["ADMIN", "RESPONSABLE"]),
   validateRequest(updateVehicleSchema),
   updateVehicle,
+);
+
+router.delete(
+  "/:id",
+  verifyToken,
+  checkRole(["ADMIN", "RESPONSABLE"]),
+  deleteVehicle,
 );
 
 module.exports = router;

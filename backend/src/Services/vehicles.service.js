@@ -3,6 +3,7 @@ const {
   createVehicle,
   listVehicles,
   updateVehicle,
+  deleteVehicle,
 } = require("../Repository/vehicle.repository");
 const { logAction } = require("./logs.service");
 
@@ -24,4 +25,13 @@ const editVehicle = async (id, payload, actorId) => {
   return vehicle;
 };
 
-module.exports = { addVehicle, getVehicles, editVehicle };
+const removeVehicle = async (id, actorId) => {
+  const vehicle = await deleteVehicle(id);
+  if (!vehicle) {
+    throw new AppError("Vehicle not found", 404);
+  }
+  await logAction(actorId, `VEHICLE_DELETED:${id}`);
+  return vehicle;
+};
+
+module.exports = { addVehicle, getVehicles, editVehicle, removeVehicle };

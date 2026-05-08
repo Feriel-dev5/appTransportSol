@@ -33,10 +33,14 @@ export const rejectRequest = async (id) => {
   return data;
 };
 
-// Affecter manuellement un chauffeur et véhicule
 export const assignRequest = async (id, payload) => {
   // payload: { driverId, vehicleId }
   const { data } = await api.put(`/requests/${id}/assign`, payload);
+  return data;
+};
+
+export const deleteRequest = async (id) => {
+  const { data } = await api.delete(`/requests/${id}`);
   return data;
 };
 
@@ -45,6 +49,11 @@ export const assignRequest = async (id, payload) => {
 ───────────────────────────────────────────────────────── */
 export const fetchMissions = async (params = {}) => {
   const { data } = await api.get("/missions", { params });
+  return data;
+};
+
+export const updateMission = async (id, payload) => {
+  const { data } = await api.put(`/missions/${id}`, payload);
   return data;
 };
 
@@ -66,11 +75,36 @@ export const createUser = async (payload) => {
   return data.user;
 };
 
+export const updateUser = async (id, payload) => {
+  const { data } = await api.patch(`/users/${id}`, payload);
+  return data.user;
+};
+
+export const deleteUser = async (id) => {
+  const { data } = await api.delete(`/users/${id}`);
+  return data;
+};
+
 /* ─────────────────────────────────────────────────────────
    VEHICLES
 ───────────────────────────────────────────────────────── */
 export const fetchVehicles = async (params = {}) => {
   const { data } = await api.get("/vehicles", { params });
+  return data;
+};
+
+export const createVehicle = async (payload) => {
+  const { data } = await api.post("/vehicles", payload);
+  return data.vehicle;
+};
+
+export const updateVehicle = async (id, payload) => {
+  const { data } = await api.put(`/vehicles/${id}`, payload);
+  return data.vehicle;
+};
+
+export const deleteVehicle = async (id) => {
+  const { data } = await api.delete(`/vehicles/${id}`);
   return data;
 };
 
@@ -116,30 +150,30 @@ const STATUT_MAP = {
 };
 
 export const mapRequest = (req) => {
-  let statut = STATUT_MAP[req.status] ?? req.status;
-  if (req.mission && ["EN_ATTENTE", "EN_COURS"].includes(req.mission.status)) {
-    statut = "EN COURS";
+  if (!req || !req.userId || !req.from) return null; // Force null if broken
+  let statut = STATUT_MAP[req.status] ?? req.status ?? "EN ATTENTE";
+  if (req.mission) {
+    if (req.mission.status === "EN_COURS") statut = "EN COURS";
+    if (req.mission.status === "TERMINEE") statut = "TERMINÉE";
   }
-  const passagerName = req.userId?.name ?? req.userName ?? "—";
-  const initials = passagerName.trim().split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() || "??";
+  const passagerName = req.userId?.name || req.userName || "";
+  if (!passagerName) return null;
 
   return {
     _id:      req._id || req.id,
-    ref:      `#TR-${String(req._id || req.id).slice(-4).toUpperCase()}`,
+    ref:      `#DEM-${String(req._id || req.id).slice(-4).toUpperCase()}`,
     passager: passagerName,
-    avatar:   initials,
+    avatar:   passagerName.trim().split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() || "??",
     trajet:   `${req.from} → ${req.to}`,
     depart:   req.from,
     arrivee:  req.to,
-    date:     req.date ? req.date.slice(0, 10) : "",
-    heure:    req.time ?? "—",
-    type:     req.type ?? "standard",
+    date:     req.date ? req.date.slice(0, 10) : (req.createdAt ? req.createdAt.slice(0, 10) : ""),
+    heure:    req.time || "",
+    type:     req.type || "standard",
     statut,
     chauffeur: req.mission?.driverId?.name ?? "Non affecté",
-    vehicule:  req.mission?.vehicleId?.name ?? "—",
+    vehicule:  req.mission?.vehicleId?.name ?? "",
     passagers: req.passengers ?? 1,
-    note:      req.comment ?? "",
-    missionId: req.mission?._id || req.mission?.id || null,
     raw: req,
   };
 };
@@ -165,6 +199,7 @@ export const mapMission = (m) => {
     client:   m.requestId?.userId?.name ?? "—",
     passagers: m.requestId?.passengers ?? 1,
     raw: m,
+
   };
 };
 

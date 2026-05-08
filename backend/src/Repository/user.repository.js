@@ -6,6 +6,8 @@ const findUserByEmail = (email) =>
   User.findOne({ email: email.toLowerCase() }).exec();
 
 const findUserById = (id) => User.findById(id).exec();
+const findUserByCin = (cin) => cin ? User.findOne({ cin }).exec() : null;
+const findUserByPassport = (passportNumber) => passportNumber ? User.findOne({ passportNumber }).exec() : null;
 
 const updateUserById = (id, data) =>
   User.findByIdAndUpdate(id, data, { new: true }).exec();
@@ -47,11 +49,16 @@ const countDriversByAvailability = (availability) => {
 const countUsers = ({ role } = {}) =>
   User.countDocuments(role ? { role } : {}).exec();
 
+const deleteUserById = (id) => User.findByIdAndDelete(id).exec();
+
 module.exports = {
   createUser,
   findUserByEmail,
   findUserById,
+  findUserByCin,
+  findUserByPassport,
   updateUserById,
+  deleteUserById,
   listUsers,
   listDrivers,
   listAvailableDrivers,

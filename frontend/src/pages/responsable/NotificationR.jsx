@@ -6,6 +6,7 @@ import {
   markAllNotificationsAsRead,
   formatTimeAgo,
 } from "../../services/responsableService";
+import { useProfileSync } from "../../services/useProfileSync";
 
 /* ═══════════════════════════════════════════════════════════════
    CSS — COPIE EXACTE de NotificationM, préfixe .chw → .nrw
@@ -110,7 +111,6 @@ const NOTIF_CSS = `
   .np-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;}
   .np-badge.cat-demande{background:#fff7ed;color:#ea580c;}
   .np-badge.cat-reclam{background:#fef2f2;color:#dc2626;}
-  .np-badge.cat-avis{background:#f0fdf4;color:#15803d;}
   .np-badge.unread{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
   .np-card-title{font-size:13.5px;font-weight:700;color:var(--text-primary);margin-bottom:4px;}
   .np-card-desc{font-size:12px;color:var(--text-sec);line-height:1.5;margin-bottom:6px;}
@@ -165,31 +165,22 @@ const NOTIF_CSS = `
 `;
 
 if (typeof document !== "undefined" && !document.getElementById("airops-notifr2-css")) {
-  const s=document.createElement("style"); s.id="airops-notifr2-css"; s.textContent=NOTIF_CSS; document.head.appendChild(s);
+  const s = document.createElement("style"); s.id = "airops-notifr2-css"; s.textContent = NOTIF_CSS; document.head.appendChild(s);
 }
 
-/* ─── Data ──────────────────────────────────────────────────── */
-const STORAGE_KEY_R = "airops_responsable_form_v1";
-function getStoredRNom()   { try{const s=localStorage.getItem(STORAGE_KEY_R);return s?(JSON.parse(s).nom||"Ahmed Mansour"):"Ahmed Mansour";}catch{return"Ahmed Mansour";} }
-function getStoredRPhoto() { try{return localStorage.getItem("airops_responsable_photo_v1")||"";}catch{return"";} }
-function getInitials(nom)  { return(nom||"AM").trim().split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase()||"AM"; }
+
 
 /* Unified nav — responsable */
-const navItems = [
-  { label:"Dashboard",         to:"/dashbordRES",      icon:<svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> },
-  { label:"Notifications",     to:"/notificationR",    badge:3, icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> },
-  { label:"Ajouter Chauffeur", to:"/ajouterChauffeur", icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 1m0-1h10"/></svg> },
-  { label:"Ajouter Passager",  to:"/ajouterPassager",  icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg> },
-];
 
-const TABS = ["Tout","Demandes","Réclamations","Avis"];
+const TABS = ["Tout", "Demandes", "Incidents"];
 
 const TYPE_MAP = {
   VALIDATION: { category: "Demandes", emoji: "✅", tag: "Confirmée", tagColor: "green" },
-  REJET:      { category: "Demandes", emoji: "❌", tag: "Refusée",   tagColor: "red"   },
-  MISSION:    { category: "Demandes", emoji: "🚗", tag: "Mission",   tagColor: "blue"  },
-  INFO:       { category: "Réclamations", emoji: "📋", tag: "Info",  tagColor: "orange"},
-  GENERAL:    { category: "Demandes", emoji: "⏳", tag: "Général",   tagColor: "orange"},
+  REJET: { category: "Demandes", emoji: "❌", tag: "Refusée", tagColor: "red" },
+  MISSION: { category: "Demandes", emoji: "🚗", tag: "Mission", tagColor: "blue" },
+  INFO: { category: "Incidents", emoji: "⚠️", tag: "Incident", tagColor: "orange" },
+  INCIDENT: { category: "Incidents", emoji: "⚠️", tag: "Incident", tagColor: "red" },
+  GENERAL: { category: "Demandes", emoji: "⏳", tag: "Général", tagColor: "orange" },
 };
 
 /* ─── Confirm Delete ─────────────────────────────────────────── */
@@ -197,15 +188,15 @@ function ConfirmDelete({ notif, onConfirm, onClose }) {
   if (!notif) return null;
   return (
     <div className="nm-ov" onClick={onClose}>
-      <div className="nm-confirm-box" onClick={e=>e.stopPropagation()}>
+      <div className="nm-confirm-box" onClick={e => e.stopPropagation()}>
         <div className="nm-confirm-icon">
-          <svg width="30" height="30" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          <svg width="30" height="30" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
         </div>
-        <h3 style={{fontSize:16,fontWeight:800,color:"var(--text-primary)",marginBottom:8}}>Supprimer la notification</h3>
-        <p style={{fontSize:13,color:"var(--text-muted)"}}>Voulez-vous supprimer <strong style={{color:"var(--brand-blue)"}}>{notif.ref}</strong> ? Cette action est irréversible.</p>
+        <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", marginBottom: 8 }}>Supprimer la notification</h3>
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Voulez-vous supprimer <strong style={{ color: "var(--brand-blue)" }}>{notif.ref}</strong> ? Cette action est irréversible.</p>
         <div className="nm-confirm-btns">
           <button type="button" className="nm-confirm-cancel" onClick={onClose}>Annuler</button>
-          <button type="button" className="nm-confirm-ok" onClick={()=>{onConfirm(notif.id);onClose();}}>Supprimer</button>
+          <button type="button" className="nm-confirm-ok" onClick={() => { onConfirm(notif.id); onClose(); }}>Supprimer</button>
         </div>
       </div>
     </div>
@@ -215,12 +206,34 @@ function ConfirmDelete({ notif, onConfirm, onClose }) {
 /* ─── MAIN ───────────────────────────────────────────────────── */
 export default function NotificationR() {
   const navigate = useNavigate();
-  const [nom,   setNom]   = useState(getStoredRNom);
-  const [photo, setPhoto] = useState(getStoredRPhoto);
-  useEffect(()=>{const fn=()=>{setNom(getStoredRNom());setPhoto(getStoredRPhoto());};window.addEventListener("airops-responsable-update",fn);return()=>window.removeEventListener("airops-responsable-update",fn);},[]);
+  const { nom, photo, initials, unreadCount, refreshNotifs } = useProfileSync();
 
-  const [notifs,        setNotifs]        = useState([]);
-  const [loading,       setLoading]       = useState(true);
+  const navItems = [
+    {
+      label: "Tableau de bord",
+      to: "/dashbordRES",
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
+    },
+    {
+      label: "Notifications",
+      to: "/notificationR",
+      badge: unreadCount,
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
+    },
+    {
+      label: "Ajouter Chauffeur",
+      to: "/ajouterChauffeur",
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="16" y1="11" x2="22" y2="11"></line></svg>,
+    },
+    {
+      label: "Ajouter Passager",
+      to: "/ajouterPassager",
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+    },
+  ];
+
+  const [notifs, setNotifs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // ── Load from API
   const loadNotifs = useCallback(async () => {
@@ -235,8 +248,8 @@ export default function NotificationR() {
           category: cfg.category,
           ref: `#NT-${String(n._id || n.id).slice(-4).toUpperCase()}`,
           emoji: cfg.emoji,
-          catBadge: cfg.category === "Demandes" ? "cat-demande" : cfg.category === "Réclamations" ? "cat-reclam" : "cat-avis",
-          catLabel: cfg.category.slice(0, -1),
+          catBadge: cfg.category === "Demandes" ? "cat-demande" : "cat-reclam",
+          catLabel: cfg.category === "Incidents" ? "Incident" : cfg.category.slice(0, -1),
           title: n.message?.split(":")[0] || "Notification",
           desc: n.message || "",
           tag: cfg.tag,
@@ -254,74 +267,76 @@ export default function NotificationR() {
   }, []);
 
   useEffect(() => { loadNotifs(); }, [loadNotifs]);
-  const [filter,        setFilter]        = useState("Tout"); // Tout | Demandes | Réclamations | Avis
-  const [search,        setSearch]        = useState("");
-  const [collapsed,     setCollapsed]     = useState(false);
+  const [filter, setFilter] = useState("Tout"); // Tout | Demandes | Réclamations | Avis
+  const [search, setSearch] = useState("");
+  const [collapsed, setCollapsed] = useState(false);
   const [sidebarMobile, setSidebarMobile] = useState(false);
-  const [confirmDel,    setConfirmDel]    = useState(null);
-  const [toast,         setToast]         = useState({msg:"",type:""});
+  const [confirmDel, setConfirmDel] = useState(null);
+  const [toast, setToast] = useState({ msg: "", type: "" });
 
-  useEffect(()=>{if(!toast.msg)return;const t=setTimeout(()=>setToast({msg:"",type:""}),2800);return()=>clearTimeout(t);},[toast]);
+  useEffect(() => { if (!toast.msg) return; const t = setTimeout(() => setToast({ msg: "", type: "" }), 2800); return () => clearTimeout(t); }, [toast]);
 
-  const unread = notifs.filter(n=>!n.lu).length;
+  const unread = notifs.filter(n => !n.lu).length;
 
-  const filtered = useMemo(()=>{
-    let list=notifs;
-    if(filter!=="Tout") list=list.filter(n=>n.category===filter);
-    if(search.trim()){const q=search.trim().toLowerCase();list=list.filter(n=>[n.ref,n.title,n.desc,n.tag,n.category].join(" ").toLowerCase().includes(q));}
+  const filtered = useMemo(() => {
+    let list = notifs;
+    if (filter !== "Tout") list = list.filter(n => n.category === filter);
+    if (search.trim()) { const q = search.trim().toLowerCase(); list = list.filter(n => [n.ref, n.title, n.desc, n.tag, n.category].join(" ").toLowerCase().includes(q)); }
     return list;
-  },[notifs,filter,search]);
+  }, [notifs, filter, search]);
 
   const markAllRead = async () => {
     try {
       await markAllNotificationsAsRead();
       setNotifs(p => p.map(n => ({ ...n, lu: true })));
       setToast({ msg: "✓ Toutes les notifications marquées comme lues.", type: "green" });
+      window.dispatchEvent(new CustomEvent("airops-notif-update"));
     } catch { setToast({ msg: "Erreur.", type: "" }); }
   };
   const markRead = async (id) => {
     try {
       await markNotificationAsRead(id);
       setNotifs(p => p.map(n => n.id === id ? { ...n, lu: true } : n));
-    } catch {/* silently fail */}
+      window.dispatchEvent(new CustomEvent("airops-notif-update"));
+    } catch {/* silently fail */ }
   };
-  const deleteAll   = () => { setNotifs([]); setToast({ msg: "✓ Toutes les notifications supprimées.", type: "red" }); };
-  const deleteOne   = id => { setNotifs(p => p.filter(n => n.id !== id)); setToast({ msg: "✓ Notification supprimée.", type: "red" }); };
+  const deleteAll = () => { setNotifs([]); setToast({ msg: "✓ Toutes les notifications supprimées.", type: "red" }); };
+  const deleteOne = id => { setNotifs(p => p.filter(n => n.id !== id)); setToast({ msg: "✓ Notification supprimée.", type: "red" }); };
   const handleAccept = ref => { setNotifs(p => p.map(n => n.ref === ref ? { ...n, lu: true, tag: "Confirmée", tagColor: "green", actionable: false } : n)); setToast({ msg: `✓ Demande ${ref} acceptée.`, type: "green" }); };
   const handleRefuse = ref => { setNotifs(p => p.map(n => n.ref === ref ? { ...n, lu: true, tag: "Refusée", tagColor: "red", actionable: false } : n)); setToast({ msg: `Demande ${ref} refusée.`, type: "" }); };
 
-  const initials = getInitials(nom);
-  const navWithBadge = navItems.map(i=>i.to==="/notificationR"?{...i,badge:unread>0?unread:undefined}:i);
 
-  const tabCounts = {"Tout":notifs.length,"Demandes":notifs.filter(n=>n.category==="Demandes").length,"Réclamations":notifs.filter(n=>n.category==="Réclamations").length,"Avis":notifs.filter(n=>n.category==="Avis").length};
+  const navWithBadge = navItems.map(i => i.to === "/notificationR" ? { ...i, badge: unread > 0 ? unread : undefined } : i);
+
+  const tabCounts = { "Tout": notifs.length, "Demandes": notifs.filter(n => n.category === "Demandes").length, "Incidents": notifs.filter(n => n.category === "Incidents").length };
 
   return (
     <div className="nrw">
-      {sidebarMobile&&<div className="sb-overlay" onClick={()=>setSidebarMobile(false)}/>}
+      {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)} />}
 
       {/* Sidebar */}
-      <aside className={["sidebar",collapsed?"collapsed":"",sidebarMobile?"open":""].filter(Boolean).join(" ")}>
-        <button type="button" className="sb-toggle-btn" onClick={()=>setCollapsed(v=>!v)}>
-          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      <aside className={["sidebar", collapsed ? "collapsed" : "", sidebarMobile ? "open" : ""].filter(Boolean).join(" ")}>
+        <button type="button" className="sb-toggle-btn" onClick={() => setCollapsed(v => !v)}>
+          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
         </button>
-        <div className="sb-brand" onClick={()=>navigate("/")}>
-          <div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg></div>
+        <div className="sb-brand" onClick={() => navigate("/")}>
+          <div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" /></svg></div>
           <div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">ESPACE RESPONSABLE</span></div>
         </div>
         <div className="sb-label">Navigation</div>
         <nav className="sb-nav">
-          {navWithBadge.map(item=>(
-            <NavLink key={item.label} to={item.to} data-label={item.label} className={({isActive})=>`sb-nav-item${isActive?" active":""}`} onClick={()=>setSidebarMobile(false)}>
+          {navWithBadge.map(item => (
+            <NavLink key={item.label} to={item.to} data-label={item.label} className={({ isActive }) => `sb-nav-item${isActive ? " active" : ""}`} onClick={() => setSidebarMobile(false)}>
               <span className="sb-nav-icon">{item.icon}</span>
               <span className="sb-nav-lbl">{item.label}</span>
-              {item.badge?<span className="sb-badge">{item.badge}</span>:null}
+              {item.badge ? <span className="sb-badge">{item.badge}</span> : null}
             </NavLink>
           ))}
         </nav>
         <div className="sb-footer">
-          <div className="sb-label" style={{paddingTop:0}}>Compte</div>
-          <button type="button" className="sb-logout" onClick={()=>navigate("/login")}>
-            <span style={{flexShrink:0}}><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></span>
+          <div className="sb-label" style={{ paddingTop: 0 }}>Compte</div>
+          <button type="button" className="sb-logout" onClick={() => { localStorage.clear(); navigate("/login"); }}>
+            <span style={{ flexShrink: 0 }}><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></span>
             <span className="sb-logout-lbl">Déconnexion</span>
           </button>
         </div>
@@ -331,19 +346,19 @@ export default function NotificationR() {
       <div className="nrm">
         <header className="nrh">
           <div className="nrh-left">
-            <button type="button" className="nrh-menu-btn" onClick={()=>setSidebarMobile(v=>!v)}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <button type="button" className="nrh-menu-btn" onClick={() => setSidebarMobile(v => !v)}>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
             <span className="nrh-title">Notifications</span>
           </div>
           <div className="nrh-right">
             <div className="search-wrap">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              <input type="text" className="search-input" placeholder="Rechercher une notification…" value={search} onChange={e=>setSearch(e.target.value)}/>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <input type="text" className="search-input" placeholder="Rechercher une notification…" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <div className="user-chip">
-              <div style={{textAlign:"right"}}><div className="user-name">{nom}</div><div className="user-role">Responsable</div></div>
-              <div className="user-avatar">{photo?<img src={photo} alt="profil"/>:initials}</div>
+              <div style={{ textAlign: "right" }}><div className="user-name">{nom}</div><div className="user-role">Responsable</div></div>
+              <div className="user-avatar">{photo ? <img src={photo} alt="profil" /> : initials}</div>
             </div>
           </div>
         </header>
@@ -351,47 +366,47 @@ export default function NotificationR() {
         <main className="nrc">
           {/* ── Titre identique NotificationM ── */}
           <h1 className="np-page-title">Mes <span>Notifications</span></h1>
-          <p className="np-page-sub">Suivez vos nouvelles demandes, réclamations et avis en temps réel.</p>
+          <p className="np-page-sub">Suivez les nouvelles demandes, les changements de mission et les incidents en temps réel.</p>
 
           {/* ── Card principale identique NotificationM ── */}
           <div className="np-main-card">
             <div className="np-toolbar">
               <div className="np-filters">
-                {TABS.map(tab=>(
-                  <button key={tab} type="button" className={`np-filter-btn${filter===tab?" active":""}`} onClick={()=>setFilter(tab)}>
+                {TABS.map(tab => (
+                  <button key={tab} type="button" className={`np-filter-btn${filter === tab ? " active" : ""}`} onClick={() => setFilter(tab)}>
                     {tab}
-                    <span style={{marginLeft:5,background:filter===tab?"rgba(41,128,232,0.2)":"#f0f5fb",color:filter===tab?"var(--brand-blue)":"var(--text-muted)",fontSize:9,fontWeight:700,padding:"1px 6px",borderRadius:10}}>{tabCounts[tab]}</span>
+                    <span style={{ marginLeft: 5, background: filter === tab ? "rgba(41,128,232,0.2)" : "#f0f5fb", color: filter === tab ? "var(--brand-blue)" : "var(--text-muted)", fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 10 }}>{tabCounts[tab]}</span>
                   </button>
                 ))}
               </div>
               <div className="np-actions">
-                {unread>0&&(
+                {unread > 0 && (
                   <button type="button" className="np-act-btn" onClick={markAllRead}>
-                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     Tout marquer lu
                   </button>
                 )}
-                {notifs.length>0&&(
+                {notifs.length > 0 && (
                   <button type="button" className="np-act-btn danger" onClick={deleteAll}>
-                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     Tout supprimer
                   </button>
                 )}
               </div>
             </div>
 
-            {filtered.length===0?(
+            {filtered.length === 0 ? (
               <div className="np-empty">
                 <div className="np-empty-icon">
-                  <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#93c5fd" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                  <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#93c5fd" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
                 </div>
-                <p style={{fontSize:15,fontWeight:700,color:"var(--text-primary)",marginBottom:6}}>Aucune notification</p>
-                <p style={{fontSize:13,color:"var(--text-muted)"}}>{filter==="Tout"?"Vous n'avez aucune notification pour le moment.":` Aucune notification dans "${filter}".`}</p>
+                <p style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>Aucune notification</p>
+                <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{filter === "Tout" ? "Vous n'avez aucune notification pour le moment." : ` Aucune notification dans "${filter}".`}</p>
               </div>
-            ):(
+            ) : (
               <div className="np-list">
-                {filtered.map(n=>(
-                  <div key={n.id} className={`np-card ${n.lu?"":"unread"}`} onClick={()=>markRead(n.id)}>
+                {filtered.map(n => (
+                  <div key={n.id} className={`np-card ${n.lu ? "" : "unread"}`} onClick={() => markRead(n.id)}>
                     <div className="np-card-inner">
                       {/* icône identique NotificationM — gradient bleu */}
                       <div className="np-card-icon">{n.emoji}</div>
@@ -399,7 +414,7 @@ export default function NotificationR() {
                         <div className="np-card-head">
                           <span className="np-card-ref">{n.ref}</span>
                           <span className={`np-badge ${n.catBadge}`}>{n.catLabel}</span>
-                          {!n.lu&&<span className="np-badge unread">Non lu</span>}
+                          {!n.lu && <span className="np-badge unread">Non lu</span>}
                         </div>
                         <div className="np-card-title">{n.title}</div>
                         <div className="np-card-desc">{n.desc}</div>
@@ -411,32 +426,32 @@ export default function NotificationR() {
                     </div>
 
                     {/* footer identique NotificationM */}
-                    <div className="np-card-footer" onClick={e=>e.stopPropagation()}>
-                      {n.actionable&&n.category==="Demandes"?(
+                    <div className="np-card-footer" onClick={e => e.stopPropagation()}>
+                      {n.actionable && n.category === "Demandes" ? (
                         <>
-                          <button type="button" className="np-btn-accept" onClick={()=>handleAccept(n.ref)}>
-                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                          <button type="button" className="np-btn-accept" onClick={() => handleAccept(n.ref)}>
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                             Accepter
                           </button>
-                          <button type="button" className="np-btn-refuse" onClick={()=>handleRefuse(n.ref)}>
-                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                          <button type="button" className="np-btn-refuse" onClick={() => handleRefuse(n.ref)}>
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                             Refuser
                           </button>
                         </>
-                      ):(
-                        <button type="button" className="np-btn-primary" onClick={()=>markRead(n.id)}>
-                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                      ) : (
+                        <button type="button" className="np-btn-primary" onClick={() => markRead(n.id)}>
+                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                           Consulter
                         </button>
                       )}
-                      {!n.lu&&(
-                        <button type="button" className="np-btn-mark" onClick={()=>markRead(n.id)}>
-                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                      {!n.lu && (
+                        <button type="button" className="np-btn-mark" onClick={() => markRead(n.id)}>
+                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                           Marquer lu
                         </button>
                       )}
-                      <button type="button" className="np-btn-del" onClick={()=>setConfirmDel(n)}>
-                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      <button type="button" className="np-btn-del" onClick={() => setConfirmDel(n)}>
+                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         Supprimer
                       </button>
                     </div>
@@ -446,21 +461,21 @@ export default function NotificationR() {
             )}
           </div>
 
-          <div style={{fontSize:10,color:"var(--text-muted)",textAlign:"center",padding:"14px 0 4px",letterSpacing:1,textTransform:"uppercase"}}>© 2026 AirOps – Gestion Transport Responsable</div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "center", padding: "14px 0 4px", letterSpacing: 1, textTransform: "uppercase" }}>© 2026 AirOps – Gestion Transport Responsable</div>
         </main>
 
         {/* Footer identique NotificationM */}
         <footer className="ch-footer-r">
           <div className="ch-footer-brand">
-            <svg width="14" height="14" fill="#22c55e" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+            <svg width="14" height="14" fill="#22c55e" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
             Système de gestion sécurisé — AirOps Transport 2026
           </div>
-          <span style={{fontSize:12,color:"var(--text-muted)"}}>{filtered.length} notification{filtered.length!==1?"s":""}</span>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{filtered.length} notification{filtered.length !== 1 ? "s" : ""}</span>
         </footer>
       </div>
 
-      {confirmDel&&<ConfirmDelete notif={confirmDel} onClose={()=>setConfirmDel(null)} onConfirm={deleteOne}/>}
-      {toast.msg&&<div className={`nm-toast ${toast.type}`}>{toast.msg}</div>}
+      {confirmDel && <ConfirmDelete notif={confirmDel} onClose={() => setConfirmDel(null)} onConfirm={deleteOne} />}
+      {toast.msg && <div className={`nm-toast ${toast.type}`}>{toast.msg}</div>}
     </div>
   );
 }

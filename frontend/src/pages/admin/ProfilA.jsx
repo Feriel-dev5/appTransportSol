@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { fetchMyProfile, updateMyProfile } from "../../services/adminService";
+import { fetchMyProfile, updateMyProfile, fetchPendingAvisCount } from "../../services/adminService";
 
 /* ══════════════════════════ CSS ══════════════════════════ */
 const profilAdminCSS = `
@@ -55,6 +55,8 @@ const profilAdminCSS = `
   .sb-nav-icon { flex-shrink: 0; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
   .sb-nav-lbl  { flex: 1; overflow: hidden; transition: opacity 0.2s, max-width 0.3s; max-width: 160px; }
   .sidebar.collapsed .sb-nav-lbl { opacity: 0; max-width: 0; }
+  .sb-badge { background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; flex-shrink: 0; transition: opacity 0.2s; margin-left: auto; }
+  .sidebar.collapsed .sb-badge { opacity: 0; }
   .sidebar.collapsed .sb-nav-item::after { content: attr(data-label); position: absolute; left: calc(var(--sidebar-mini) + 6px); top: 50%; transform: translateY(-50%); background: var(--brand-dark); color: #fff; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-md); border: 1px solid rgba(255,255,255,0.1); z-index: 200; opacity: 0; transition: opacity 0.15s; }
   .sidebar.collapsed .sb-nav-item:hover::after { opacity: 1; }
   .sb-footer { padding: 6px 9px 16px; border-top: 1px solid rgba(255,255,255,0.07); flex-shrink: 0; }
@@ -253,117 +255,138 @@ if (typeof document !== "undefined" && !document.getElementById("profil-admin-cs
 
 /* ══════════════════════════ COUNTRY DIAL CODES ══════════════════════════ */
 const COUNTRIES = [
-  { code: "TN", dial: "+216", flag: "🇹🇳", name: "Tunisie",           digits: 8  },
-  { code: "DZ", dial: "+213", flag: "🇩🇿", name: "Algérie",           digits: 9  },
-  { code: "MA", dial: "+212", flag: "🇲🇦", name: "Maroc",             digits: 9  },
-  { code: "EG", dial: "+20",  flag: "🇪🇬", name: "Égypte",            digits: 10 },
-  { code: "LY", dial: "+218", flag: "🇱🇾", name: "Libye",             digits: 9  },
-  { code: "FR", dial: "+33",  flag: "🇫🇷", name: "France",            digits: 9  },
-  { code: "DE", dial: "+49",  flag: "🇩🇪", name: "Allemagne",         digits: 11 },
-  { code: "GB", dial: "+44",  flag: "🇬🇧", name: "Royaume-Uni",       digits: 10 },
-  { code: "ES", dial: "+34",  flag: "🇪🇸", name: "Espagne",           digits: 9  },
-  { code: "IT", dial: "+39",  flag: "🇮🇹", name: "Italie",            digits: 10 },
-  { code: "PT", dial: "+351", flag: "🇵🇹", name: "Portugal",          digits: 9  },
-  { code: "BE", dial: "+32",  flag: "🇧🇪", name: "Belgique",          digits: 9  },
-  { code: "NL", dial: "+31",  flag: "🇳🇱", name: "Pays-Bas",          digits: 9  },
-  { code: "CH", dial: "+41",  flag: "🇨🇭", name: "Suisse",            digits: 9  },
-  { code: "SA", dial: "+966", flag: "🇸🇦", name: "Arabie Saoudite",   digits: 9  },
-  { code: "AE", dial: "+971", flag: "🇦🇪", name: "Émirats Arabes",    digits: 9  },
-  { code: "QA", dial: "+974", flag: "🇶🇦", name: "Qatar",             digits: 8  },
-  { code: "KW", dial: "+965", flag: "🇰🇼", name: "Koweït",            digits: 8  },
-  { code: "BH", dial: "+973", flag: "🇧🇭", name: "Bahreïn",           digits: 8  },
-  { code: "OM", dial: "+968", flag: "🇴🇲", name: "Oman",              digits: 8  },
-  { code: "JO", dial: "+962", flag: "🇯🇴", name: "Jordanie",          digits: 9  },
-  { code: "LB", dial: "+961", flag: "🇱🇧", name: "Liban",             digits: 8  },
-  { code: "TR", dial: "+90",  flag: "🇹🇷", name: "Turquie",           digits: 10 },
-  { code: "SN", dial: "+221", flag: "🇸🇳", name: "Sénégal",           digits: 9  },
-  { code: "CI", dial: "+225", flag: "🇨🇮", name: "Côte d Ivoire",     digits: 10 },
-  { code: "CM", dial: "+237", flag: "🇨🇲", name: "Cameroun",          digits: 9  },
-  { code: "GN", dial: "+224", flag: "🇬🇳", name: "Guinée",            digits: 9  },
-  { code: "ML", dial: "+223", flag: "🇲🇱", name: "Mali",              digits: 8  },
-  { code: "MR", dial: "+222", flag: "🇲🇷", name: "Mauritanie",        digits: 8  },
-  { code: "US", dial: "+1",   flag: "🇺🇸", name: "États-Unis",        digits: 10 },
-  { code: "CA", dial: "+1",   flag: "🇨🇦", name: "Canada",            digits: 10 },
-  { code: "BR", dial: "+55",  flag: "🇧🇷", name: "Brésil",            digits: 11 },
-  { code: "CN", dial: "+86",  flag: "🇨🇳", name: "Chine",             digits: 11 },
-  { code: "JP", dial: "+81",  flag: "🇯🇵", name: "Japon",             digits: 10 },
-  { code: "KR", dial: "+82",  flag: "🇰🇷", name: "Corée du Sud",      digits: 10 },
-  { code: "AU", dial: "+61",  flag: "🇦🇺", name: "Australie",         digits: 9  },
-  { code: "IN", dial: "+91",  flag: "🇮🇳", name: "Inde",              digits: 10 },
-  { code: "PK", dial: "+92",  flag: "🇵🇰", name: "Pakistan",          digits: 10 },
-  { code: "NG", dial: "+234", flag: "🇳🇬", name: "Nigéria",           digits: 10 },
-  { code: "ZA", dial: "+27",  flag: "🇿🇦", name: "Afrique du Sud",    digits: 9  },
-  { code: "RU", dial: "+7",   flag: "🇷🇺", name: "Russie",            digits: 10 },
+  { code: "TN", dial: "+216", flag: "🇹🇳", name: "Tunisie", digits: 8 },
+  { code: "DZ", dial: "+213", flag: "🇩🇿", name: "Algérie", digits: 9 },
+  { code: "MA", dial: "+212", flag: "🇲🇦", name: "Maroc", digits: 9 },
+  { code: "EG", dial: "+20", flag: "🇪🇬", name: "Égypte", digits: 10 },
+  { code: "LY", dial: "+218", flag: "🇱🇾", name: "Libye", digits: 9 },
+  { code: "FR", dial: "+33", flag: "🇫🇷", name: "France", digits: 9 },
+  { code: "DE", dial: "+49", flag: "🇩🇪", name: "Allemagne", digits: 11 },
+  { code: "GB", dial: "+44", flag: "🇬🇧", name: "Royaume-Uni", digits: 10 },
+  { code: "ES", dial: "+34", flag: "🇪🇸", name: "Espagne", digits: 9 },
+  { code: "IT", dial: "+39", flag: "🇮🇹", name: "Italie", digits: 10 },
+  { code: "PT", dial: "+351", flag: "🇵🇹", name: "Portugal", digits: 9 },
+  { code: "BE", dial: "+32", flag: "🇧🇪", name: "Belgique", digits: 9 },
+  { code: "NL", dial: "+31", flag: "🇳🇱", name: "Pays-Bas", digits: 9 },
+  { code: "CH", dial: "+41", flag: "🇨🇭", name: "Suisse", digits: 9 },
+  { code: "SA", dial: "+966", flag: "🇸🇦", name: "Arabie Saoudite", digits: 9 },
+  { code: "AE", dial: "+971", flag: "🇦🇪", name: "Émirats Arabes", digits: 9 },
+  { code: "QA", dial: "+974", flag: "🇶🇦", name: "Qatar", digits: 8 },
+  { code: "KW", dial: "+965", flag: "🇰🇼", name: "Koweït", digits: 8 },
+  { code: "BH", dial: "+973", flag: "🇧🇭", name: "Bahreïn", digits: 8 },
+  { code: "OM", dial: "+968", flag: "🇴🇲", name: "Oman", digits: 8 },
+  { code: "JO", dial: "+962", flag: "🇯🇴", name: "Jordanie", digits: 9 },
+  { code: "LB", dial: "+961", flag: "🇱🇧", name: "Liban", digits: 8 },
+  { code: "TR", dial: "+90", flag: "🇹🇷", name: "Turquie", digits: 10 },
+  { code: "SN", dial: "+221", flag: "🇸🇳", name: "Sénégal", digits: 9 },
+  { code: "CI", dial: "+225", flag: "🇨🇮", name: "Côte d Ivoire", digits: 10 },
+  { code: "CM", dial: "+237", flag: "🇨🇲", name: "Cameroun", digits: 9 },
+  { code: "GN", dial: "+224", flag: "🇬🇳", name: "Guinée", digits: 9 },
+  { code: "ML", dial: "+223", flag: "🇲🇱", name: "Mali", digits: 8 },
+  { code: "MR", dial: "+222", flag: "🇲🇷", name: "Mauritanie", digits: 8 },
+  { code: "US", dial: "+1", flag: "🇺🇸", name: "États-Unis", digits: 10 },
+  { code: "CA", dial: "+1", flag: "🇨🇦", name: "Canada", digits: 10 },
+  { code: "BR", dial: "+55", flag: "🇧🇷", name: "Brésil", digits: 11 },
+  { code: "CN", dial: "+86", flag: "🇨🇳", name: "Chine", digits: 11 },
+  { code: "JP", dial: "+81", flag: "🇯🇵", name: "Japon", digits: 10 },
+  { code: "KR", dial: "+82", flag: "🇰🇷", name: "Corée du Sud", digits: 10 },
+  { code: "AU", dial: "+61", flag: "🇦🇺", name: "Australie", digits: 9 },
+  { code: "IN", dial: "+91", flag: "🇮🇳", name: "Inde", digits: 10 },
+  { code: "PK", dial: "+92", flag: "🇵🇰", name: "Pakistan", digits: 10 },
+  { code: "NG", dial: "+234", flag: "🇳🇬", name: "Nigéria", digits: 10 },
+  { code: "ZA", dial: "+27", flag: "🇿🇦", name: "Afrique du Sud", digits: 9 },
+  { code: "RU", dial: "+7", flag: "🇷🇺", name: "Russie", digits: 10 },
 ];
 
 /* ══════════════════════════ STORAGE ══════════════════════════ */
-const ADMIN_FORM_KEY  = "airops_admin_profil_form_v1";
+const ADMIN_FORM_KEY = "airops_admin_profil_form_v1";
 const ADMIN_PHOTO_KEY = "airops_admin_profil_photo_v1";
 
 export function getAdminName() {
-  try { const s = localStorage.getItem(ADMIN_FORM_KEY); return s ? (JSON.parse(s).nom || "Ahmed Mansour") : "Ahmed Mansour"; } catch { return "Ahmed Mansour"; }
+  try {
+    const s = localStorage.getItem("user");
+    return s ? (JSON.parse(s).name || "Admin") : "Admin";
+  } catch {
+    return "Admin";
+  }
 }
 export function getAdminPhoto() {
   try { return localStorage.getItem(ADMIN_PHOTO_KEY) || ""; } catch { return ""; }
 }
 export function getAdminInitials(nom) {
-  return (nom || "Ahmed Mansour").trim().split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() || "AM";
+  return (nom || "")
+    .trim()
+    .split(" ")
+    .map(w => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 }
 
-const defaultForm = {
-  nom:          "Ahmed Mansour",
-  email:        "ahmed.mansour@nouvelair.com",
-  phoneCountry: "TN",
-  phoneLocal:   "22111333",
-  adresse:      "Tunis, Tunisie",
-  role:         "Admin",
-  password:     "",
-  confirmPwd:   "",
+const defaultForm = () => {
+  let u = {};
+  try {
+    const s = localStorage.getItem("user");
+    if (s) u = JSON.parse(s);
+  } catch { }
+  return {
+    nom: u.name || "",
+    email: u.email || "",
+    phoneCountry: "TN",
+    phoneLocal: u.phone ? u.phone.replace(/\D/g, "") : "",
+    adresse: u.address || "Tunis, Tunisie",
+    role: u.role || "Admin",
+    password: "",
+    confirmPwd: "",
+  };
 };
 
 /* ══════════════════════════ NAV ══════════════════════════ */
 const navItems = [
   {
-    label: "Tableau de Bord",
-    to: "/dashbordADMIN",
-    icon: <svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>,
+    label: "Tableau de Bord", to: "/dashbordADMIN",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>,
   },
   {
-    label: "Liste des Utilisateurs",
-    to: "/listeU",
-    icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>,
+    label: "Liste des Utilisateurs", to: "/listeU",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
   },
   {
-    label: "Ajouter Utilisateur",
-    to: "/ajouterU",
-    icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>,
+    label: "Liste des Véhicules", to: "/listeV",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="22" height="13" rx="2" ry="2" /><circle cx="7" cy="21" r="2" /><circle cx="17" cy="21" r="2" /></svg>,
   },
   {
-    label: "Ajouter Véhicule",
-    to: "/ajouterVehicule",
-    icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 17h8M3 9l2-4h14l2 4M3 9h18v7a1 1 0 01-1 1H4a1 1 0 01-1-1V9z"/><circle cx="7" cy="17" r="1" fill="currentColor"/><circle cx="17" cy="17" r="1" fill="currentColor"/></svg>,
+    label: "Ajouter Utilisateur", to: "/ajouterU",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="16" y1="11" x2="22" y2="11" /></svg>,
   },
   {
-    label: "Mon Profil",
-    to: "/profilA",
-    icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+    label: "Ajouter Véhicule", to: "/ajouterVehicule",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>,
+  },
+  {
+    label: "Gestion des Avis", to: "/avisAdmin",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>,
+  },
+  {
+    label: "Mon Profil", to: "/profilA",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>,
   },
 ];
 
 /* ══════════════════════════ ROLE PERMISSIONS ══════════════════════════ */
 const rolePerms = {
-  Admin:       ["Gérer tous les utilisateurs", "Accès tableau de bord", "Modifier les rôles", "Bannir / Réactiver"],
+  Admin: ["Gérer tous les utilisateurs", "Accès tableau de bord", "Modifier les rôles", "Bannir / Réactiver"],
   Responsable: ["Voir les utilisateurs", "Accès tableau de bord", "Gérer les missions"],
-  Chauffeur:   ["Voir ses missions", "Mettre à jour son statut"],
-  Passager:    ["Réserver des transports", "Voir ses réservations"],
+  Chauffeur: ["Voir ses missions", "Mettre à jour son statut"],
+  Passager: ["Réserver des transports", "Voir ses réservations"],
 };
 
 function pwdStrength(pwd) {
   if (!pwd) return 0;
   let s = 0;
-  if (pwd.length >= 6)  s++;
-  if (pwd.length >= 10) s++;
-  if (/[A-Z]/.test(pwd) || /[0-9]/.test(pwd)) s++;
+  if (pwd.length >= 8) s++;
+  if (/[A-Z]/.test(pwd)) s++;
+  if (/[0-9]/.test(pwd)) s++;
   return s;
 }
 const pwdLabels = ["", "Faible", "Moyen", "Fort"];
@@ -371,11 +394,11 @@ const pwdColors = ["", "weak", "medium", "strong"];
 
 /* ══════════════════════════ ACTIVITY LOG ══════════════════════════ */
 const activityLog = [
-  { text: "Connexion depuis Tunis, TN",      time: "Il y a 2 min",   color: "#2980e8" },
-  { text: "Modification du profil",           time: "Il y a 1 h",    color: "#16a34a" },
-  { text: "Export PDF du tableau de bord",    time: "Il y a 3 h",    color: "#f97316" },
-  { text: "Suppression d'un utilisateur",     time: "Hier 14:32",    color: "#ef4444" },
-  { text: "Ajout d'un nouveau chauffeur",     time: "Hier 09:11",    color: "#16a34a" },
+  { text: "Connexion depuis Tunis, TN", time: "Il y a 2 min", color: "#2980e8" },
+  { text: "Modification du profil", time: "Il y a 1 h", color: "#16a34a" },
+  { text: "Export PDF du tableau de bord", time: "Il y a 3 h", color: "#f97316" },
+  { text: "Suppression d'un utilisateur", time: "Hier 14:32", color: "#ef4444" },
+  { text: "Ajout d'un nouveau chauffeur", time: "Hier 09:11", color: "#16a34a" },
 ];
 
 /* ══════════════════════════ HELPERS ══════════════════════════ */
@@ -395,48 +418,53 @@ function parseStoredPhone(stored) {
 /* ══════════════════════════ MAIN COMPONENT ══════════════════════════ */
 export default function ProfilA() {
   const navigate = useNavigate();
-  const fileRef  = useRef(null);
+  const fileRef = useRef(null);
 
-  const [form, setForm] = useState(() => {
-    try {
-      const s = localStorage.getItem(ADMIN_FORM_KEY);
-      if (s) {
-        const parsed = JSON.parse(s);
-        // If old format had "telephone" key, migrate it
-        const phoneData = parsed.phoneCountry
-          ? { phoneCountry: parsed.phoneCountry, phoneLocal: parsed.phoneLocal || "" }
-          : parseStoredPhone(parsed.telephone || "");
-        return { ...defaultForm, ...parsed, ...phoneData, password: "", confirmPwd: "" };
-      }
-      return defaultForm;
-    } catch { return defaultForm; }
-  });
-
+  const [form, setForm] = useState(defaultForm());
   const [photo, setPhoto] = useState(() => getAdminPhoto());
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [pendingAvis, setPendingAvis] = useState(0);
 
-  /* Persist form */
   useEffect(() => {
-    try {
-      const { password: _p, confirmPwd: _c, ...rest } = form;
-      localStorage.setItem(ADMIN_FORM_KEY, JSON.stringify(rest));
-      window.dispatchEvent(new Event("airops-admin-profile-update"));
-    } catch {}
-  }, [form]);
+    fetchPendingAvisCount().then(setPendingAvis);
+  }, []);
 
-  /* Persist photo */
+  useEffect(() => {
+    const initProfile = async () => {
+      try {
+        const u = await fetchMyProfile();
+        const phoneData = parseStoredPhone(u.phone);
+        setForm(prev => ({
+          ...prev,
+          nom: u.name || "",
+          email: u.email || "",
+          phoneCountry: phoneData.phoneCountry,
+          phoneLocal: phoneData.phoneLocal,
+          adresse: u.address || "",
+          role: u.role || "Admin"
+        }));
+      } catch (err) {
+        // Fallback already handled by defaultForm
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+    initProfile();
+  }, []);
+
+  /* Persist photo locally since the backend might not support photo upload yet */
   useEffect(() => {
     try {
       if (photo) localStorage.setItem(ADMIN_PHOTO_KEY, photo);
       else localStorage.removeItem(ADMIN_PHOTO_KEY);
-      window.dispatchEvent(new Event("airops-admin-profile-update"));
-    } catch {}
+    } catch { }
   }, [photo]);
 
-  const [touched,        setTouched]        = useState({});
+  const [touched, setTouched] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
-  const [toast,          setToast]          = useState("");
-  const [collapsed,      setCollapsed]      = useState(false);
-  const [sidebarMobile,  setSidebarMobile]  = useState(false);
+  const [toast, setToast] = useState("");
+  const [collapsed, setCollapsed] = useState(false);
+  const [sidebarMobile, setSidebarMobile] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -448,27 +476,30 @@ export default function ProfilA() {
 
   const errors = {
     nom:
-      !form.nom.trim()           ? "Le nom est obligatoire." :
-      form.nom.trim().length < 3 ? "Au moins 3 caractères." :
-      !isAlphaOnly(form.nom.trim()) ? "Le nom ne doit contenir que des lettres." : "",
+      !form.nom.trim() ? "Le nom est obligatoire." :
+        form.nom.trim().length < 3 ? "Au moins 3 caractères." :
+          !isAlphaOnly(form.nom.trim()) ? "Le nom ne doit contenir que des lettres." : "",
     email:
-      !form.email.trim()         ? "L'email est obligatoire." :
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? "Email invalide." : "",
+      !form.email.trim() ? "L'email est obligatoire." :
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? "Email invalide." : "",
     phoneLocal:
-      !form.phoneLocal.trim()    ? "Le téléphone est obligatoire." :
-      !/^\d+$/.test(form.phoneLocal) ? "Uniquement des chiffres." :
-      form.phoneLocal.length !== selectedCountry.digits
-        ? `${selectedCountry.digits} chiffres requis pour ${selectedCountry.name}.` : "",
+      !form.phoneLocal.trim() ? "Le téléphone est obligatoire." :
+        !/^\d+$/.test(form.phoneLocal) ? "Uniquement des chiffres." :
+          form.phoneLocal.length !== selectedCountry.digits
+            ? `${selectedCountry.digits} chiffres requis pour ${selectedCountry.name}.` : "",
     adresse:
-      !form.adresse.trim()       ? "L'adresse est obligatoire." : "",
+      !form.adresse.trim() ? "L'adresse est obligatoire." : "",
     password:
-      form.password.length > 0 && form.password.length < 6 ? "Minimum 6 caractères." : "",
+      form.password.length > 0 && form.password.length < 8 ? "Minimum 8 caractères." :
+        form.password.length > 0 && !/[A-Z]/.test(form.password) ? "Une majuscule requise." :
+          form.password.length > 0 && !/[0-9]/.test(form.password) ? "Un chiffre requis." : "",
     confirmPwd:
       form.password.length > 0 && form.confirmPwd !== form.password
-        ? "Les mots de passe ne correspondent pas." : "",
+        ? "Les mots de passe ne correspondent pas." :
+        form.password.length > 0 && !form.confirmPwd ? "Veuillez confirmer le mot de passe." : "",
   };
 
-  const isValid  = Object.values(errors).every(v => v === "");
+  const isValid = Object.values(errors).every(v => v === "");
   const strength = pwdStrength(form.password);
 
   const handleChange = e => {
@@ -487,22 +518,11 @@ export default function ProfilA() {
     setSuccessMessage("");
   };
 
-  const handleBlur  = e => setTouched(prev => ({ ...prev, [e.target.name]: true }));
-  const inputCls    = field => `pa-form-input${touched[field] && errors[field] ? " pa-error" : ""}`;
+  const handleBlur = e => setTouched(prev => ({ ...prev, [e.target.name]: true }));
+  const inputCls = field => `pa-form-input${touched[field] && errors[field] ? " pa-error" : ""}`;
 
   const handleReset = () => {
-    try {
-      const saved = localStorage.getItem(ADMIN_FORM_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const phoneData = parsed.phoneCountry
-          ? { phoneCountry: parsed.phoneCountry, phoneLocal: parsed.phoneLocal || "" }
-          : parseStoredPhone(parsed.telephone || "");
-        setForm({ ...defaultForm, ...parsed, ...phoneData, password: "", confirmPwd: "" });
-      } else {
-        setForm(defaultForm);
-      }
-    } catch { setForm(defaultForm); }
+    setForm(defaultForm());
     setTouched({});
     setSuccessMessage("");
   };
@@ -543,25 +563,25 @@ export default function ProfilA() {
   };
 
   const initials = getAdminInitials(form.nom);
-  const perms    = rolePerms[form.role] || rolePerms.Admin;
+  const perms = rolePerms[form.role] || rolePerms.Admin;
   const allPerms = ["Gérer tous les utilisateurs", "Accès tableau de bord", "Modifier les rôles", "Bannir / Réactiver", "Voir les utilisateurs", "Gérer les missions", "Voir ses missions", "Réserver des transports"];
   const displayTel = form.phoneLocal ? `${selectedCountry.dial} ${form.phoneLocal}` : "—";
 
   return (
     <div className="pa-wrap">
-      {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)}/>}
+      {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)} />}
 
       {/* ── Sidebar ── */}
       <aside className={["sidebar", collapsed ? "collapsed" : "", sidebarMobile ? "open" : ""].filter(Boolean).join(" ")}>
         <button type="button" className="sb-toggle-btn" onClick={() => setCollapsed(v => !v)}>
           <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         <div className="sb-brand" onClick={() => navigate("/")}>
           <div className="sb-brand-icon">
             <svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" />
             </svg>
           </div>
           <div className="sb-brand-text">
@@ -577,15 +597,18 @@ export default function ProfilA() {
               onClick={() => setSidebarMobile(false)}>
               <span className="sb-nav-icon">{item.icon}</span>
               <span className="sb-nav-lbl">{item.label}</span>
+              {item.label === "Gestion des Avis" && pendingAvis > 0 && (
+                <span className="sb-badge">{pendingAvis}</span>
+              )}
             </NavLink>
           ))}
         </nav>
         <div className="sb-footer">
           <div className="sb-label" style={{ paddingTop: 0 }}>Compte</div>
-          <button type="button" className="sb-logout" onClick={() => navigate("/login")}>
+          <button type="button" className="sb-logout" onClick={() => { localStorage.clear(); navigate("/login", { replace: true }); }}>
             <span className="sb-logout-icon">
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </span>
             <span className="sb-logout-lbl">Déconnexion</span>
@@ -599,7 +622,7 @@ export default function ProfilA() {
           <div className="pa-hdr-left">
             <button type="button" className="pa-menu-btn" onClick={() => setSidebarMobile(v => !v)}>
               <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
             <span className="pa-hdr-title">Mon Profil</span>
@@ -611,7 +634,7 @@ export default function ProfilA() {
                 <div className="pa-user-role">Administrateur</div>
               </div>
               <div className="pa-user-av" onClick={() => fileRef.current?.click()} title="Changer la photo">
-                {photo ? <img src={photo} alt="profil"/> : <span>{initials}</span>}
+                {photo ? <img src={photo} alt="profil" /> : <span>{initials}</span>}
               </div>
             </div>
           </div>
@@ -628,24 +651,24 @@ export default function ProfilA() {
                 {/* Avatar */}
                 <div className="pa-avatar-wrap" onClick={() => fileRef.current?.click()} title="Cliquer pour changer la photo">
                   {photo
-                    ? <img src={photo} alt="Profil" className="pa-avatar-img"/>
+                    ? <img src={photo} alt="Profil" className="pa-avatar-img" />
                     : <div className="pa-av-initials">{initials}</div>
                   }
                   <div className="pa-av-overlay">
                     <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                     <span>Changer photo</span>
                   </div>
                 </div>
 
-                <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: "none" }}/>
+                <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: "none" }} />
 
                 {photo && (
                   <button type="button" className="pa-rm-photo" onClick={() => { setPhoto(""); setToast("✓ Photo supprimée."); }}>
                     <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                     Supprimer la photo
                   </button>
@@ -654,7 +677,7 @@ export default function ProfilA() {
                 <p className="pa-av-name">{form.nom}</p>
                 <span className="pa-av-role">
                   <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                   {form.role}
                 </span>
@@ -666,8 +689,8 @@ export default function ProfilA() {
 
               {/* Banner */}
               <div className="pa-banner">
-                <div className="pa-banner-deco" style={{ width: 160, height: 160, right: -40, bottom: -40 }}/>
-                <div className="pa-banner-deco" style={{ width: 80, height: 80, right: 60, top: -20 }}/>
+                <div className="pa-banner-deco" style={{ width: 160, height: 160, right: -40, bottom: -40 }} />
+                <div className="pa-banner-deco" style={{ width: 80, height: 80, right: 60, top: -20 }} />
                 <div>
                   <p className="pa-banner-sub">Espace administrateur</p>
                   <p className="pa-banner-title">Gérez votre compte en toute sécurité</p>
@@ -675,7 +698,7 @@ export default function ProfilA() {
                 </div>
                 <div className="pa-banner-pill">
                   <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                   Compte sécurisé
                 </div>
@@ -700,7 +723,7 @@ export default function ProfilA() {
                       <input type="text" name="nom" value={form.nom}
                         onChange={handleChange} onBlur={handleBlur}
                         className={inputCls("nom")} placeholder="Ahmed Mansour"
-                        autoComplete="name"/>
+                        autoComplete="name" />
                       {touched.nom && errors.nom && <p className="pa-form-err">{errors.nom}</p>}
                     </div>
 
@@ -709,7 +732,7 @@ export default function ProfilA() {
                       <label className="pa-form-label">Adresse email</label>
                       <input type="email" name="email" value={form.email}
                         onChange={handleChange} onBlur={handleBlur}
-                        className={inputCls("email")} placeholder="ahmed@nouvelair.com"/>
+                        className={inputCls("email")} placeholder="ahmed@nouvelair.com" />
                       {touched.email && errors.email && <p className="pa-form-err">{errors.email}</p>}
                     </div>
 
@@ -740,7 +763,7 @@ export default function ProfilA() {
                           className={`pa-form-input pa-phone-local${touched.phoneLocal && errors.phoneLocal ? " pa-error" : ""}`}
                           placeholder={"0".repeat(selectedCountry.digits)}
                           inputMode="numeric"
-                          maxLength={selectedCountry.digits}/>
+                          maxLength={selectedCountry.digits} />
                       </div>
                       {touched.phoneLocal && errors.phoneLocal && <p className="pa-form-err">{errors.phoneLocal}</p>}
                     </div>
@@ -750,13 +773,13 @@ export default function ProfilA() {
                       <label className="pa-form-label">Adresse</label>
                       <input type="text" name="adresse" value={form.adresse}
                         onChange={handleChange} onBlur={handleBlur}
-                        className={inputCls("adresse")} placeholder="Ville, Pays"/>
+                        className={inputCls("adresse")} placeholder="Ville, Pays" />
                       {touched.adresse && errors.adresse && <p className="pa-form-err">{errors.adresse}</p>}
                     </div>
                   </div>
 
                   {/* Security section */}
-                  <hr className="pa-section-sep"/>
+                  <hr className="pa-section-sep" />
                   <p className="pa-section-title">Sécurité du compte</p>
                   <p className="pa-section-sub">Laissez vide pour conserver le mot de passe actuel.</p>
 
@@ -765,12 +788,12 @@ export default function ProfilA() {
                       <label className="pa-form-label">Nouveau mot de passe</label>
                       <input type="password" name="password" value={form.password}
                         onChange={handleChange} onBlur={handleBlur}
-                        className={inputCls("password")} placeholder="Laisser vide si inchangé"/>
+                        className={inputCls("password")} placeholder="Laisser vide si inchangé" />
                       {touched.password && errors.password && <p className="pa-form-err">{errors.password}</p>}
                       {form.password.length > 0 && (
                         <>
                           <div className="pa-pwd-bars">
-                            {[1,2,3].map(i => <div key={i} className={`pa-pwd-bar${i <= strength ? ` ${pwdColors[strength]}` : ""}`}/>)}
+                            {[1, 2, 3].map(i => <div key={i} className={`pa-pwd-bar${i <= strength ? ` ${pwdColors[strength]}` : ""}`} />)}
                           </div>
                           <p className="pa-pwd-hint">Force : <strong>{pwdLabels[strength]}</strong></p>
                         </>
@@ -780,7 +803,7 @@ export default function ProfilA() {
                       <label className="pa-form-label">Confirmer le mot de passe</label>
                       <input type="password" name="confirmPwd" value={form.confirmPwd}
                         onChange={handleChange} onBlur={handleBlur}
-                        className={inputCls("confirmPwd")} placeholder="Répéter le nouveau mot de passe"/>
+                        className={inputCls("confirmPwd")} placeholder="Répéter le nouveau mot de passe" />
                       {touched.confirmPwd && errors.confirmPwd && <p className="pa-form-err">{errors.confirmPwd}</p>}
                     </div>
                   </div>
@@ -803,7 +826,7 @@ export default function ProfilA() {
                   <p className="pa-activity-title">Activité récente</p>
                   {activityLog.map((log, i) => (
                     <div key={i} className="pa-log-item">
-                      <div className="pa-log-dot" style={{ background: log.color }}/>
+                      <div className="pa-log-dot" style={{ background: log.color }} />
                       <span className="pa-log-text">{log.text}</span>
                       <span className="pa-log-time">{log.time}</span>
                     </div>
@@ -813,7 +836,10 @@ export default function ProfilA() {
             </div>
           </div>
 
-          <div style={{ fontSize:10, color:"var(--text-muted)", textAlign:"center", padding:"20px 0 8px", letterSpacing:1, textTransform:"uppercase" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 10, color: "var(--text-muted)", padding: "20px 0 8px", letterSpacing: 1, textTransform: "uppercase" }}>
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#22c55e" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
             © 2026 AirOps Transport Management
           </div>
         </main>

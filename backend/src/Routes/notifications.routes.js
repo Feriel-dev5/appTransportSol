@@ -4,6 +4,8 @@ const {
   getNotificationById,
   markNotificationRead,
   markAllNotificationsRead,
+  deleteNotification,
+  deleteAllNotifications,
 } = require("../Controllers/notifications.controller");
 const { verifyToken } = require("../middlewares/verifyToken");
 const { validateRequest } = require("../utils/validateRequest");
@@ -36,5 +38,8 @@ router.patch(
   validateRequest(notificationActionSchema),
   markNotificationRead,
 );
+
+router.delete("/", verifyToken, deleteAllNotifications);
+router.delete("/:id", verifyToken, validateRequest(notificationActionSchema), deleteNotification);
 
 module.exports = router;

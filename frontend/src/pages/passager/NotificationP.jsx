@@ -7,6 +7,7 @@ import {
   markAllNotificationsAsRead,
   mapNotification,
 } from "../../services/passengerService";
+import { logout } from "../../services/authService";
 
 const notifCSS = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
@@ -143,37 +144,57 @@ if (typeof document !== "undefined" && !document.getElementById("notif-page-css"
 /* Mapping type backend → type UI pour les icônes */
 const TYPE_MAP = {
   VALIDATION: "validation",
-  REJET:      "annulation",
-  MISSION:    "rappel",
-  INFO:       "info",
-  GENERAL:    "info",
+  REJET: "annulation",
+  MISSION: "rappel",
+  INFO: "info",
+  GENERAL: "info",
 };
 
 const typeConfig = {
-  validation: { iconBg:"#dcfce7", iconColor:"#16a34a", dot:"#22c55e", itemBg:"#f0fdf4" },
-  attente:    { iconBg:"#fff7ed", iconColor:"#ea580c", dot:"#f97316", itemBg:"#fff7ed" },
-  rappel:     { iconBg:"#eff6ff", iconColor:"#2563eb", dot:"#3b82f6", itemBg:"#eff6ff" },
-  annulation: { iconBg:"#fef2f2", iconColor:"#dc2626", dot:"#ef4444", itemBg:"#fef2f2" },
-  info:       { iconBg:"#f1f5f9", iconColor:"#64748b", dot:"#94a3b8", itemBg:"#f8fafc" },
+  validation: { iconBg: "#dcfce7", iconColor: "#16a34a", dot: "#22c55e", itemBg: "#f0fdf4" },
+  attente: { iconBg: "#fff7ed", iconColor: "#ea580c", dot: "#f97316", itemBg: "#fff7ed" },
+  rappel: { iconBg: "#eff6ff", iconColor: "#2563eb", dot: "#3b82f6", itemBg: "#eff6ff" },
+  annulation: { iconBg: "#fef2f2", iconColor: "#dc2626", dot: "#ef4444", itemBg: "#fef2f2" },
+  info: { iconBg: "#f1f5f9", iconColor: "#64748b", dot: "#94a3b8", itemBg: "#f8fafc" },
 };
 
 const navItems = [
-  { label: "Tableau de bord",  to: "/dashbordP",     icon: <svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> },
-  { label: "Réserver demande", to: "/reserverD",     icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg> },
-  { label: "Notifications",    to: "/notificationP", icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> },
-  { label: "Avis des acteurs", to: "/avisP",         icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg> },
-  { label: "Profile",          to: "/profilP",       icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+  {
+    label: "Tableau de bord",
+    to: "/dashbordP",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
+  },
+  {
+    label: "Réserver demande",
+    to: "/reserverD",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg>,
+  },
+  {
+    label: "Notifications",
+    to: "/notificationP",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
+  },
+  {
+    label: "Avis des acteurs",
+    to: "/avisP",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>,
+  },
+  {
+    label: "Profile",
+    to: "/profilP",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
+  },
 ];
 
 function NotifIcon({ type }) {
   const cfg = typeConfig[type] || typeConfig.info;
   return (
     <div className="notif-icon-wrap" style={{ background: cfg.iconBg }}>
-      {type === "validation" && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
-      {type === "attente"    && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>}
-      {type === "rappel"     && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5"/></svg>}
-      {type === "annulation" && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>}
-      {type === "info"       && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>}
+      {type === "validation" && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+      {type === "attente" && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+      {type === "rappel" && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5" /></svg>}
+      {type === "annulation" && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>}
+      {type === "info" && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
     </div>
   );
 }
@@ -182,27 +203,7 @@ export default function NotificationP() {
   const navigate = useNavigate();
 
   /* ── Synchronisation nom + photo ── */
-  const { nom, photo: photoSync, initials } = useProfileSync();
-
-  // Photo personnelle par compte
-  const [photo, setPhoto] = React.useState(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      const uid = u._id || u.id || u.email || "default";
-      return localStorage.getItem(`airops_profil_photo_v2_${uid}`) || sessionStorage.getItem("airops_photo_current") || photoSync || "";
-    } catch { return photoSync || ""; }
-  });
-  React.useEffect(() => {
-    const sync = () => {
-      try {
-        const u = JSON.parse(localStorage.getItem("user") || "{}");
-        const uid = u._id || u.id || u.email || "default";
-        setPhoto(localStorage.getItem(`airops_profil_photo_v2_${uid}`) || sessionStorage.getItem("airops_photo_current") || "");
-      } catch {}
-    };
-    window.addEventListener("airops-profile-update", sync);
-    return () => window.removeEventListener("airops-profile-update", sync);
-  }, []);
+  const { nom, photo, initials } = useProfileSync();
 
   const [notifications, setNotifications] = useState([]);
   const [loadingNotifs, setLoadingNotifs] = useState(true);
@@ -215,13 +216,13 @@ export default function NotificationP() {
       .then(res => {
         if (cancelled) return;
         const mapped = (res.data || []).map(n => ({
-          id:      n._id || n.id,
-          type:    TYPE_MAP[n.type] || "info",
-          title:   n.message || "Notification",
+          id: n._id || n.id,
+          type: TYPE_MAP[n.type] || "info",
+          title: n.message || "Notification",
           message: n.message || "",
-          time:    mapNotification(n).time,
-          unread:  !n.isRead,
-          _raw:    n,
+          time: mapNotification(n).time,
+          unread: !n.isRead,
+          _raw: n,
         }));
         setNotifications(mapped);
       })
@@ -230,11 +231,11 @@ export default function NotificationP() {
     return () => { cancelled = true; };
   }, []);
 
-  const [collapsed,     setCollapsed]     = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [sidebarMobile, setSidebarMobile] = useState(false);
-  const [filter,        setFilter]        = useState("Toutes");
-  const [search,        setSearch]        = useState("");
-  const [toast,         setToast]         = useState("");
+  const [filter, setFilter] = useState("Toutes");
+  const [search, setSearch] = useState("");
+  const [toast, setToast] = useState("");
 
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 2800); return () => clearTimeout(t); }, [toast]);
 
@@ -270,17 +271,22 @@ export default function NotificationP() {
   };
   const removeNotification = id => { setNotifications(prev => prev.filter(n => n.id !== id)); setToast("Notification supprimée."); };
 
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
+
   const navWithBadge = navItems.map(item => item.to === "/notificationP" ? { ...item, badge: unreadCount > 0 ? unreadCount : null } : item);
 
   return (
     <div className="nw">
-      {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)}/>}
+      {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)} />}
 
       <aside className={["sidebar", collapsed ? "collapsed" : "", sidebarMobile ? "open" : ""].filter(Boolean).join(" ")}>
         <button type="button" className="sb-toggle-btn" onClick={() => setCollapsed(v => !v)}>
-          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
         </button>
-        <div className="sb-brand" onClick={() => navigate("/")}><div className="sb-brand-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></div><div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">GESTION INTERNE</span></div></div>
+        <div className="sb-brand" onClick={() => navigate("/")}><div className="sb-brand-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" /></svg></div><div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">ESPACE PASSAGER</span></div></div>
         <div className="sb-label">Navigation</div>
         <nav className="sb-nav">
           {navWithBadge.map(item => (
@@ -292,8 +298,8 @@ export default function NotificationP() {
         </nav>
         <div className="sb-footer">
           <div className="sb-label" style={{ paddingTop: 0 }}>Compte</div>
-          <button type="button" className="sb-logout" onClick={() => { try { sessionStorage.removeItem("airops_photo_current"); } catch {} navigate("/login"); }}>
-            <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></span>
+          <button type="button" className="sb-logout" onClick={handleLogout}>
+            <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></span>
             <span className="sb-logout-lbl">Déconnexion</span>
           </button>
         </div>
@@ -303,23 +309,23 @@ export default function NotificationP() {
         <header className="nh">
           <div className="nh-left">
             <button type="button" className="nh-menu-btn" onClick={() => setSidebarMobile(v => !v)}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
             <span className="nh-title">Notifications</span>
           </div>
           <div className="nh-right">
             <div className="search-wrap">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              <input type="text" className="search-input" placeholder="Rechercher une notification…" value={search} onChange={e => setSearch(e.target.value)}/>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <input type="text" className="search-input" placeholder="Rechercher une notification…" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             {/* ── Avatar synchronisé ── */}
             <div className="user-chip">
               <div className="user-info-r">
                 <div className="user-name">{nom}</div>
-                <div className="user-role">Passager Premium</div>
+                <div className="user-role">Passager</div>
               </div>
               <div className="user-avatar">
-                {photo ? <img src={photo} alt="profil"/> : initials}
+                {photo ? <img src={photo} alt="profil" /> : initials}
               </div>
             </div>
           </div>
@@ -343,7 +349,7 @@ export default function NotificationP() {
           <div className="notif-card">
             <div className="notif-toolbar">
               <div className="filter-tabs">
-                {["Toutes","Non lues","Lues"].map(tab => (
+                {["Toutes", "Non lues", "Lues"].map(tab => (
                   <button key={tab} type="button" className={`filter-btn${filter === tab ? " active" : ""}`} onClick={() => setFilter(tab)}>{tab}</button>
                 ))}
               </div>
@@ -352,7 +358,7 @@ export default function NotificationP() {
             <div className="notif-list">
               {filtered.length === 0 ? (
                 <div className="empty-state">
-                  <div className="empty-icon"><svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#94a3b8" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5"/></svg></div>
+                  <div className="empty-icon"><svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#94a3b8" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5" /></svg></div>
                   <p className="empty-title">Aucune notification trouvée</p>
                   <p className="empty-sub">Essayez un autre filtre ou une autre recherche.</p>
                 </div>
@@ -360,11 +366,11 @@ export default function NotificationP() {
                 const cfg = typeConfig[item.type] || typeConfig.info;
                 return (
                   <div key={item.id} className="notif-item" style={{ background: item.unread ? cfg.itemBg : "transparent" }}>
-                    <NotifIcon type={item.type}/>
+                    <NotifIcon type={item.type} />
                     <div className="notif-body">
                       <div className="notif-title-row">
                         <span className="notif-title">{item.title}</span>
-                        {item.unread && <span className="notif-dot" style={{ background: cfg.dot }}/>}
+                        {item.unread && <span className="notif-dot" style={{ background: cfg.dot }} />}
                       </div>
                       <p className="notif-msg">{item.message}</p>
                       <p className="notif-time">{item.time}</p>
@@ -378,7 +384,7 @@ export default function NotificationP() {
               })}
             </div>
           </div>
-          <div style={{ fontSize:10, color:"var(--text-muted)", textAlign:"center", padding:"4px 0 10px", letterSpacing:1, textTransform:"uppercase" }}>© 2026 AirOps Transport Management</div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "center", padding: "4px 0 10px", letterSpacing: 1, textTransform: "uppercase" }}>© 2026 AirOps Transport Management</div>
         </main>
       </div>
 

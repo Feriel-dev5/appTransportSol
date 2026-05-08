@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { useProfileSync } from "../../services/useProfileSync";
+import { useProfileSync, getStoredPhoto } from "../../services/useProfileSync";
 import { createAvis, fetchAvis, createReclamation } from "../../services/passengerService";
+import { logout } from "../../services/authService";
 
 const avisCSS = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
@@ -57,10 +58,9 @@ const avisCSS = `
   .ah-menu-btn { display:none; background:none; border:none; cursor:pointer; color:var(--text-sec); padding:6px; border-radius:8px; transition:var(--tr); }
   .ah-menu-btn:hover { background:var(--bg-page); color:var(--text-primary); }
   .ah-title { font-size:15px; font-weight:700; color:var(--text-primary); }
-  .user-chip { display:flex; align-items:center; gap:9px; }
-  .user-info-r { text-align:right; }
-  .user-name { font-size:13px; font-weight:700; color:var(--text-primary); }
-  .user-role { font-size:11px; color:var(--text-muted); }
+  .review-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+  .review-badge { background: #eff6ff; color: #2980e8; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; }
+  .review-date { font-size: 11px; color: #94a3b8; margin-left: auto; }
   .user-avatar { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,var(--brand-blue),var(--brand-mid)); display:flex; align-items:center; justify-content:center; color:#fff; font-size:13px; font-weight:700; box-shadow:0 3px 10px rgba(41,128,232,0.35); border:2.5px solid rgba(41,128,232,0.2); flex-shrink:0; overflow:hidden; }
   .user-avatar img { width:100%; height:100%; object-fit:cover; }
 
@@ -187,24 +187,44 @@ const CAT_COLORS = { Chauffeur: "#2980e8", Service: "#16a34a", Application: "#f9
 /* Aucun avis de démonstration — chaque compte part avec une liste vide */
 
 const navItems = [
-  { label: "Tableau de bord", to: "/dashbordP",     icon: <svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> },
-  { label: "Réserver demande",to: "/reserverD",     icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg> },
-  { label: "Notifications",   to: "/notificationP", icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> },
-  { label: "Avis des acteurs",to: "/avisP",         icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg> },
-  { label: "Profile",         to: "/profilP",       icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+  {
+    label: "Tableau de bord",
+    to: "/dashbordP",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
+  },
+  {
+    label: "Réserver demande",
+    to: "/reserverD",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg>,
+  },
+  {
+    label: "Notifications",
+    to: "/notificationP",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
+  },
+  {
+    label: "Avis des acteurs",
+    to: "/avisP",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>,
+  },
+  {
+    label: "Profile",
+    to: "/profilP",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
+  },
 ];
 
 function Stars({ rating, size = 15 }) {
   return (
     <div className="avis-stars">
-      {[1,2,3,4,5].map(i => (
+      {[1, 2, 3, 4, 5].map(i => (
         <span key={i} className={`star${i <= rating ? " on" : ""}`} style={{ fontSize: size }}>⭐</span>
       ))}
     </div>
   );
 }
 
-function AddAvisModal({ onClose, onSubmit, authorName }) {
+function AddAvisModal({ onClose, onSubmit, authorName, photo }) {
   const [cat, setCat] = useState("");
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -213,12 +233,12 @@ function AddAvisModal({ onClose, onSubmit, authorName }) {
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    const initials = (authorName || "A B").trim().split(" ").map(w => w[0]).slice(0,2).join("").toUpperCase();
-    const colors = ["#2980e8","#16a34a","#8b5cf6","#f97316","#ef4444","#0d2b5e","#f59e0b"];
+    const initials = (authorName || "A B").trim().split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+    const colors = ["#2980e8", "#16a34a", "#8b5cf6", "#f97316", "#ef4444", "#0d2b5e", "#f59e0b"];
     const color = colors[Math.floor(Math.random() * colors.length)];
     const now = new Date();
-    const date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-    onSubmit({ author: authorName || "Anonyme", role: "Passager", initials, color, cat, rating, text, date, likes: 0, liked: false });
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    onSubmit({ author: authorName || "Anonyme", role: "Passager", initials, photo, color, cat, rating, text, date, likes: 0, liked: false });
     onClose();
   };
 
@@ -242,7 +262,7 @@ function AddAvisModal({ onClose, onSubmit, authorName }) {
           <div className="form-group">
             <label className="form-label">Note</label>
             <div className="star-selector">
-              {[1,2,3,4,5].map(i => (
+              {[1, 2, 3, 4, 5].map(i => (
                 <button key={i} type="button" className={`star-btn${i <= (hoverRating || rating) ? " on" : ""}`}
                   onMouseEnter={() => setHoverRating(i)} onMouseLeave={() => setHoverRating(0)}
                   onClick={() => setRating(i)}>⭐</button>
@@ -250,8 +270,8 @@ function AddAvisModal({ onClose, onSubmit, authorName }) {
             </div>
           </div>
           <div className="form-group">
-            <label className="form-label">Votre avis <span style={{ fontWeight:400, textTransform:"none", color:"var(--text-muted)" }}>(min. 10 caractères)</span></label>
-            <textarea className="form-textarea" value={text} onChange={e => setText(e.target.value)} placeholder="Partagez votre expérience avec l'application, le service, les chauffeurs…"/>
+            <label className="form-label">Votre avis <span style={{ fontWeight: 400, textTransform: "none", color: "var(--text-muted)" }}>(min. 10 caractères)</span></label>
+            <textarea className="form-textarea" value={text} onChange={e => setText(e.target.value)} placeholder="Partagez votre expérience avec l'application, le service, les chauffeurs…" />
           </div>
         </div>
         <div className="modal-footer">
@@ -296,7 +316,7 @@ function readStoredAvis() {
 }
 
 function writeStoredAvis(list) {
-  try { localStorage.setItem(getAvisKey(), JSON.stringify(Array.isArray(list) ? list : [])); } catch {}
+  try { localStorage.setItem(getAvisKey(), JSON.stringify(Array.isArray(list) ? list : [])); } catch { }
 }
 
 function sameAvis(a, b) {
@@ -308,27 +328,7 @@ function sameAvis(a, b) {
 
 export default function AvisP() {
   const navigate = useNavigate();
-  const { nom, photo: photoSync, initials } = useProfileSync();
-
-  // Photo personnelle par compte
-  const [photo, setPhoto] = React.useState(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      const uid = u._id || u.id || u.email || "default";
-      return localStorage.getItem(`airops_profil_photo_v2_${uid}`) || sessionStorage.getItem("airops_photo_current") || photoSync || "";
-    } catch { return photoSync || ""; }
-  });
-  React.useEffect(() => {
-    const sync = () => {
-      try {
-        const u = JSON.parse(localStorage.getItem("user") || "{}");
-        const uid = u._id || u.id || u.email || "default";
-        setPhoto(localStorage.getItem(`airops_profil_photo_v2_${uid}`) || sessionStorage.getItem("airops_photo_current") || "");
-      } catch {}
-    };
-    window.addEventListener("airops-profile-update", sync);
-    return () => window.removeEventListener("airops-profile-update", sync);
-  }, []);
+  const { nom, photo, initials } = useProfileSync();
 
   /* ── Charger les avis du compte courant avec persistance immédiate ── */
   const [avisList, setAvisList] = useState(() => readStoredAvis());
@@ -354,24 +354,25 @@ export default function AvisP() {
         if (cancelled) return;
         const payload = Array.isArray(res?.data) ? res.data : Array.isArray(res?.data?.data) ? res.data.data : [];
         const mapped = payload.map(a => ({
-          id:       a._id || a.id || "api_" + Date.now() + "_" + Math.random(),
-          author:   a.userName || nom || "Anonyme",
-          role:     "Passager",
-          initials: (a.userName || nom || "A").trim().split(" ").map(w => w[0]).slice(0,2).join("").toUpperCase() || "A",
-          color:    "#2980e8",
-          cat:      a.categorie === "chauffeur" ? "Chauffeur"
-                  : a.categorie === "services"  ? "Service"
-                  : "Application",
-          rating:   Number(a.note) || 0,
-          text:     a.message || "",
-          date:     a.createdAt ? String(a.createdAt).slice(0,10) : new Date().toISOString().slice(0,10),
-          likes:    0,
-          liked:    false,
+          id: a._id || a.id || "api_" + Date.now() + "_" + Math.random(),
+          author: a.userId?.name || nom || "Anonyme",
+          role: "Passager",
+          initials: (a.userId?.name || nom || "A").trim().split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() || "A",
+          photo: a.userId?.photo || null,
+          color: "#2980e8",
+          cat: a.categorie === "chauffeur" ? "Chauffeur"
+            : a.categorie === "services" ? "Service"
+              : "Application",
+          rating: Number(a.note) || 0,
+          text: a.message || "",
+          date: a.createdAt ? String(a.createdAt).slice(0, 10) : new Date().toISOString().slice(0, 10),
+          statut: a.statut || "EN_ATTENTE",
+          likes: 0,
+          liked: false,
+          _raw: a
         }));
-        const merged = [...local];
-        mapped.forEach(item => { if (!merged.some(existing => sameAvis(existing, item))) merged.push(item); });
-        writeStoredAvis(merged);
-        setAvisList(merged);
+        writeStoredAvis(mapped);
+        setAvisList(mapped);
       })
       .catch(() => { if (!cancelled) setAvisList(readStoredAvis()); })
       .finally(() => { if (!cancelled) setAvisLoading(false); });
@@ -386,16 +387,16 @@ export default function AvisP() {
     };
   }, [nom]);
 
-  const [collapsed,     setCollapsed]     = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [sidebarMobile, setSidebarMobile] = useState(false);
-  const [toast,         setToast]         = useState("");
-  const [showModal,     setShowModal]     = useState(false);
-  const [activeFilter,  setActiveFilter]  = useState("Tous");
+  const [toast, setToast] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [activeFilter, setActiveFilter] = useState("Tous");
   // Onglet principal: "avis" | "reclamation"
-  const [mainTab,       setMainTab]       = useState("avis");
+  const [mainTab, setMainTab] = useState("avis");
   // Formulaire réclamation
-  const [reclForm,      setReclForm]      = useState({ categorie: "APPLICATION", description: "" });
-  const [reclSubmitting,setReclSubmitting]= useState(false);
+  const [reclForm, setReclForm] = useState({ categorie: "APPLICATION", description: "" });
+  const [reclSubmitting, setReclSubmitting] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -418,10 +419,10 @@ export default function AvisP() {
     } finally { setReclSubmitting(false); }
   };
 
-  const filters  = ["Tous", ...CATEGORIES];
+  const filters = ["Tous", ...CATEGORIES];
   const filtered = activeFilter === "Tous" ? avisList : avisList.filter(a => a.cat === activeFilter);
 
-  const avgRating  = avisList.length ? (avisList.reduce((s, a) => s + a.rating, 0) / avisList.length).toFixed(1) : "—";
+  const avgRating = avisList.length ? (avisList.reduce((s, a) => s + a.rating, 0) / avisList.length).toFixed(1) : "—";
   const totalLikes = avisList.reduce((s, a) => s + a.likes, 0);
 
   const handleLike = (id) => {
@@ -437,9 +438,16 @@ export default function AvisP() {
     setToast("🗑️ Avis supprimé.");
   };
 
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
+
   const handleAddAvis = async (avis) => {
     const tempId = "local_" + Date.now() + "_" + Math.random().toString(36).slice(2);
-    const newAvis = { ...avis, id: tempId, isLocal: true };
+    // Ensure we have a photo even if the modal prop was slightly delayed
+    const currentPhoto = avis.photo || getStoredPhoto();
+    const newAvis = { ...avis, photo: currentPhoto, id: tempId, isLocal: true, statut: "EN_ATTENTE" };
     saveAvisList(prev => [newAvis, ...prev]);
     window.dispatchEvent(new Event("airops-avis-update"));
     setToast("✅ Votre avis a été publié avec succès !");
@@ -447,9 +455,9 @@ export default function AvisP() {
     try {
       const catMap = { "Chauffeur": "chauffeur", "Service": "services", "Application": "application" };
       const response = await createAvis({ categorie: catMap[avis.cat] || "services", note: avis.rating, message: avis.text });
-      const created = response?.data || response || {};
+      const created = response?.avis || response?.data?.avis || response?.data || response || {};
       const realId = created?._id || created?.id || tempId;
-      saveAvisList(prev => prev.map(a => a.id === tempId ? { ...a, id: realId, isLocal: false } : a));
+      saveAvisList(prev => prev.map(a => a.id === tempId ? { ...a, id: realId, isLocal: false, statut: created?.statut || "EN_ATTENTE" } : a));
       window.dispatchEvent(new Event("airops-avis-update"));
     } catch (err) {
       saveAvisList(prev => prev.map(a => a.id === tempId ? { ...a, isLocal: true, pendingSync: true } : a));
@@ -461,19 +469,19 @@ export default function AvisP() {
 
   return (
     <div className="aw">
-      {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)}/>}
+      {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)} />}
 
       <aside className={["sidebar", collapsed ? "collapsed" : "", sidebarMobile ? "open" : ""].filter(Boolean).join(" ")}>
         <button type="button" className="sb-toggle-btn" onClick={() => setCollapsed(v => !v)}>
-          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
         </button>
         <div className="sb-brand" onClick={() => navigate("/")}>
           <div className="sb-brand-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" />
             </svg>
           </div>
-          <div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">GESTION INTERNE</span></div>
+          <div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">ESPACE PASSAGER</span></div>
         </div>
         <div className="sb-label">Navigation</div>
         <nav className="sb-nav">
@@ -489,8 +497,8 @@ export default function AvisP() {
         </nav>
         <div className="sb-footer">
           <div className="sb-label" style={{ paddingTop: 0 }}>Compte</div>
-          <button type="button" className="sb-logout" onClick={() => { try { sessionStorage.removeItem("airops_photo_current"); } catch {} navigate("/login"); }}>
-            <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></span>
+          <button type="button" className="sb-logout" onClick={handleLogout}>
+            <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></span>
             <span className="sb-logout-lbl">Déconnexion</span>
           </button>
         </div>
@@ -500,7 +508,7 @@ export default function AvisP() {
         <header className="ah">
           <div className="ah-left">
             <button type="button" className="ah-menu-btn" onClick={() => setSidebarMobile(v => !v)}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
             <span className="ah-title">Avis des acteurs</span>
           </div>
@@ -508,10 +516,10 @@ export default function AvisP() {
             <div className="user-chip">
               <div className="user-info-r">
                 <div className="user-name">{nom}</div>
-                <div className="user-role">Passager Premium</div>
+                <div className="user-role">Passager</div>
               </div>
               <div className="user-avatar">
-                {photo ? <img src={photo} alt="profil"/> : initials}
+                {photo ? <img src={photo} alt="profil" /> : initials}
               </div>
             </div>
           </div>
@@ -519,13 +527,15 @@ export default function AvisP() {
 
         <main className="ac">
           {/* ── Tabs: Avis / Réclamations ── */}
-          <div style={{display:"flex",gap:8,marginBottom:20,borderBottom:"2px solid var(--border)",paddingBottom:0}}>
-            {[{id:"avis",label:"⭐ Mes Avis"},{id:"reclamation",label:"📋 Réclamations"}].map(tab=>(
-              <button key={tab.id} type="button" onClick={()=>setMainTab(tab.id)}
-                style={{padding:"10px 20px",fontFamily:"inherit",fontWeight:700,fontSize:13,border:"none",background:"none",cursor:"pointer",
-                  borderBottom: mainTab===tab.id ? "2px solid #2980e8" : "2px solid transparent",
-                  color: mainTab===tab.id ? "#2980e8" : "#5a6e88",
-                  marginBottom: -2, transition:"all 0.2s"}}>
+          <div style={{ display: "none", gap: 8, marginBottom: 20, borderBottom: "2px solid var(--border)", paddingBottom: 0 }}>
+            {[{ id: "avis", label: "⭐ Mes Avis" }].map(tab => (
+              <button key={tab.id} type="button" onClick={() => setMainTab(tab.id)}
+                style={{
+                  padding: "10px 20px", fontFamily: "inherit", fontWeight: 700, fontSize: 13, border: "none", background: "none", cursor: "pointer",
+                  borderBottom: mainTab === tab.id ? "2px solid #2980e8" : "2px solid transparent",
+                  color: mainTab === tab.id ? "#2980e8" : "#5a6e88",
+                  marginBottom: -2, transition: "all 0.2s"
+                }}>
                 {tab.label}
               </button>
             ))}
@@ -533,139 +543,77 @@ export default function AvisP() {
 
           {/* ─── Onglet Avis ─── */}
           {mainTab === "avis" && (<>
-          <div className="avis-header">
-            <div>
-              <h1 className="avis-title">Mes avis</h1>
-              <p className="avis-subtitle">Vos avis personnels — chaque compte ne voit que ses propres avis publiés.</p>
-            </div>
-            <button type="button" className="btn-add-avis" onClick={() => setShowModal(true)}>
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
-              Donner mon avis
-            </button>
-          </div>
-
-          <div className="avis-stats">
-            {[
-              { icon:"⭐", val: avgRating, lbl:"Note moyenne", sub: null },
-              { icon:"💬", val: avisList.length, lbl:"Avis publiés", sub: null },
-              { icon:"❤️", val: totalLikes, lbl:"Total likes", sub: null },
-              { icon:"📊", val: `${Math.round((avisList.filter(a=>a.rating>=4).length/Math.max(avisList.length,1))*100)}%`, lbl:"Taux satisfaction", sub: null },
-            ].map((s, i) => (
-              <div key={i} className="astat">
-                <div className="astat-icon">{s.icon}</div>
-                <div className="astat-val">{s.val}</div>
-                <div className="astat-lbl">{s.lbl}</div>
+            <div className="avis-header">
+              <div>
+                <h1 className="avis-title">Mes avis</h1>
+                <p className="avis-subtitle">Vos avis personnels — chaque compte ne voit que ses propres avis publiés.</p>
               </div>
-            ))}
-          </div>
-
-          <div className="avis-filters">
-            {filters.map(f => (
-              <button key={f} type="button" className={`filter-btn${activeFilter === f ? " active" : ""}`} onClick={() => setActiveFilter(f)}>
-                {f !== "Tous" && CAT_ICONS[f]} {f}
+              <button type="button" className="btn-add-avis" onClick={() => setShowModal(true)}>
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                Donner mon avis
               </button>
-            ))}
-            <span style={{ marginLeft:"auto", fontSize:12, color:"var(--text-muted)", fontWeight:600 }}>{filtered.length} avis</span>
-          </div>
-
-          {filtered.length === 0 ? (
-            <div className="avis-empty">
-              <div className="avis-empty-icon">💬</div>
-              <div className="avis-empty-title">Aucun avis pour cette catégorie</div>
-              <p style={{ fontSize:13 }}>Vous n'avez pas encore d'avis dans cette catégorie. Partagez votre expérience !</p>
             </div>
-          ) : (
-            <div className="avis-grid">
-              {filtered.map(avis => (
-                <div key={avis.id} className={`avis-card ${catCls(avis.cat)}`}>
-                  <div className="avis-card-top">
-                    <div className="avis-author">
-                      <div className="avis-avatar" style={{ background: avis.color }}>{avis.initials}</div>
-                      <div className="avis-author-info">
-                        <span className="avis-author-name">{avis.author}</span>
-                        <span className="avis-author-role">{avis.role}</span>
-                      </div>
-                    </div>
-                    <span className="avis-cat-badge">{CAT_ICONS[avis.cat]} {avis.cat}</span>
-                  </div>
-                  <Stars rating={avis.rating}/>
-                  <p className="avis-text">{avis.text}</p>
-                  <div className="card-actions">
-                    <span className="avis-date">{avis.date}</span>
-                    <button type="button" className={`like-btn${avis.liked ? " liked" : ""}`} onClick={() => handleLike(avis.id)}>
-                      ❤️ {avis.likes}
-                    </button>
-                    <button type="button" className="delete-btn" onClick={() => handleDelete(avis.id)} title="Supprimer cet avis">
-                      <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                      Supprimer
-                    </button>
-                  </div>
-                </div>
+
+            <div className="avis-filters">
+              {filters.map(f => (
+                <button key={f} type="button" className={`filter-btn${activeFilter === f ? " active" : ""}`} onClick={() => setActiveFilter(f)}>
+                  {f !== "Tous" && CAT_ICONS[f]} {f}
+                </button>
               ))}
+              <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>{filtered.length} avis</span>
             </div>
-          )}
 
-          <div className="avis-footer">© 2026 AirOps Transport Management</div>
+            {filtered.length === 0 ? (
+              <div className="avis-empty">
+                <div className="avis-empty-icon">💬</div>
+                <div className="avis-empty-title">Aucun avis pour cette catégorie</div>
+                <p style={{ fontSize: 13 }}>Vous n'avez pas encore d'avis dans cette catégorie. Partagez votre expérience !</p>
+              </div>
+            ) : (
+              <div className="avis-grid">
+                {filtered.map(avis => (
+                  <div key={avis.id} className={`avis-card ${catCls(avis.cat)}`}>
+                    <div className="avis-card-top">
+                      <div className="avis-author">
+                        <div className="avis-avatar" style={{ background: avis.color }}>
+                          {avis.photo ? (
+                            <img src={avis.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+                          ) : (
+                            avis.initials
+                          )}
+                        </div>
+                        <div className="avis-author-info">
+                          <span className="avis-author-name">{avis.author}</span>
+                          <span className="avis-author-role">{avis.role}</span>
+                        </div>
+                      </div>
+                      <span className="avis-cat-badge">{CAT_ICONS[avis.cat]} {avis.cat}</span>
+                    </div>
+                    <Stars rating={avis.rating} />
+                    <p className="avis-text">{avis.text}</p>
+                    <div className="card-actions">
+                      <span className="avis-date">{avis.date}</span>
+                      <button type="button" className={`like-btn${avis.liked ? " liked" : ""}`} onClick={() => handleLike(avis.id)}>
+                        ❤️ {avis.likes}
+                      </button>
+                      <button type="button" className="delete-btn" onClick={() => handleDelete(avis.id)} title="Supprimer cet avis">
+                        <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        Supprimer
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
           </>)}
 
-          {/* ─── Onglet Réclamations ─── */}
-          {mainTab === "reclamation" && (
-            <div>
-              <div style={{marginBottom:24}}>
-                <h1 className="avis-title">Soumettre une réclamation</h1>
-                <p className="avis-subtitle">Signalez un problème lié à l'application, un chauffeur ou la qualité du service.</p>
-              </div>
 
-              <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:28,maxWidth:520,boxShadow:"0 2px 12px rgba(13,43,94,0.07)"}}>
-                {/* Catégorie */}
-                <div style={{marginBottom:18}}>
-                  <label style={{display:"block",fontSize:12,fontWeight:700,color:"#5a6e88",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.8px"}}>Catégorie</label>
-                  <div style={{display:"flex",gap:8}}>
-                    {[{id:"APPLICATION",label:"🖥️ Application"},{id:"CHAUFFEUR",label:"🚗 Chauffeur"},{id:"SERVICE",label:"⭐ Service"}].map(c=>(
-                      <button key={c.id} type="button"
-                        onClick={()=>setReclForm(p=>({...p,categorie:c.id}))}
-                        style={{flex:1,padding:"10px 8px",borderRadius:10,border:`2px solid ${reclForm.categorie===c.id?"#2980e8":"#e4ecf4"}`,
-                          background: reclForm.categorie===c.id ? "#eff6ff" : "#f8fafc",
-                          color: reclForm.categorie===c.id ? "#2980e8" : "#5a6e88",
-                          fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit",transition:"all 0.2s"}}>
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div style={{marginBottom:20}}>
-                  <label style={{display:"block",fontSize:12,fontWeight:700,color:"#5a6e88",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.8px"}}>Description</label>
-                  <textarea
-                    value={reclForm.description}
-                    onChange={e=>setReclForm(p=>({...p,description:e.target.value}))}
-                    placeholder="Décrivez le problème en détail (minimum 5 caractères)..."
-                    style={{width:"100%",minHeight:120,padding:"12px 14px",borderRadius:10,border:"1.5px solid #e4ecf4",
-                      fontFamily:"inherit",fontSize:13,color:"#0d2b5e",resize:"vertical",outline:"none",
-                      background:"#f8fafc",boxSizing:"border-box"}}
-                  />
-                  <div style={{fontSize:11,color:"#94a3b8",marginTop:4,textAlign:"right"}}>{reclForm.description.length}/1000</div>
-                </div>
-
-                <button type="button"
-                  onClick={handleSubmitReclamation}
-                  disabled={reclSubmitting || reclForm.description.trim().length < 5}
-                  style={{width:"100%",padding:"12px",borderRadius:10,background:"#2980e8",color:"#fff",fontWeight:700,
-                    fontSize:14,border:"none",cursor: reclSubmitting||reclForm.description.trim().length<5 ? "not-allowed" : "pointer",
-                    opacity: reclSubmitting||reclForm.description.trim().length<5 ? 0.6 : 1,
-                    fontFamily:"inherit",transition:"all 0.2s"}}>
-                  {reclSubmitting ? "Envoi en cours…" : "📤 Soumettre la réclamation"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="avis-footer" style={{marginTop:32}}>© 2026 AirOps Transport Management</div>
+          <div className="avis-footer" style={{ marginTop: 32 }}>© 2026 AirOps Transport Management</div>
         </main>
       </div>
 
-      {showModal && <AddAvisModal onClose={() => setShowModal(false)} onSubmit={handleAddAvis} authorName={nom}/>}
+      {showModal && <AddAvisModal onClose={() => setShowModal(false)} onSubmit={handleAddAvis} authorName={nom} photo={photo} />}
       {toast && <div className="toast">{toast}</div>}
     </div>
   );

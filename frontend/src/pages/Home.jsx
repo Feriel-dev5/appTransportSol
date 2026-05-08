@@ -1,3 +1,4 @@
+import api from "../services/api";
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import airopsLogo from "../assets/Logo_moderne_AirOps_avec_avion.png";
@@ -104,25 +105,30 @@ const responsiveCSS = `
   .ao-footer-inner { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
 
   /* ── Testimonials ── */
-  .ao-testimonials-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:48px; }
-  .ao-testimonial {
-    background:#fff; border:1px solid #e4ecf4; border-radius:20px;
-    padding:28px 24px; display:flex; flex-direction:column; gap:14px;
-    transition:all 0.25s ease; box-shadow:0 2px 12px rgba(0,0,0,0.04);
+  .ao-testimonials-slider { width:100%; overflow:hidden; margin-top:40px; position:relative; padding:10px 0 40px; }
+  .ao-testimonials-track { display:flex; gap:24px; transition:transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+  .ao-testimonial { 
+    flex: 0 0 calc(33.333% - 16px); 
+    background:#fff; border:1px solid #e4ecf4; border-radius:24px; padding:32px; 
+    box-shadow:0 10px 30px rgba(13,43,94,0.05); transition:all 0.3s;
+    display:flex; flex-direction:column; justify-content:space-between;
   }
-  .ao-testimonial:hover { transform:translateY(-5px); box-shadow:0 16px 36px rgba(13,43,94,0.09); }
+  @media (max-width:1024px) { .ao-testimonial { flex:0 0 calc(50% - 12px); } }
+  @media (max-width:768px)  { .ao-testimonial { flex:0 0 100%; } }
+  .ao-testimonial:hover { transform:translateY(-5px); box-shadow:0 20px 40px rgba(13,43,94,0.1); border-color:#2980e8; }
+  .ao-slider-dots { display:flex; justify-content:center; gap:8px; margin-top:30px; }
+  .ao-dot { width:8px; height:8px; border-radius:50%; background:#e4ecf4; cursor:pointer; transition:all 0.3s; }
+  .ao-dot.active { width:24px; background:#2980e8; border-radius:4px; }
   .ao-testimonial-stars { color:#f59e0b; font-size:14px; letter-spacing:2px; }
   .ao-testimonial-text { font-size:14px; color:#3a5070; line-height:1.7; font-style:italic; flex:1; }
   .ao-testimonial-author { display:flex; align-items:center; gap:10px; }
   .ao-testimonial-avatar { width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid #e4ecf4; }
   .ao-testimonial-name { font-size:13px; font-weight:700; color:#0d2b5e; }
-  .ao-testimonial-origin { font-size:11px; color:#5a6e88; }
 
   /* ── Tablette ── */
   @media (max-width:1024px) {
     .ao-grid { grid-template-columns:repeat(2,1fr)!important; }
     .ao-cat-grid { grid-template-columns:1fr!important; }
-    .ao-testimonials-grid { grid-template-columns:repeat(2,1fr)!important; }
   }
 
   /* ── Mobile ── */
@@ -134,13 +140,11 @@ const responsiveCSS = `
 
     .ao-grid { grid-template-columns:1fr!important; }
     .ao-cat-grid { grid-template-columns:1fr!important; }
-    .ao-testimonials-grid { grid-template-columns:1fr!important; }
 
     .ao-hero { height:auto!important; min-height:480px!important; }
     .ao-hero-content { padding:90px 20px 40px!important; }
     .ao-hero-title { font-size:26px!important; }
     .ao-hero-subtitle { font-size:14px!important; }
-    
 
     .ao-stat-item { padding:14px 20px!important; min-width:45%!important; }
     .ao-stat-divider { display:none!important; }
@@ -156,7 +160,6 @@ const responsiveCSS = `
     .ao-hero { min-height:420px!important; }
     .ao-hero-content { padding:80px 16px 32px!important; }
     .ao-hero-title { font-size:21px!important; letter-spacing:-0.3px!important; }
-   
     .ao-stat-item { min-width:50%!important; padding:12px 10px!important; }
     .ao-cat-card { padding:28px 22px!important; }
   }
@@ -169,11 +172,27 @@ if (typeof document !== "undefined" && !document.getElementById("ao-css")) {
   document.head.appendChild(tag);
 }
 
-const TESTIMONIALS = [
+/* ── Témoignages de secours (si aucun avis accepté en base) ── */
+const FALLBACK_TESTIMONIALS = [
   { text: "Service impeccable ! Le chauffeur était à l'heure et très professionnel. Je recommande vivement AirOps pour tous les transferts aéroport.", name: "Mehdi B.", origin: "Tunis", stars: "★★★★★", src: "https://randomuser.me/api/portraits/men/32.jpg" },
   { text: "J'ai opté pour la navette VIP et c'était une expérience exceptionnelle. Véhicule luxueux, trajet privé, rien à partager avec personne.", name: "Sarra K.", origin: "Sousse", stars: "★★★★★", src: "https://randomuser.me/api/portraits/women/44.jpg" },
   { text: "Réservation en 2 minutes, confirmation immédiate. Le suivi GPS en temps réel m'a vraiment rassurée. Je reviendrai !", name: "Fatma L.", origin: "Sfax", stars: "★★★★★", src: "https://randomuser.me/api/portraits/women/68.jpg" },
 ];
+
+/* ── Helpers ── */
+function passengerAbbrev(name) {
+  if (!name) return "Anonyme";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length <= 1) return name;
+  const prenom = parts[0];
+  const nom = parts[parts.length - 1];
+  return `${nom}.${prenom[0].toUpperCase()}`;
+}
+
+function noteToStars(note) {
+  const n = Math.round(Number(note) || 0);
+  return "★".repeat(Math.max(0, Math.min(5, n))) + "☆".repeat(5 - Math.max(0, Math.min(5, n)));
+}
 
 const Home = () => {
   const navigate = useNavigate();
@@ -182,16 +201,62 @@ const Home = () => {
     localStorage.getItem("airops_tracking_code") || ""
   );
   const [trackingTouched, setTrackingTouched] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  useEffect(() => { localStorage.setItem("airops_tracking_code", trackingCode); }, [trackingCode]);
+  /* ── Avis acceptés depuis l'API ── */
+  const [apiTestimonials, setApiTestimonials] = useState([]);
+
+  useEffect(() => {
+    api.get("/avis/acceptes")
+      .then(res => {
+        const list = Array.isArray(res.data?.data) ? res.data.data : [];
+        if (list.length > 0) setApiTestimonials(list);
+      })
+      .catch(() => {}); // fallback silencieux vers les témoignages statiques
+  }, []);
+
+  /* Si des avis acceptés existent en base → les afficher, sinon fallback statique */
+  const testimonials = apiTestimonials.length > 0
+    ? apiTestimonials.map(a => {
+        // userId might be populated (object) or just an ID (string)
+        const userObj = (typeof a.userId === 'object' && a.userId !== null) ? a.userId : {};
+        const userName = userObj.name || (typeof a.userId === 'string' ? "Passager" : "Passager");
+        let photoSrc = userObj.photo || null;
+
+        // Ensure photo has data URI prefix if it's a raw base64 string
+        if (photoSrc && photoSrc.length > 50 && !photoSrc.startsWith("data:")) {
+          photoSrc = `data:image/jpeg;base64,${photoSrc}`;
+        }
+
+        return {
+          text:   a.message || "",
+          name:   passengerAbbrev(userName),
+          origin: "Client AirOps",
+          stars:  noteToStars(a.note),
+          src:    photoSrc,
+        };
+      })
+    : FALLBACK_TESTIMONIALS;
+
+  useEffect(() => {
+    localStorage.setItem("airops_tracking_code", trackingCode);
+  }, [trackingCode]);
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", fn);
     return () => window.removeEventListener("scroll", fn);
   }, []);
+
+  useEffect(() => {
+    if (testimonials.length <= 3) return;
+    const interval = setInterval(() => {
+      setCurrentSlide(prev => (prev + 1) % (testimonials.length - 2));
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [testimonials]);
 
   const trackingError = useMemo(() => {
     const v = trackingCode.trim();
@@ -205,7 +270,6 @@ const Home = () => {
   const handleTrackingSubmit = () => {
     setTrackingTouched(true);
     if (trackingError || !trackingCode.trim()) return;
-    // Redirect to login to follow reservation
     navigate("/login");
   };
 
@@ -249,7 +313,7 @@ const Home = () => {
         </div>
       </nav>
 
-      {/* Mobile menu */}
+      {/* Menu mobile */}
       {menuOpen && (
         <div style={s.mobileMenu}>
           {[
@@ -296,13 +360,8 @@ const Home = () => {
               Suivre ma Réservation
             </button>
           </div>
-         </div>
-</div>
-
-         
-         
-
-     
+        </div>
+      </div>
 
       {/* ══ NOS CATÉGORIES ══ */}
       <section style={{ padding: "80px clamp(20px,6vw,80px)", background: "#f0f5fb" }}>
@@ -314,6 +373,7 @@ const Home = () => {
           </p>
         </div>
         <div className="ao-cat-grid">
+
           {/* VIP */}
           <div className="ao-cat-card vip">
             <div className="ao-cat-badge vip">⭐ Catégorie VIP</div>
@@ -346,7 +406,7 @@ const Home = () => {
             <div className="ao-cat-deco">✈</div>
           </div>
 
-          {/* Normal */}
+          {/* Standard */}
           <div className="ao-cat-card normal">
             <div className="ao-cat-badge normal">🚐 Catégorie Standard</div>
             <div className="ao-cat-title normal">Navette Partagée<br />Économique & Confortable</div>
@@ -380,8 +440,6 @@ const Home = () => {
         </div>
       </section>
 
-   
-
       {/* ══ TÉMOIGNAGES ══ */}
       <section style={{ padding: "80px clamp(20px,6vw,80px)", background: "#fff" }}>
         <div style={s.sectionHeader}>
@@ -389,20 +447,48 @@ const Home = () => {
           <h2 style={s.sectionTitle}>Ce que disent nos voyageurs</h2>
           <p style={s.sectionSubtitle}>Des milliers de passagers satisfaits nous font confiance chaque année.</p>
         </div>
-        <div className="ao-testimonials-grid">
-          {TESTIMONIALS.map((t, i) => (
-            <div key={i} className="ao-testimonial">
-              <div className="ao-testimonial-stars">{t.stars}</div>
-              <p className="ao-testimonial-text">"{t.text}"</p>
-              <div className="ao-testimonial-author">
-                <img src={t.src} alt={t.name} className="ao-testimonial-avatar" />
-                <div>
-                  <div className="ao-testimonial-name">{t.name}</div>
-                  <div className="ao-testimonial-origin">{t.origin}</div>
+        <div className="ao-testimonials-slider">
+          <div 
+            className="ao-testimonials-track" 
+            style={{ transform: `translateX(calc(-${currentSlide * (100 / 3.03)}%))` }}
+          >
+            {testimonials.map((t, i) => (
+              <div key={i} className="ao-testimonial">
+                <div style={{ flex: 1 }}>
+                  <div className="ao-testimonial-stars">{t.stars}</div>
+                  <p className="ao-testimonial-text">"{t.text}"</p>
                 </div>
+                  <div className="ao-testimonial-author">
+                    {t.src && t.src.length > 10
+                      ? <img src={t.src} alt={t.name} className="ao-testimonial-avatar" key={t.src.substring(0,20)} />
+                      : <div className="ao-testimonial-avatar" style={{
+                          background: "linear-gradient(135deg,#2980e8,#0d2b5e)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          color: "#fff", fontSize: 13, fontWeight: 800,
+                        }}>
+                          {(t.name || "A").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase()}
+                        </div>
+                    }
+                    <div>
+                      <div className="ao-testimonial-name">{t.name}</div>
+                      <div className="ao-testimonial-origin">{t.origin}</div>
+                    </div>
+                  </div>
               </div>
+            ))}
+          </div>
+          
+          {testimonials.length > 3 && (
+            <div className="ao-slider-dots">
+              {Array.from({ length: testimonials.length - 2 }).map((_, i) => (
+                <div 
+                  key={i} 
+                  className={`ao-dot ${currentSlide === i ? "active" : ""}`}
+                  onClick={() => setCurrentSlide(i)}
+                />
+              ))}
             </div>
-          ))}
+          )}
         </div>
       </section>
 
@@ -418,7 +504,6 @@ const Home = () => {
           <p style={{ ...s.sectionSubtitle, color: "rgba(255,255,255,0.65)" }}>
             Depuis notre lancement, nous assurons des transferts ponctuels et confortables entre tous les aéroports et hôtels du pays, avec un taux de satisfaction exceptionnel.
           </p>
-          
         </div>
       </section>
 
@@ -430,7 +515,6 @@ const Home = () => {
             <span style={s.footerBrandName}>AirOps</span>
           </div>
           <p style={s.footerCopy}>© {new Date().getFullYear()} AirOps. Tous droits réservés.</p>
-         
         </div>
       </footer>
     </div>
@@ -538,40 +622,6 @@ const s = {
     fontWeight: 600, cursor: "pointer", backdropFilter: "blur(8px)", transition: "all 0.25s ease",
   },
 
-  quickTrack: {
-    background: "rgba(255,255,255,0.13)",
-    border: "1px solid rgba(255,255,255,0.28)",
-    borderRadius: "16px", padding: "16px 18px",
-    width: "100%", maxWidth: "500px",
-    backdropFilter: "blur(14px)",
-  },
-  quickTrackLabel: {
-    fontSize: "11px", fontWeight: 700,
-    color: "rgba(255,255,255,0.82)", margin: "0 0 10px 0",
-    textTransform: "uppercase", letterSpacing: "0.8px",
-  },
-  trackRow: { display: "flex", gap: "10px", alignItems: "flex-start" },
-  trackInput: {
-    width: "100%", padding: "11px 14px", borderRadius: "10px",
-    background: "rgba(255,255,255,0.16)", color: "#fff",
-    fontSize: "14px", outline: "none", transition: "all 0.2s ease",
-  },
-  trackBtn: {
-    background: "#2980e8", color: "#fff", border: "none",
-    padding: "11px 20px", borderRadius: "10px",
-    fontSize: "14px", fontWeight: 700, cursor: "pointer",
-    whiteSpace: "nowrap", transition: "all 0.2s ease", flexShrink: 0,
-  },
-  errorText: { marginTop: "6px", fontSize: "12px", color: "#fca5a5" },
-
-  statDivider: {
-    position: "absolute", left: 0, top: "20%", height: "60%",
-    width: "1px", background: "#e4ecf4",
-  },
-  statValue: { fontSize: "clamp(18px,2.5vw,28px)", fontWeight: 800, color: "#1252aa", letterSpacing: "-0.5px" },
-  statLabel: { fontSize: "11px", color: "#5a6e88", fontWeight: 500, textAlign: "center", letterSpacing: "0.2px" },
-
-  servicesSection: { padding: "80px clamp(20px,6vw,80px)", background: "#f0f5fb" },
   sectionHeader: { textAlign: "center", marginBottom: "50px" },
   sectionTag: {
     display: "inline-block", fontSize: "11px", fontWeight: 700, letterSpacing: "1.5px",
@@ -580,25 +630,15 @@ const s = {
   },
   sectionTitle: { fontSize: "clamp(22px,3.5vw,38px)", fontWeight: 800, color: "#0d2b5e", letterSpacing: "-0.8px", lineHeight: 1.15, marginBottom: "12px" },
   sectionSubtitle: { fontSize: "15px", color: "#5a6e88", lineHeight: 1.7, maxWidth: "480px", margin: "0 auto" },
-  cardIcon: { width: "50px", height: "50px", borderRadius: "13px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", flexShrink: 0 },
-  cardTitle: { fontSize: "16px", fontWeight: 700, color: "#0d2b5e", margin: 0 },
-  cardText: { fontSize: "13px", color: "#5a6e88", lineHeight: 1.65, margin: 0, flex: 1 },
-  cardLink: { fontSize: "13px", fontWeight: 600, textDecoration: "none", display: "inline-block" },
 
   trustSection: { background: "linear-gradient(135deg,#0d2b5e 0%,#1252aa 100%)", padding: "60px clamp(20px,6vw,80px)", display: "flex", justifyContent: "center" },
   trustContent: { maxWidth: "620px", textAlign: "center" },
-  trustAvatars: { display: "flex", alignItems: "center", justifyContent: "center", margin: "16px 0 20px", flexWrap: "wrap", rowGap: "12px" },
-  trustAvatar: { width: "44px", height: "44px", borderRadius: "50%", border: "3px solid #1252aa", objectFit: "cover", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" },
-  trustText: { marginLeft: "14px", fontSize: "14px", color: "rgba(255,255,255,0.62)", fontWeight: 500 },
-  btnTrustCta: { background: "transparent", color: "#fff", border: "1.5px solid rgba(255,255,255,0.42)", padding: "14px 36px", borderRadius: "32px", fontSize: "15px", fontWeight: 700, cursor: "pointer", transition: "all 0.25s ease" },
 
   footer: { background: "#0d2b5e", borderTop: "1px solid rgba(255,255,255,0.1)", padding: "32px clamp(20px,6vw,80px)" },
   footerBrand: { display: "flex", alignItems: "center", gap: "10px" },
   footerLogo: { height: "34px", objectFit: "contain" },
   footerBrandName: { fontSize: "17px", fontWeight: 800, color: "#fff" },
   footerCopy: { fontSize: "13px", color: "rgba(255,255,255,0.4)", margin: 0 },
-  footerLinks: { display: "flex", gap: "20px", flexWrap: "wrap" },
-  footerLink: { fontSize: "13px", color: "rgba(255,255,255,0.55)", textDecoration: "none", transition: "color 0.2s" },
 };
 
 export default Home;

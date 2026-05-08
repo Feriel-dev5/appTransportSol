@@ -6,9 +6,11 @@ const {
   getUserProfile,
   updateUserProfile,
   updateUserByAdmin,
+  removeUser,
   getPassengerDashboard,
   getDriverDashboard,
   getResponsableDashboard,
+  getAdminDashboard,
 } = require("../Services/users.service");
 
 const createUser = asyncHandler(async (req, res) => {
@@ -52,13 +54,25 @@ const responsableDashboard = asyncHandler(async (req, res) => {
   res.json(dashboard);
 });
 
+const adminDashboard = asyncHandler(async (req, res) => {
+  const dashboard = await getAdminDashboard(req.user.id);
+  res.json(dashboard);
+});
+
+const deleteUser = asyncHandler(async (req, res) => {
+  await removeUser(req.params.id, req.user.id);
+  res.json({ message: "User deleted successfully" });
+});
+
 module.exports = {
   createUser,
   listUsers,
   getMyProfile,
   updateMyProfile,
   updateUser,
+  deleteUser,
   passengerDashboard,
   driverDashboard,
   responsableDashboard,
+  adminDashboard,
 };

@@ -32,6 +32,11 @@ export const endMission = async (id) => {
   return data;
 };
 
+export const cancelMission = async (id) => {
+  const { data } = await api.put(`/missions/${id}/cancel`);
+  return data;
+};
+
 /* ─────────────────────────────────────────────────────────
    RÉCLAMATIONS / INCIDENTS
 ───────────────────────────────────────────────────────── */
@@ -43,6 +48,16 @@ export const createIncident = async (payload) => {
 
 export const fetchMyIncidents = async (params = {}) => {
   const { data } = await api.get("/incidents/my", { params });
+  return data;
+};
+
+export const deleteIncident = async (id) => {
+  const { data } = await api.delete(`/incidents/${id}`);
+  return data;
+};
+
+export const deleteAllIncidents = async () => {
+  const { data } = await api.delete("/incidents/my/all");
   return data;
 };
 
@@ -61,6 +76,16 @@ export const markNotificationAsRead = async (id) => {
 
 export const markAllNotificationsAsRead = async () => {
   const { data } = await api.patch("/notifications/read-all");
+  return data;
+};
+
+export const deleteNotification = async (id) => {
+  const { data } = await api.delete(`/notifications/${id}`);
+  return data;
+};
+
+export const deleteAllNotifications = async () => {
+  const { data } = await api.delete("/notifications");
   return data;
 };
 
@@ -83,40 +108,50 @@ export const updateMyProfile = async (payload) => {
   return data.user;
 };
 
+export const updateMyPassword = async (payload) => {
+  // payload: { currentPassword, newPassword }
+  const { data } = await api.patch("/users/me/password", payload);
+  return data;
+};
+
 /* ─────────────────────────────────────────────────────────
    MAPPERS
 ───────────────────────────────────────────────────────── */
 const STATUT_MAP = {
-  EN_ATTENTE: "EN ATTENTE",
+  EN_ATTENTE: "CONFIRMÉE",
   EN_COURS:   "EN COURS",
   TERMINEE:   "TERMINÉE",
   ANNULEE:    "ANNULÉE",
 };
 
-export const mapMission = (m) => ({
-  _id:      m._id || m.id,
-  ref:      `#MSN-${String(m._id || m.id).slice(-4).toUpperCase()}`,
-  trajet:   m.requestId ? `${m.requestId.from} → ${m.requestId.to}` : "—",
-  vers:     m.requestId?.to ?? "—",
-  depart:   m.requestId?.from ?? "—",
-  arrivee:  m.requestId?.to ?? "—",
-  date:     m.requestId?.date ? m.requestId.date.slice(0, 10) : "",
-  heure:    m.requestId?.time ?? "—",
-  statut:   STATUT_MAP[m.status] ?? m.status,
-  statusRaw: m.status,
-  client:   m.requestId?.userId?.name ?? "—",
-  vehicule: m.vehicleId?.name ?? "—",
-  passagers: m.requestId?.passengers ?? 1,
-  bagage:   m.requestId?.comment ?? "",
-  type:     m.requestId?.type ?? "standard",
-  raw: m,
-});
+export const mapMission = (m) => {
+  if (!m || !m.requestId || typeof m.requestId !== "object" || !m.requestId.from) return null;
+  return {
+    _id:      m._id || m.id,
+    ref:      `#MSN-${String(m._id || m.id).slice(-4).toUpperCase()}`,
+    trajet:   `${m.requestId.from} → ${m.requestId.to}`,
+    vers:     m.requestId.to || "",
+    depart:   m.requestId.from || "",
+    arrivee:  m.requestId.to || "",
+    date:     m.requestId.date ? m.requestId.date.slice(0, 10) : (m.createdAt ? m.createdAt.slice(0, 10) : ""),
+    heure:    m.requestId.time || "",
+    statut:   STATUT_MAP[m.status] ?? m.status,
+    statusRaw: m.status,
+    client:   m.requestId.userId?.name || "",
+    vehicule: m.vehicleId?.name || "",
+    passagers: m.requestId.passengers || 1,
+    bagage:   m.requestId.comment || "",
+    type:     m.requestId.type || "standard",
+    raw: m,
+  };
+};
 
 export const mapIncident = (i) => ({
   id:          i._id || i.id,
-  ref:         `#RCL-${String(i._id || i.id).slice(-4).toUpperCase()}`,
+  ref:         `#INC-${String(i._id || i.id).slice(-4).toUpperCase()}`,
   description: i.description ?? "",
   statut:      i.status === "RESOLU" ? "resolu" : "ouvert",
+  priorite:    i.priority === "high" ? "Haute" : i.priority === "medium" ? "Moyenne" : "Faible",
   date:        i.createdAt ? new Date(i.createdAt).toLocaleDateString("fr-FR") : "",
   missionRef:  i.missionId ? `#MSN-${String(i.missionId._id || i.missionId).slice(-4).toUpperCase()}` : "—",
   raw: i,

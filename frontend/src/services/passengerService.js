@@ -99,15 +99,16 @@ export const createReclamation = async (payload) => {
 ───────────────────────────────────────────────────────── */
 const STATUT_MAP = {
   EN_ATTENTE: "EN ATTENTE",
-  APPROUVEE:  "VALIDÉE",
+  APPROUVEE:  "CONFIRMÉE",
   REJETEE:    "REFUSÉE",
   ANNULEE:    "ANNULÉE",
 };
 
 export const mapRequest = (req) => {
   let statut = STATUT_MAP[req.status] ?? req.status;
-  if (req.mission && ["EN_ATTENTE", "EN_COURS"].includes(req.mission.status)) {
-    statut = "EN COURS";
+  if (req.mission) {
+    if (req.mission.status === "EN_COURS") statut = "EN COURS";
+    if (req.mission.status === "TERMINEE") statut = "TERMINÉE";
   }
   return {
     _id:    req._id || req.id,
@@ -126,6 +127,14 @@ export const mapRequest = (req) => {
     vehicule:  req.mission?.vehicleId?.name ?? null,
     missionId: req.mission?._id || req.mission?.id || null,
     missionStatus: req.mission?.status ?? null,
+    detail: {
+      passager: req.userId?.name || "Passager",
+      depart:   req.from,
+      arrivee:  req.to,
+      heure:    req.time ?? "—",
+      passagers: req.passengers ?? 1,
+      commentaire: req.comment ?? "",
+    },
     raw: req,
   };
 };

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { fetchMyMissions, mapMission } from "../../services/chauffeurService";
+import { useProfileSync } from "../../services/useProfileSync";
+import { useChauffeurNotifications } from "../../services/useChauffeurNotifications";
 
 const LS_KEY_NOTIF         = "airops_notif_ch_v1";
 const STORAGE_KEY_MISSIONS = "airops_ch_missions_v1";
@@ -78,14 +80,14 @@ const NAV_CSS = `
 
   /* GPS status */
   .gps-status { display:flex; align-items:center; gap:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:10px 14px; }
-  .gps-dot { width:10px; height:10px; border-radius:50%; background:#22c55e; flex-shrink:0; animation:gpsPulse 1.5s infinite; }
-  .gps-dot.searching { background:#f97316; }
-  .gps-dot.error { background:#ef4444; animation:none; }
-  @keyframes gpsPulse { 0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 0 0 rgba(34,197,94,0.4);} 50%{opacity:0.7;transform:scale(1.2);box-shadow:0 0 0 6px rgba(34,197,94,0);} }
+  .gps-dot { width:10px; height:10px; border-radius:50%; background:#2563eb; flex-shrink:0; animation:gpsPulse 1.5s infinite; }
+  .gps-dot.searching { background:#0ea5e9; }
+  .gps-dot.error { background:#64748b; animation:none; }
+  @keyframes gpsPulse { 0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 0 0 rgba(37,99,235,0.4);} 50%{opacity:0.7;transform:scale(1.2);box-shadow:0 0 0 6px rgba(37,99,235,0);} }
   .gps-text { flex:1; }
-  .gps-label { font-size:11px; font-weight:700; color:#15803d; }
-  .gps-coords { font-size:10px; color:#166534; font-weight:500; margin-top:1px; }
-  .gps-acc { font-size:9px; color:#4ade80; background:#dcfce7; border-radius:6px; padding:1px 6px; font-weight:700; }
+  .gps-label { font-size:11px; font-weight:700; color:#1e40af; }
+  .gps-coords { font-size:10px; color:#1e3a8a; font-weight:500; margin-top:1px; }
+  .gps-acc { font-size:9px; color:#3b82f6; background:#eff6ff; border-radius:6px; padding:1px 6px; font-weight:700; }
 
   /* Inputs */
   .route-field { margin-bottom:10px; }
@@ -94,7 +96,7 @@ const NAV_CSS = `
   .route-input-icon { position:absolute; left:11px; top:50%; transform:translateY(-50%); pointer-events:none; }
   .route-input { width:100%; padding:10px 12px 10px 36px; border:1.5px solid var(--border); border-radius:11px; font-size:13px; font-family:inherit; color:var(--text-primary); outline:none; transition:var(--tr); background:#f8fafc; }
   .route-input:focus { border-color:var(--brand-blue); background:#fff; box-shadow:0 0 0 3px rgba(41,128,232,0.1); }
-  .route-input.dest:focus { border-color:var(--accent-orange); box-shadow:0 0 0 3px rgba(249,115,22,0.1); }
+  .route-input.dest:focus { border-color:var(--brand-blue); box-shadow:0 0 0 3px rgba(41,128,232,0.1); }
   .route-input::placeholder { color:var(--text-muted); font-size:12px; }
   .route-input:disabled { opacity:0.6; cursor:not-allowed; }
   .btn-swap { width:100%; display:flex; align-items:center; justify-content:center; gap:7px; padding:7px; background:none; border:1.5px dashed var(--border); border-radius:10px; color:var(--text-muted); font-size:12px; font-weight:600; font-family:inherit; cursor:pointer; transition:var(--tr); margin-bottom:10px; }
@@ -116,8 +118,8 @@ const NAV_CSS = `
   .step-item { display:flex; align-items:flex-start; gap:8px; padding:7px 0; border-bottom:1px solid #f1f5f9; }
   .step-item:last-child { border-bottom:none; }
   .step-num { width:20px; height:20px; border-radius:50%; background:var(--brand-blue); color:#fff; font-size:9px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
-  .step-num.s { background:#22c55e; }
-  .step-num.e { background:#ef4444; }
+  .step-num.s { background:#3b82f6; }
+  .step-num.e { background:#1e40af; }
   .step-text { flex:1; font-size:11px; color:var(--text-primary); font-weight:500; line-height:1.4; }
   .step-dist { font-size:10px; color:var(--text-muted); font-weight:600; white-space:nowrap; }
 
@@ -148,6 +150,18 @@ const NAV_CSS = `
   .map-current-btn { position:absolute; bottom:14px; right:14px; width:44px; height:44px; background:#fff; border:1.5px solid var(--border); border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:var(--shadow-sm); transition:var(--tr); }
   .map-current-btn:hover { background:#eff6ff; border-color:var(--brand-blue); }
 
+  .nav-progress-wrap { margin-top:16px; background:#f0f7ff; border:1px solid #c7dffd; border-radius:14px; padding:16px; box-shadow:0 4px 12px rgba(41,128,232,0.08); }
+  .np-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .np-lbl { font-size:10px; font-weight:800; color:var(--brand-blue); text-transform:uppercase; letter-spacing:0.8px; }
+  .np-pct { font-size:13px; font-weight:800; color:var(--brand-dark); }
+  .np-bar-bg { height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden; position:relative; }
+  .np-bar-fill { height:100%; background:linear-gradient(90deg, var(--brand-blue), #60a5fa); transition:width 0.4s ease; border-radius:4px; }
+  .np-eta { font-size:11px; color:var(--text-sec); margin-top:10px; display:flex; align-items:center; gap:6px; font-weight:500; }
+  
+  .btn-nav-sim { width:100%; margin-top:14px; padding:11px; background:var(--brand-blue); color:#fff; border:none; border-radius:11px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:var(--tr); box-shadow:0 4px 12px rgba(41,128,232,0.3); }
+  .btn-nav-sim:hover { background:var(--brand-mid); transform:translateY(-1px); }
+  .btn-nav-sim.stop { background:var(--accent-red); box-shadow:0 4px 12px rgba(239,68,68,0.3); }
+
   @media (max-width:960px) { .nav-layout{flex-direction:column;padding:12px 16px;} .nav-left{width:100%;max-height:300px;flex-direction:row;flex-wrap:nowrap;overflow-x:auto;} .nav-card{min-width:260px;} }
   @media (max-width:768px) {
     .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:30;transform:translateX(-100%);width:var(--sidebar-full)!important;transition:transform 0.3s ease!important;}
@@ -166,11 +180,31 @@ if (typeof document !== "undefined" && !document.getElementById("airops-navcss")
 }
 
 const NAV_ITEMS = [
-  { label:"Tableau de Bord",     to:"/dashbordchauffeur", icon:<svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> },
-  { label:"Historique Missions", to:"/historiqueM",       icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
-  { label:"Réclamations",        to:"/reclamationsCH",    icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg> },
-  { label:"Navigation",          to:"/navigationCH",      icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6-3V7m6 16l4.553-2.276A1 1 0 0021 19.382V8.618a1 1 0 00-.553-.894L15 5m0 14V5"/></svg> },
-  { label:"Notifications",       to:"/notificationM",     icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> },
+  {
+    label: "Tableau de Bord",
+    to: "/dashbordchauffeur",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
+  },
+  {
+    label: "Historique Missions",
+    to: "/historiqueM",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
+  },
+  {
+    label: "Incidents",
+    to: "/incidentsCH",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
+  },
+  {
+    label: "Navigation",
+    to: "/navigationCH",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>,
+  },
+  {
+    label: "Notifications",
+    to: "/notificationM",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
+  },
 ];
 
 const initialMissions = [
@@ -181,6 +215,9 @@ const initialMissions = [
 
 export default function NavigationCH() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { nom: nomCH, photo, initials } = useProfileSync();
+  const { unreadCount } = useChauffeurNotifications();
   const [collapsed,     setCollapsed]     = useState(false);
   const [sidebarMobile, setSidebarMobile] = useState(false);
   const [depart,        setDepart]        = useState("");
@@ -193,6 +230,8 @@ export default function NavigationCH() {
   const [routeReady,    setRouteReady]    = useState(false);
   const [routeInfo,     setRouteInfo]     = useState(null);
   const [mapsUrl,       setMapsUrl]       = useState("");
+  const [isNavigating,  setIsNavigating]  = useState(false);
+  const [navPercent,    setNavPercent]    = useState(0);
   const watchId = useRef(null);
 
   const [apiMissions, setApiMissions] = useState([]);
@@ -204,15 +243,87 @@ export default function NavigationCH() {
   }, []);
   useEffect(() => { loadActiveMissions(); }, [loadActiveMissions]);
 
+  /* ── Simulated movement logic ── */
+  useEffect(() => {
+    let interval;
+    if (isNavigating && navPercent < 100) {
+      interval = setInterval(() => {
+        setNavPercent(prev => {
+          const next = prev + 0.5;
+          if (next >= 100) {
+            setIsNavigating(false);
+            return 100;
+          }
+          return next;
+        });
+      }, 800);
+    }
+    return () => clearInterval(interval);
+  }, [isNavigating, navPercent]);
+
+  const toggleNavigation = () => {
+    if (!isNavigating) {
+      setIsNavigating(true);
+      if (navPercent >= 100) setNavPercent(0);
+    } else {
+      setIsNavigating(false);
+    }
+  };
+
+  /* Load mission route if passed from historiqueM */
+  useEffect(() => {
+    if (location.state?.mission) {
+      const m = location.state.mission;
+      if (m.depart && m.arrivee) {
+        setDepart(m.depart);
+        setArrivee(m.arrivee);
+        // Auto-load the route with a small delay to ensure state is set
+        setTimeout(() => {
+          setMapLoading(true);
+          setRouteReady(false);
+          setRouteInfo(null);
+
+          const gUrl = `https://www.google.com/maps/dir/?api=1` +
+            `&origin=${encodeURIComponent(m.depart)}` +
+            `&destination=${encodeURIComponent(m.arrivee)}` +
+            `&travelmode=driving`;
+          setMapsUrl(gUrl);
+
+          const embedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(m.arrivee)}&t=&z=11&ie=UTF8&iwloc=&output=embed`;
+
+          const distKm = parseFloat((Math.random() * 90 + 10).toFixed(1));
+          const mins = Math.round((distKm / 65) * 60 + Math.random() * 10);
+          const h = Math.floor(mins / 60);
+          const mn = mins % 60;
+
+          setRouteInfo({
+            distance: `${distKm} km`,
+            duree: h > 0 ? `${h}h ${mn < 10 ? "0" : ""}${mn}min` : `${mn} min`,
+            steps: [
+              { label: "s", text: `Départ: ${m.depart}`, dist: "" },
+              { label: "1", text: "Prendre la route principale vers la destination", dist: `${(distKm * 0.4).toFixed(1)} km` },
+              { label: "2", text: "Continuer sur la voie rapide", dist: `${(distKm * 0.4).toFixed(1)} km` },
+              { label: "3", text: "Suivre les panneaux vers la destination", dist: `${(distKm * 0.2).toFixed(1)} km` },
+              { label: "e", text: `Arrivée: ${m.arrivee}`, dist: "" },
+            ]
+          });
+
+          setMapSrc(embedUrl);
+          setRouteReady(true);
+          setMapLoading(false);
+        }, 300);
+
+        // Clear navigation state to prevent reloading on refresh
+        navigate("/navigationCH", { replace: true });
+      }
+    }
+  }, [location.state, navigate]);
+
   const missions = apiMissions;
   const activeMissions = missions.filter(m=>["EN COURS","EN ATTENTE"].includes(m.statut));
 
-  const profile     = (()=>{ try { const u=localStorage.getItem("user"); return u?JSON.parse(u):{name:""}; } catch { return {name:""}; } })();
-  const nomCH       = profile.name || "Chauffeur";
-  const initials    = nomCH.split(" ").map(x=>x[0]).slice(0,2).join("").toUpperCase()||"CH";
-
   const navItemsWithBadge = NAV_ITEMS.map(item=>
-    item.to==="/notificationM" ? { ...item, badge: undefined } : item
+    item.to==="/notificationM" ? { ...item, badge: unreadCount>0 ? unreadCount : undefined } : item
   );
 
   /* ── Auto GPS on mount — watchPosition for live updates ── */
@@ -262,11 +373,10 @@ export default function NavigationCH() {
     return () => { if (watchId.current) navigator.geolocation.clearWatch(watchId.current); };
   }, []);
 
-  /* Show current position on map without route */
+  /* Show current position on map without route — using Google Maps */
   const showCurrentPositionOnMap = (lat, lng) => {
-    const zoom = 14;
-    const delta = 0.04;
-    setMapSrc(`https://www.openstreetmap.org/export/embed.html?bbox=${lng-delta},${lat-delta},${lng+delta},${lat+delta}&layer=mapnik&marker=${lat},${lng}`);
+    // Use Google Maps embed API to show current position
+    setMapSrc(`https://maps.google.com/maps?q=${lat},${lng}&t=m&z=14&ie=UTF8&iwloc=&output=embed`);
   };
 
   /* Re-center map to current position */
@@ -278,7 +388,7 @@ export default function NavigationCH() {
     }
   };
 
-  /* Build route */
+  /* Build route using Google Maps */
   const handleRoute = () => {
     const dep = depart.trim() || gpsLabel;
     const arr = arrivee.trim();
@@ -299,13 +409,7 @@ export default function NavigationCH() {
     const embedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(arr)}` +
       `&t=&z=11&ie=UTF8&iwloc=&output=embed`;
 
-    /* Also build OSM routing for display */
-    const osmUrl = `https://www.openstreetmap.org/directions?` +
-      `engine=fossgis_osrm_car` +
-      `&route=${encodeURIComponent(dep)};${encodeURIComponent(arr)}` +
-      `#map=10/36.8065/10.1815`;
-
-    // Simulate OSRM-style route info
+    // Simulate routing info with duration and distance
     setTimeout(() => {
       const distKm   = parseFloat((Math.random()*90+5).toFixed(1));
       const speedKmh = 70;
@@ -326,7 +430,7 @@ export default function NavigationCH() {
         ]
       });
 
-      // Show destination on map
+      // Show destination on Google Maps
       setMapSrc(embedUrl);
       setRouteReady(true);
       setMapLoading(false);
@@ -381,7 +485,7 @@ export default function NavigationCH() {
           <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </button>
         <div className="sb-brand" onClick={()=>navigate("/")}>
-          <div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg></div>
+          <div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12"/></svg></div>
           <div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">ESPACE CHAUFFEUR</span></div>
         </div>
         <div className="sb-label">Navigation</div>
@@ -398,7 +502,7 @@ export default function NavigationCH() {
         </nav>
         <div className="sb-footer">
           <div className="sb-label" style={{paddingTop:0}}>Compte</div>
-          <button type="button" className="sb-logout" onClick={()=>navigate("/login")}>
+          <button type="button" className="sb-logout" onClick={()=>{localStorage.clear(); navigate("/login",{replace:true});}}>
             <span style={{flexShrink:0}}><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></span>
             <span className="sb-logout-lbl">Déconnexion</span>
           </button>
@@ -423,7 +527,7 @@ export default function NavigationCH() {
             </button>
             <div className="user-chip">
               <div style={{textAlign:"right"}}><div className="user-name">{nomCH}</div><div className="user-role">Chauffeur</div></div>
-              <div className="user-avatar">{initials}</div>
+              <div className="user-avatar">{photo ? <img src={photo} alt="profil"/> : initials}</div>
             </div>
           </div>
         </header>
@@ -466,12 +570,12 @@ export default function NavigationCH() {
               {/* Départ */}
               <div className="route-field">
                 <div className="route-field-label">
-                  <svg width="10" height="10" fill="#22c55e" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                  <svg width="10" height="10" fill="#3b82f6" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
                   Départ
                 </div>
                 <div className="route-input-wrap">
                   <span className="route-input-icon">
-                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#22c55e" strokeWidth={2.5}><circle cx="12" cy="12" r="3"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 2v2m0 16v2M2 12h2m16 0h2"/></svg>
+                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#3b82f6" strokeWidth={2.5}><circle cx="12" cy="12" r="3"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 2v2m0 16v2M2 12h2m16 0h2"/></svg>
                   </span>
                   <input type="text" className="route-input"
                     placeholder={gpsStatus==="ok" ? `Ma position (${gpsLabel.substring(0,25)}…)` : "Position actuelle…"}
@@ -489,12 +593,12 @@ export default function NavigationCH() {
               {/* Arrivée */}
               <div className="route-field">
                 <div className="route-field-label">
-                  <svg width="10" height="10" fill="#ef4444" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                  <svg width="10" height="10" fill="#1e40af" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
                   Destination
                 </div>
                 <div className="route-input-wrap">
                   <span className="route-input-icon">
-                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#1e40af" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                   </span>
                   <input type="text" className="route-input dest"
                     placeholder="Saisir la destination…"
@@ -543,6 +647,39 @@ export default function NavigationCH() {
                     {s.dist && <div className="step-dist">{s.dist}</div>}
                   </div>
                 ))}
+
+                {/* Simulated Progress */}
+                <div className="nav-progress-wrap">
+                  <div className="np-hdr">
+                    <span className="np-lbl">Progression du trajet</span>
+                    <span className="np-pct">{Math.floor(navPercent)}%</span>
+                  </div>
+                  <div className="np-bar-bg">
+                    <div className="np-bar-fill" style={{ width: `${navPercent}%` }} />
+                  </div>
+                  {navPercent > 0 && navPercent < 100 && (
+                    <div className="np-eta">
+                      <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                      <span>Arrivée estimée dans {Math.max(1, Math.round((100 - navPercent) / 5))} min</span>
+                    </div>
+                  )}
+                  {navPercent >= 100 && (
+                    <div className="np-eta" style={{color:"var(--accent-green)"}}>
+                      <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                      <span>Vous êtes arrivé à destination</span>
+                    </div>
+                  )}
+                  <button type="button" 
+                    className={`btn-nav-sim ${isNavigating ? "stop" : ""}`}
+                    onClick={toggleNavigation}
+                  >
+                    {isNavigating ? (
+                      <><svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Arrêter la simulation</>
+                    ) : (
+                      <><svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>{navPercent > 0 ? "Reprendre" : "Lancer la navigation"}</>
+                    )}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -557,7 +694,7 @@ export default function NavigationCH() {
                 </div>
                 {activeMissions.slice(0,4).map(m=>(
                   <button key={m.ref} type="button" className="mission-btn" onClick={()=>handleMissionRoute(m)}>
-                    <span className="mb-dot" style={{background:m.statut==="EN COURS"?"#3b82f6":m.statut==="ACCEPTÉE"?"#22c55e":"#f97316"}}/>
+                    <span className="mb-dot" style={{background:m.statut==="EN COURS"?"#3b82f6":m.statut==="ACCEPTÉE"?"#1e3a8a":"#64748b"}}/>
                     <div style={{flex:1,minWidth:0,textAlign:"left"}}>
                       <div className="mb-ref">{m.ref}</div>
                       <div className="mb-traj">{m.trajet}</div>

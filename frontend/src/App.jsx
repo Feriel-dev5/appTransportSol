@@ -14,7 +14,7 @@ import DashbordP from "./pages/passager/DashbordP";
 import HistoriqueM from "./pages/chauffeur/HistoriqueM";
 import NotificationM from "./pages/chauffeur/NotificationM";
 import NavigationCH from "./pages/chauffeur/NavigationCH";
-import ReclamationsPage from "./pages/chauffeur/ReclamationsPage";
+import IncidentsPage from "./pages/chauffeur/IncidentsPage";
 import AjouterChauffeur from "./pages/responsable/AjouterChauffeur";
 import AjouterPassager from "./pages/responsable/AjouterPassager";
 import NotificationR from "./pages/responsable/NotificationR";
@@ -26,6 +26,9 @@ import ProfilA from "./pages/admin/ProfilA";
 import AvisP from "./pages/passager/AvisP";
 import AjouterUtilisateur from "./pages/admin/AjouterUtilisateur";
 import AjouterVehicule from "./pages/admin/AjouterVehicule";
+import AvisAdmin from "./pages/admin/AvisAdmin";
+import ListeVehicules from "./pages/admin/ListeVehicules";
+
 
 /* ── Auth guards ── */
 function getAuth() {
@@ -72,22 +75,21 @@ function App() {
         <Route path="/historiqueM"       element={<PrivateRoute roles={["CHAUFFEUR"]}><HistoriqueM /></PrivateRoute>} />
         <Route path="/notificationM"     element={<PrivateRoute roles={["CHAUFFEUR"]}><NotificationM /></PrivateRoute>} />
         <Route path="/navigationCH"      element={<PrivateRoute roles={["CHAUFFEUR"]}><NavigationCH /></PrivateRoute>} />
-        <Route path="/reclamationsCH"    element={<PrivateRoute roles={["CHAUFFEUR"]}><ReclamationsPage /></PrivateRoute>} />
-        <Route path="/profilCH"          element={<PrivateRoute roles={["CHAUFFEUR"]}><NavigationCH /></PrivateRoute>} />
-
+        <Route path="/incidentsCH"       element={<PrivateRoute roles={["CHAUFFEUR"]}><IncidentsPage /></PrivateRoute>} />
         {/* ── Responsable ── */}
         <Route path="/dashbordRES"      element={<PrivateRoute roles={["RESPONSABLE"]}><DashbordR /></PrivateRoute>} />
         <Route path="/notificationR"    element={<PrivateRoute roles={["RESPONSABLE"]}><NotificationR /></PrivateRoute>} />
         <Route path="/ajouterChauffeur" element={<PrivateRoute roles={["RESPONSABLE"]}><AjouterChauffeur /></PrivateRoute>} />
         <Route path="/ajouterPassager"  element={<PrivateRoute roles={["RESPONSABLE"]}><AjouterPassager /></PrivateRoute>} />
-        <Route path="/profilR"          element={<PrivateRoute roles={["RESPONSABLE"]}><AjouterChauffeur /></PrivateRoute>} />
 
         {/* ── Admin ── */}
         <Route path="/dashbordADMIN"   element={<PrivateRoute roles={["ADMIN"]}><DashbordADMIN /></PrivateRoute>} />
         <Route path="/listeU"          element={<PrivateRoute roles={["ADMIN"]}><ListeU /></PrivateRoute>} />
+        <Route path="/listeV"          element={<PrivateRoute roles={["ADMIN"]}><ListeVehicules /></PrivateRoute>} />
         <Route path="/profilA"         element={<PrivateRoute roles={["ADMIN"]}><ProfilA /></PrivateRoute>} />
         <Route path="/ajouterU"        element={<PrivateRoute roles={["ADMIN"]}><AjouterUtilisateur /></PrivateRoute>} />
         <Route path="/ajouterVehicule" element={<PrivateRoute roles={["ADMIN"]}><AjouterVehicule /></PrivateRoute>} />
+        <Route path="/avisAdmin" element={<PrivateRoute roles={["ADMIN"]}><AvisAdmin /></PrivateRoute>} />
 
         {/* ── Passager ── */}
         <Route path="/dashbordP"     element={<PrivateRoute roles={["PASSAGER"]}><DashbordP /></PrivateRoute>} />

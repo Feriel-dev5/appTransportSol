@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { fetchMyMissions, mapMission } from "../../services/chauffeurService";
+import { useProfileSync } from "../../services/useProfileSync";
+import { useChauffeurNotifications } from "../../services/useChauffeurNotifications";
 
 /* ─── CSS ─────────────────────────────────────────────── */
 const HIST_CSS = `
@@ -68,17 +70,13 @@ const HIST_CSS = `
   .chc{flex:1;overflow-y:auto;padding:26px;}
   .ch-footer{padding:12px 26px;background:#fff;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-muted);flex-shrink:0;}
   .ch-footer-brand{display:flex;align-items:center;gap:6px;font-weight:600;}
+  .btn-pdf-footer { display:flex; align-items:center; gap:8px; padding:10px 20px; background:linear-gradient(135deg,var(--brand-blue),var(--brand-mid)); color:#fff; border:none; border-radius:12px; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer; transition:var(--tr); box-shadow:0 4px 14px rgba(41,128,232,0.35); }
+  .btn-pdf-footer:hover { transform:translateY(-2px); box-shadow:0 8px 22px rgba(41,128,232,0.45); }
 
   /* ── Historique page ── */
   .hp-title{font-size:25px;font-weight:800;color:var(--brand-dark);letter-spacing:-0.5px;margin-bottom:4px;}
   .hp-title span{color:var(--brand-blue);}
   .hp-sub{font-size:13px;color:var(--text-muted);margin-bottom:22px;}
-  .hp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px;}
-  .hp-stat{background:#fff;border:1px solid var(--border);border-radius:18px;padding:18px 20px;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:14px;transition:var(--tr);}
-  .hp-stat:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);}
-  .hp-stat-icon{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .hp-stat-val{font-size:28px;font-weight:800;color:var(--brand-dark);letter-spacing:-1px;line-height:1;}
-  .hp-stat-lbl{font-size:11px;color:var(--text-muted);font-weight:600;margin-top:3px;}
 
   .hp-main-card{background:#fff;border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow-sm);overflow:hidden;}
   .hp-table-head{display:grid;grid-template-columns:110px 90px 1fr 140px 120px;padding:10px 22px;background:#f8fafc;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;}
@@ -122,14 +120,14 @@ const HIST_CSS = `
   .tl-stop:last-child{margin-bottom:0;}
   .tl-dot{position:absolute;left:-36px;top:4px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;z-index:1;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
   .tl-dot.start{background:var(--brand-blue);box-shadow:0 0 0 4px rgba(41,128,232,0.18);}
-  .tl-dot.middle{background:var(--accent-orange);box-shadow:0 0 0 4px rgba(249,115,22,0.18);}
-  .tl-dot.end{background:var(--accent-green);box-shadow:0 0 0 4px rgba(22,163,74,0.18);}
+  .tl-dot.middle{background:var(--brand-mid);box-shadow:0 0 0 4px rgba(18,82,170,0.18);}
+  .tl-dot.end{background:var(--brand-dark);box-shadow:0 0 0 4px rgba(13,43,94,0.18);}
   .tl-content{background:var(--bg-page);border-radius:14px;padding:12px 16px;border:1px solid var(--border);transition:all 0.2s;}
   .tl-content:hover{border-color:var(--brand-blue);background:#f0f6ff;}
   .tl-type-lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
   .tl-type-lbl.start{color:var(--brand-blue);}
-  .tl-type-lbl.middle{color:var(--accent-orange);}
-  .tl-type-lbl.end{color:var(--accent-green);}
+  .tl-type-lbl.middle{color:var(--brand-mid);}
+  .tl-type-lbl.end{color:var(--brand-dark);}
   .tl-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
   .tl-loc{font-size:13px;font-weight:700;color:var(--text-primary);}
   .tl-time{font-size:11px;font-weight:700;color:var(--brand-blue);background:#eff6ff;padding:3px 9px;border-radius:8px;}
@@ -147,11 +145,10 @@ const HIST_CSS = `
     .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:30;transform:translateX(-100%);width:var(--sidebar-full)!important;transition:transform 0.3s ease!important;}
     .sidebar.open{transform:translateX(0);}.sidebar.collapsed{transform:translateX(-100%);}.sidebar.collapsed.open{transform:translateX(0);}
     .sb-overlay{display:block;}.chh-menu-btn{display:flex;}.sb-toggle-btn{display:none;}
-    .chc{padding:16px;}.chh{padding:0 16px;}.hp-stats{grid-template-columns:1fr 1fr;}.search-wrap{display:none;}
+    .chc{padding:16px;}.chh{padding:0 16px;}.search-wrap{display:none;}
     .hp-table-head,.hp-table-row{grid-template-columns:90px 1fr 110px!important;}
     .hp-date,.hp-client{display:none;}
   }
-  @media(max-width:480px){.hp-stats{grid-template-columns:1fr;}}
 `;
 
 if (typeof document !== "undefined" && !document.getElementById("airops-hist-css")) {
@@ -160,6 +157,29 @@ if (typeof document !== "undefined" && !document.getElementById("airops-hist-css
 
 /* ─── Data ─────────────────────────────────── */
 const LS_KEY = "airops_historique_v1";
+
+function generatePDFHistory(missions, nomCH) {
+  const today = new Date().toLocaleDateString("fr-FR");
+  const completed = missions.filter(m => m.statut === "TERMINÉE");
+  const rows = completed.length === 0
+    ? `<tr><td colspan="5" style="text-align:center;padding:20px;color:#94a3b8;">Aucune mission terminée dans l'historique</td></tr>`
+    : completed.map((m, i) => {
+        const dest = m.trajet && m.trajet.length > 0 ? m.trajet[m.trajet.length-1].lieu : "N/A";
+        const orig = m.trajet && m.trajet.length > 0 ? m.trajet[0].lieu : "N/A";
+        return `
+        <tr style="background:${i % 2 === 0 ? "#fff" : "#f8fafc"}">
+          <td style="padding:10px 14px;font-size:12px;font-weight:700;color:#2980e8;">${m.ref}</td>
+          <td style="padding:10px 14px;font-size:12px;">${orig}</td>
+          <td style="padding:10px 14px;font-size:12px;">${dest}</td>
+          <td style="padding:10px 14px;font-size:12px;">${m.client}</td>
+          <td style="padding:10px 14px;font-size:12px;text-align:center;">${m.date}</td>
+        </tr>`;
+      }).join("");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>body{font-family:'Segoe UI',sans-serif;margin:0;padding:30px;background:#f0f5fb;}.header{background:linear-gradient(135deg,#0d2b5e,#2980e8);color:#fff;padding:30px;border-radius:16px;margin-bottom:24px;}.header h1{font-size:22px;font-weight:800;margin:0 0 4px;}.header p{font-size:12px;opacity:0.7;margin:0;}.header-meta{display:flex;gap:20px;margin-top:16px;}.meta-item{background:rgba(255,255,255,0.15);border-radius:10px;padding:10px 16px;}.meta-label{font-size:9px;opacity:0.65;font-weight:700;letter-spacing:1px;text-transform:uppercase;}.meta-val{font-size:16px;font-weight:800;}table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(13,43,94,0.08);}th{background:#0d2b5e;color:#fff;padding:12px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;text-align:left;}.footer{margin-top:20px;text-align:center;font-size:10px;color:#94a3b8;}</style></head><body><div class="header"><h1>Historique des Missions — ${nomCH}</h1><p>Archives des missions terminées · Généré le ${today}</p><div class="header-meta"><div class="meta-item"><div class="meta-label">Chauffeur</div><div class="meta-val">${nomCH}</div></div><div class="meta-item"><div class="meta-label">Date</div><div class="meta-val">${today}</div></div><div class="meta-item"><div class="meta-label">Missions terminées</div><div class="meta-val">${completed.length}</div></div></div></div><table><thead><tr><th>Référence</th><th>Départ</th><th>Arrivée</th><th>Client</th><th>Date</th></tr></thead><tbody>${rows}</tbody></table><div class="footer">AirOps Transport Management — Document d'archive chauffeur</div></body></html>`;
+  const win = window.open("", "_blank");
+  if (win) { win.document.write(html); win.document.close(); win.print(); }
+}
 const initialMissions = [
   { ref:"#MSN-4490", date:"08/04/2026", statut:"TERMINÉE", client:"M. Karim Belhaj",    vehicule:"Mercedes Classe E — TN 456 AB", passagers:2, bagage:"2 valises",    note:"Client VIP",
     trajet:[
@@ -195,11 +215,31 @@ function saveData(d) { try { localStorage.setItem(LS_KEY,JSON.stringify(d)); } c
 
 /* ─── Same navItems as DashbordCH ─────────── */
 const navItems = [
-  { label:"Tableau de Bord",     to:"/dashbordchauffeur", icon:<svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> },
-  { label:"Historique Missions", to:"/historiqueM",       icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
-  { label:"Réclamations",        to:"/reclamationsCH",    icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg> },
-  { label:"Navigation",          to:"/navigationCH",      icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6-3V7m6 16l4.553-2.276A1 1 0 0021 19.382V8.618a1 1 0 00-.553-.894L15 5m0 14V5"/></svg> },
-  { label:"Notifications",       to:"/notificationM",     icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> },
+  {
+    label: "Tableau de Bord",
+    to: "/dashbordchauffeur",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
+  },
+  {
+    label: "Historique Missions",
+    to: "/historiqueM",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
+  },
+  {
+    label: "Incidents",
+    to: "/incidentsCH",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
+  },
+  {
+    label: "Navigation",
+    to: "/navigationCH",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>,
+  },
+  {
+    label: "Notifications",
+    to: "/notificationM",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
+  },
 ];
 
 /* ─── Timeline Modal with embedded map ──────── */
@@ -304,7 +344,7 @@ function TimelineModal({ mission, onClose, navigate }) {
 
         <div className="hm-foot">
           <button type="button" className="hm-btn-close" onClick={onClose}>Fermer</button>
-          <button type="button" className="hm-btn-nav" onClick={()=>{onClose();navigate("/navigationCH");}}>
+          <button type="button" className="hm-btn-nav" onClick={()=>{onClose();navigate("/navigationCH",{state:{mission:mission}});}}>
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6-3V7m6 16l4.553-2.276A1 1 0 0021 19.382V8.618a1 1 0 00-.553-.894L15 5m0 14V5"/></svg>
             Naviguer sur ce trajet
           </button>
@@ -317,6 +357,8 @@ function TimelineModal({ mission, onClose, navigate }) {
 /* ─── MAIN ─────────────────────────────────── */
 export default function HistoriqueM() {
   const navigate = useNavigate();
+  const { nom: nomCH, photo, initials } = useProfileSync();
+  const { unreadCount } = useChauffeurNotifications();
   const [missions,      setMissions]      = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [collapsed,     setCollapsed]     = useState(false);
@@ -329,19 +371,20 @@ export default function HistoriqueM() {
     try {
       setLoading(true);
       const data = await fetchMyMissions({ status: "TERMINEE", limit: 100 });
-      setMissions((data.data || []).map(m => {
-        const mapped = mapMission(m);
-        // Build trajet from depart/arrivee
+      const rawMissions = (data.data || []);
+      const mappedMissions = rawMissions.map(mapMission).filter(m => m !== null).map((mapped, index) => {
+        const original = rawMissions.find(rm => rm._id === mapped._id || rm.id === mapped._id);
         return {
           ...mapped,
           trajet: [
             { type: "start", lieu: mapped.depart, heure: mapped.heure, passagers: [] },
-            { type: "end",   lieu: mapped.arrivee, heure: "—", passagers: [] },
+            { type: "end",   lieu: mapped.arrivee, heure: "", passagers: [] },
           ],
-          bagage: m.requestId?.comment ?? "",
-          note: m.requestId?.comment ?? "",
+          bagage: original?.requestId?.comment || "",
+          note: original?.requestId?.comment || "",
         };
-      }));
+      });
+      setMissions(mappedMissions);
     } catch {
       /* silently fall back to empty */
     } finally {
@@ -357,15 +400,7 @@ export default function HistoriqueM() {
     return missions.filter(m=>[m.ref,m.date,m.client,m.vehicule,m.depart,m.arrivee].join(" ").toLowerCase().includes(q));
   },[missions,search]);
 
-  // Profile from localStorage (set at login)
-  const profile = (()=>{try{const u=localStorage.getItem("user");return u?JSON.parse(u):{name:"",photo:""};}catch{return{name:"",photo:""};} })();
-  const nomCH   = profile.name || "Chauffeur";
-  const photo   = "";
-  const initials = nomCH.split(" ").map(x=>x[0]).slice(0,2).join("").toUpperCase()||"CH";
-  const navWithBadge = navItems.map(i=>i.to==="/notificationM"?{...i,badge:undefined}:i);
-
-  const totalPassagers = missions.reduce((s,m)=>s+(m.passagers||0),0);
-  const totalStops     = missions.reduce((s,m)=>s+(m.trajet?.filter(t=>t.type==="middle").length||0),0);
+  const navWithBadge = navItems.map(i=>i.to==="/notificationM"?{...i,badge:unreadCount>0?unreadCount:undefined}:i);
 
   return (
     <div className="chw">
@@ -377,7 +412,7 @@ export default function HistoriqueM() {
           <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </button>
         <div className="sb-brand" onClick={()=>navigate("/")}>
-          <div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg></div>
+          <div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12"/></svg></div>
           <div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">ESPACE CHAUFFEUR</span></div>
         </div>
         <div className="sb-label">Navigation</div>
@@ -392,7 +427,7 @@ export default function HistoriqueM() {
         </nav>
         <div className="sb-footer">
           <div className="sb-label" style={{paddingTop:0}}>Compte</div>
-          <button type="button" className="sb-logout" onClick={()=>navigate("/login")}>
+          <button type="button" className="sb-logout" onClick={()=>{localStorage.clear(); navigate("/login",{replace:true});}}>
             <span style={{flexShrink:0}}><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></span>
             <span className="sb-logout-lbl">Déconnexion</span>
           </button>
@@ -424,20 +459,6 @@ export default function HistoriqueM() {
           <h1 className="hp-title">Historique des <span>Missions</span></h1>
           <p className="hp-sub">Consultez toutes vos missions terminées avec trajet détaillé et itinéraire cartographique.</p>
 
-          {/* Stats */}
-          <div className="hp-stats">
-            {[
-              {label:"Missions terminées",   value:missions.length,    bg:"#f0fdf4", color:"#16a34a", icon:<svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#16a34a" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>},
-              {label:"Stations intermédiaires",value:totalStops,       bg:"#eff6ff", color:"#2980e8", icon:<svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#2980e8" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>},
-              {label:"Passagers transportés", value:totalPassagers,    bg:"#fff7ed", color:"#f97316", icon:<svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#f97316" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>},
-            ].map(s=>(
-              <div key={s.label} className="hp-stat">
-                <div className="hp-stat-icon" style={{background:s.bg}}>{s.icon}</div>
-                <div><div className="hp-stat-val" style={{color:s.color}}>{s.value}</div><div className="hp-stat-lbl">{s.label}</div></div>
-              </div>
-            ))}
-          </div>
-
           {/* Table */}
           <div className="hp-main-card">
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 22px",borderBottom:"1px solid var(--border)"}}>
@@ -447,7 +468,11 @@ export default function HistoriqueM() {
             <div className="hp-table-head">
               <span>Référence</span><span>Date</span><span>Trajet</span><span>Client</span><span>Action</span>
             </div>
-            {filtered.length===0?(
+            {loading?(
+              <div className="hp-empty">
+                <p style={{fontSize:13,color:"var(--text-muted)",padding:"30px 0"}}>Chargement des missions…</p>
+              </div>
+            ):filtered.length===0?(
               <div className="hp-empty">
                 <div className="hp-empty-icon"><svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#93c5fd" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
                 <p style={{fontSize:15,fontWeight:700,color:"var(--text-primary)",marginBottom:6}}>Aucune mission trouvée</p>
@@ -478,7 +503,10 @@ export default function HistoriqueM() {
 
         <footer className="ch-footer">
           <div className="ch-footer-brand"><svg width="14" height="14" fill="#22c55e" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>Système de gestion sécurisé — AirOps Transport 2026</div>
-          <span style={{fontSize:12,color:"var(--text-muted)"}}>{filtered.length} mission{filtered.length!==1?"s":""} dans l'historique</span>
+          <button type="button" className="btn-pdf-footer" onClick={() => generatePDFHistory(missions, nomCH)}>
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Exporter l'historique (PDF)
+          </button>
         </footer>
       </div>
 

@@ -4,6 +4,8 @@ const {
   createPassagerIncident,
   listIncidents,
   listMyIncidents,
+  deleteIncident,
+  deleteAllMyIncidents,
 } = require("../Controllers/incidents.controller");
 const { verifyToken } = require("../middlewares/verifyToken");
 const { checkRole } = require("../middlewares/checkRole");
@@ -48,6 +50,20 @@ router.get(
   checkRole(["CHAUFFEUR", "PASSAGER"]),
   validateRequest(listIncidentsSchema),
   listMyIncidents,
+);
+
+router.delete(
+  "/my/all",
+  verifyToken,
+  checkRole(["CHAUFFEUR", "PASSAGER"]),
+  deleteAllMyIncidents,
+);
+
+router.delete(
+  "/:id",
+  verifyToken,
+  checkRole(["CHAUFFEUR", "PASSAGER", "ADMIN", "RESPONSABLE"]),
+  deleteIncident,
 );
 
 module.exports = router;

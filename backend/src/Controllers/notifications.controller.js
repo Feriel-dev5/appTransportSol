@@ -5,6 +5,8 @@ const {
   getNotificationDetails,
   markAsRead,
   markAllAsRead,
+  removeNotification,
+  removeAllForUser,
 } = require("../Services/notifications.service");
 
 const listNotifications = asyncHandler(async (req, res) => {
@@ -35,9 +37,21 @@ const markAllNotificationsRead = asyncHandler(async (req, res) => {
   res.json({ message: "All notifications marked as read" });
 });
 
+const deleteNotification = asyncHandler(async (req, res) => {
+  await removeNotification(req.params.id, req.user);
+  res.json({ message: "Notification deleted successfully" });
+});
+
+const deleteAllNotifications = asyncHandler(async (req, res) => {
+  await removeAllForUser(req.user.id);
+  res.json({ message: "All notifications deleted successfully" });
+});
+
 module.exports = {
   listNotifications,
   getNotificationById,
   markNotificationRead,
   markAllNotificationsRead,
+  deleteNotification,
+  deleteAllNotifications,
 };

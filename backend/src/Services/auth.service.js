@@ -3,6 +3,8 @@ const jwt = require("jsonwebtoken");
 const { AppError } = require("../errors/AppError");
 const {
   findUserByEmail,
+  findUserByCin,
+  findUserByPassport,
   createUser,
   updateUserById,
 } = require("../Repository/user.repository");
@@ -23,6 +25,7 @@ const sanitizeUser = (user) => ({
   cin: user.cin,
   address: user.address,
   numeroPermis: user.numeroPermis,
+  photo: user.photo,
 });
 
 const register = async ({
@@ -35,11 +38,26 @@ const register = async ({
   cin,
   role,
   address,
+  photo,
 }) => {
   const normalizedEmail = email.toLowerCase();
   const existing = await findUserByEmail(normalizedEmail);
   if (existing) {
-    throw new AppError("Email already registered", 409);
+    throw new AppError("Cet email est déjà utilisé.", 409);
+  }
+
+  if (cin) {
+    const existingCin = await findUserByCin(cin);
+    if (existingCin) {
+      throw new AppError("Ce numéro de CIN est déjà utilisé.", 409);
+    }
+  }
+
+  if (passportNumber) {
+    const existingPass = await findUserByPassport(passportNumber);
+    if (existingPass) {
+      throw new AppError("Ce numéro de passeport est déjà utilisé.", 409);
+    }
   }
 
   const hashed = await bcrypt.hash(password, 10);
@@ -53,6 +71,7 @@ const register = async ({
     cin,
     address,
     numeroPermis,
+    photo,
   });
 
   const token = signToken(user);

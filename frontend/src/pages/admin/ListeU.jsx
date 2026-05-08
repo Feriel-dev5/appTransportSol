@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
-import { fetchUsers, updateUser, mapUser } from "../../services/adminService";
+import { fetchUsers, updateUser, deleteUser, mapUser, fetchPendingAvisCount } from "../../services/adminService";
 
 /* ══════════════════════════ CSS ══════════════════════════ */
 const listeCSS = `
@@ -19,8 +19,8 @@ const listeCSS = `
     --bg-page:      #f0f5fb;
     --border:       #e4ecf4;
     --text-primary: #0d2b5e;
-    --text-sec:     #5a6e88;
-    --text-muted:   #94a3b8;
+    --text-sec:     #334155;
+    --text-muted:   #64748b;
     --sidebar-full: 230px;
     --sidebar-mini: 66px;
     --header-h:     64px;
@@ -56,6 +56,8 @@ const listeCSS = `
   .sb-nav-icon { flex-shrink: 0; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
   .sb-nav-lbl  { flex: 1; overflow: hidden; transition: opacity 0.2s, max-width 0.3s; max-width: 160px; }
   .sidebar.collapsed .sb-nav-lbl { opacity: 0; max-width: 0; }
+  .sb-badge { background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; flex-shrink: 0; transition: opacity 0.2s; margin-left: auto; }
+  .sidebar.collapsed .sb-badge { opacity: 0; }
   .sidebar.collapsed .sb-nav-item::after { content: attr(data-label); position: absolute; left: calc(var(--sidebar-mini) + 6px); top: 50%; transform: translateY(-50%); background: var(--brand-dark); color: #fff; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-md); border: 1px solid rgba(255,255,255,0.1); z-index: 200; opacity: 0; transition: opacity 0.15s; }
   .sidebar.collapsed .sb-nav-item:hover::after { opacity: 1; }
   .sb-footer { padding: 6px 9px 16px; border-top: 1px solid rgba(255,255,255,0.07); flex-shrink: 0; }
@@ -95,28 +97,6 @@ const listeCSS = `
   .page-title { font-size: 25px; font-weight: 800; color: var(--brand-dark); letter-spacing: -0.5px; margin-bottom: 4px; }
   .page-sub   { font-size: 13px; color: var(--text-muted); margin-bottom: 22px; }
 
-  /* ── Stats grid ── */
-  .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
-  .sc { background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 20px; box-shadow: var(--shadow-sm); transition: var(--tr); position: relative; overflow: hidden; }
-  .sc::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 20px 20px 0 0; }
-  .sc.blue::before   { background: var(--brand-blue); }
-  .sc.purple::before { background: #7c3aed; }
-  .sc.green::before  { background: var(--accent-green); }
-  .sc.red::before    { background: var(--accent-red); }
-  .sc:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
-  .sc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .sc-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 19px; }
-  .sc-icon.blue   { background: #eff6ff; }
-  .sc-icon.purple { background: #f5f3ff; }
-  .sc-icon.green  { background: #f0fdf4; }
-  .sc-icon.red    { background: #fef2f2; }
-  .sc-tag { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
-  .sc-tag.blue   { color: var(--brand-blue); background: #eff6ff; }
-  .sc-tag.purple { color: #7c3aed; background: #f5f3ff; }
-  .sc-tag.green  { color: var(--accent-green); background: #f0fdf4; }
-  .sc-tag.red    { color: var(--accent-red); background: #fef2f2; }
-  .sc-value { font-size: 30px; font-weight: 800; color: var(--brand-dark); letter-spacing: -1px; }
-  .sc-label { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
 
   /* ── Toolbar ── */
   .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
@@ -131,18 +111,18 @@ const listeCSS = `
   /* ── Table card ── */
   .tbl-card { background: #fff; border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow-sm); overflow: visible; transition: var(--tr); }
   .tbl-card:hover { box-shadow: var(--shadow-md); }
-  .tbl-head { display: grid; grid-template-columns: 190px 1fr 120px 160px 52px; padding: 10px 22px; background: #f8fafc; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; border-radius: 20px 20px 0 0; }
+  .tbl-head { display: grid; grid-template-columns: 280px 1fr 180px 180px 60px; padding: 10px 22px; background: #f8fafc; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; border-radius: 20px 20px 0 0; }
   .tbl-body { }
-  .tbl-row { display: grid; grid-template-columns: 190px 1fr 120px 160px 52px; align-items: center; padding: 13px 22px; border-bottom: 1px solid #f1f5f9; transition: background 0.18s; position: relative; }
+  .tbl-row { display: grid; grid-template-columns: 280px 1fr 180px 180px 60px; align-items: center; padding: 13px 22px; border-bottom: 1px solid #f1f5f9; transition: background 0.18s; position: relative; }
   .tbl-row:last-child { border-bottom: none; }
-  .tbl-row:hover { background: #f8fafc; }
-  .tbl-row.banned { opacity: 0.75; }
+  .tbl-row:hover { background: #f0f5fb; }
+  .tbl-row.banned { background: #fffcfc; }
   .cell-user { display: flex; align-items: center; gap: 10px; }
   .cell-avatar { width: 36px; height: 36px; border-radius: 50%; background: #eff6ff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--brand-blue); flex-shrink: 0; }
   .cell-avatar.banned-av { background: #fef2f2; color: #ef4444; }
-  .cell-name { font-size: 13px; font-weight: 700; color: var(--text-primary); }
-  .cell-email { font-size: 12px; color: var(--text-muted); }
-  .cell-phone { font-size: 13px; color: var(--text-sec); }
+  .cell-name { font-size: 13.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+  .cell-email { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+  .cell-phone { font-size: 13px; color: var(--brand-dark); font-weight: 600; font-family: 'DM Sans', sans-serif; }
 
   .cell-badges { display: flex; flex-direction: column; gap: 5px; }
   .role-badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; width: fit-content; }
@@ -288,56 +268,59 @@ const listeCSS = `
   }
 `;
 
-if (typeof document !== "undefined" && !document.getElementById("liste-u-css")) {
-  const tag = document.createElement("style");
-  tag.id = "liste-u-css";
+if (typeof document !== "undefined") {
+  let tag = document.getElementById("liste-u-css");
+  if (!tag) {
+    tag = document.createElement("style");
+    tag.id = "liste-u-css";
+    document.head.appendChild(tag);
+  }
   tag.textContent = listeCSS;
-  document.head.appendChild(tag);
 }
 
 /* ══════════════════════════ COUNTRY DIAL CODES ══════════════════════════ */
 const COUNTRIES = [
-  { code: "TN", dial: "+216", flag: "🇹🇳", name: "Tunisie",           digits: 8  },
-  { code: "DZ", dial: "+213", flag: "🇩🇿", name: "Algérie",           digits: 9  },
-  { code: "MA", dial: "+212", flag: "🇲🇦", name: "Maroc",             digits: 9  },
-  { code: "EG", dial: "+20",  flag: "🇪🇬", name: "Égypte",            digits: 10 },
-  { code: "LY", dial: "+218", flag: "🇱🇾", name: "Libye",             digits: 9  },
-  { code: "FR", dial: "+33",  flag: "🇫🇷", name: "France",            digits: 9  },
-  { code: "DE", dial: "+49",  flag: "🇩🇪", name: "Allemagne",         digits: 11 },
-  { code: "GB", dial: "+44",  flag: "🇬🇧", name: "Royaume-Uni",       digits: 10 },
-  { code: "ES", dial: "+34",  flag: "🇪🇸", name: "Espagne",           digits: 9  },
-  { code: "IT", dial: "+39",  flag: "🇮🇹", name: "Italie",            digits: 10 },
-  { code: "PT", dial: "+351", flag: "🇵🇹", name: "Portugal",          digits: 9  },
-  { code: "BE", dial: "+32",  flag: "🇧🇪", name: "Belgique",          digits: 9  },
-  { code: "NL", dial: "+31",  flag: "🇳🇱", name: "Pays-Bas",          digits: 9  },
-  { code: "CH", dial: "+41",  flag: "🇨🇭", name: "Suisse",            digits: 9  },
-  { code: "SA", dial: "+966", flag: "🇸🇦", name: "Arabie Saoudite",   digits: 9  },
-  { code: "AE", dial: "+971", flag: "🇦🇪", name: "Émirats Arabes",    digits: 9  },
-  { code: "QA", dial: "+974", flag: "🇶🇦", name: "Qatar",             digits: 8  },
-  { code: "KW", dial: "+965", flag: "🇰🇼", name: "Koweït",            digits: 8  },
-  { code: "BH", dial: "+973", flag: "🇧🇭", name: "Bahreïn",           digits: 8  },
-  { code: "OM", dial: "+968", flag: "🇴🇲", name: "Oman",              digits: 8  },
-  { code: "JO", dial: "+962", flag: "🇯🇴", name: "Jordanie",          digits: 9  },
-  { code: "LB", dial: "+961", flag: "🇱🇧", name: "Liban",             digits: 8  },
-  { code: "TR", dial: "+90",  flag: "🇹🇷", name: "Turquie",           digits: 10 },
-  { code: "SN", dial: "+221", flag: "🇸🇳", name: "Sénégal",           digits: 9  },
-  { code: "CI", dial: "+225", flag: "🇨🇮", name: "Côte d Ivoire",     digits: 10 },
-  { code: "CM", dial: "+237", flag: "🇨🇲", name: "Cameroun",          digits: 9  },
-  { code: "GN", dial: "+224", flag: "🇬🇳", name: "Guinée",            digits: 9  },
-  { code: "ML", dial: "+223", flag: "🇲🇱", name: "Mali",              digits: 8  },
-  { code: "MR", dial: "+222", flag: "🇲🇷", name: "Mauritanie",        digits: 8  },
-  { code: "US", dial: "+1",   flag: "🇺🇸", name: "États-Unis",        digits: 10 },
-  { code: "CA", dial: "+1",   flag: "🇨🇦", name: "Canada",            digits: 10 },
-  { code: "BR", dial: "+55",  flag: "🇧🇷", name: "Brésil",            digits: 11 },
-  { code: "CN", dial: "+86",  flag: "🇨🇳", name: "Chine",             digits: 11 },
-  { code: "JP", dial: "+81",  flag: "🇯🇵", name: "Japon",             digits: 10 },
-  { code: "KR", dial: "+82",  flag: "🇰🇷", name: "Corée du Sud",      digits: 10 },
-  { code: "AU", dial: "+61",  flag: "🇦🇺", name: "Australie",         digits: 9  },
-  { code: "IN", dial: "+91",  flag: "🇮🇳", name: "Inde",              digits: 10 },
-  { code: "PK", dial: "+92",  flag: "🇵🇰", name: "Pakistan",          digits: 10 },
-  { code: "NG", dial: "+234", flag: "🇳🇬", name: "Nigéria",           digits: 10 },
-  { code: "ZA", dial: "+27",  flag: "🇿🇦", name: "Afrique du Sud",    digits: 9  },
-  { code: "RU", dial: "+7",   flag: "🇷🇺", name: "Russie",            digits: 10 },
+  { code: "TN", dial: "+216", flag: "🇹🇳", name: "Tunisie", digits: 8 },
+  { code: "DZ", dial: "+213", flag: "🇩🇿", name: "Algérie", digits: 9 },
+  { code: "MA", dial: "+212", flag: "🇲🇦", name: "Maroc", digits: 9 },
+  { code: "EG", dial: "+20", flag: "🇪🇬", name: "Égypte", digits: 10 },
+  { code: "LY", dial: "+218", flag: "🇱🇾", name: "Libye", digits: 9 },
+  { code: "FR", dial: "+33", flag: "🇫🇷", name: "France", digits: 9 },
+  { code: "DE", dial: "+49", flag: "🇩🇪", name: "Allemagne", digits: 11 },
+  { code: "GB", dial: "+44", flag: "🇬🇧", name: "Royaume-Uni", digits: 10 },
+  { code: "ES", dial: "+34", flag: "🇪🇸", name: "Espagne", digits: 9 },
+  { code: "IT", dial: "+39", flag: "🇮🇹", name: "Italie", digits: 10 },
+  { code: "PT", dial: "+351", flag: "🇵🇹", name: "Portugal", digits: 9 },
+  { code: "BE", dial: "+32", flag: "🇧🇪", name: "Belgique", digits: 9 },
+  { code: "NL", dial: "+31", flag: "🇳🇱", name: "Pays-Bas", digits: 9 },
+  { code: "CH", dial: "+41", flag: "🇨🇭", name: "Suisse", digits: 9 },
+  { code: "SA", dial: "+966", flag: "🇸🇦", name: "Arabie Saoudite", digits: 9 },
+  { code: "AE", dial: "+971", flag: "🇦🇪", name: "Émirats Arabes", digits: 9 },
+  { code: "QA", dial: "+974", flag: "🇶🇦", name: "Qatar", digits: 8 },
+  { code: "KW", dial: "+965", flag: "🇰🇼", name: "Koweït", digits: 8 },
+  { code: "BH", dial: "+973", flag: "🇧🇭", name: "Bahreïn", digits: 8 },
+  { code: "OM", dial: "+968", flag: "🇴🇲", name: "Oman", digits: 8 },
+  { code: "JO", dial: "+962", flag: "🇯🇴", name: "Jordanie", digits: 9 },
+  { code: "LB", dial: "+961", flag: "🇱🇧", name: "Liban", digits: 8 },
+  { code: "TR", dial: "+90", flag: "🇹🇷", name: "Turquie", digits: 10 },
+  { code: "SN", dial: "+221", flag: "🇸🇳", name: "Sénégal", digits: 9 },
+  { code: "CI", dial: "+225", flag: "🇨🇮", name: "Côte d Ivoire", digits: 10 },
+  { code: "CM", dial: "+237", flag: "🇨🇲", name: "Cameroun", digits: 9 },
+  { code: "GN", dial: "+224", flag: "🇬🇳", name: "Guinée", digits: 9 },
+  { code: "ML", dial: "+223", flag: "🇲🇱", name: "Mali", digits: 8 },
+  { code: "MR", dial: "+222", flag: "🇲🇷", name: "Mauritanie", digits: 8 },
+  { code: "US", dial: "+1", flag: "🇺🇸", name: "États-Unis", digits: 10 },
+  { code: "CA", dial: "+1", flag: "🇨🇦", name: "Canada", digits: 10 },
+  { code: "BR", dial: "+55", flag: "🇧🇷", name: "Brésil", digits: 11 },
+  { code: "CN", dial: "+86", flag: "🇨🇳", name: "Chine", digits: 11 },
+  { code: "JP", dial: "+81", flag: "🇯🇵", name: "Japon", digits: 10 },
+  { code: "KR", dial: "+82", flag: "🇰🇷", name: "Corée du Sud", digits: 10 },
+  { code: "AU", dial: "+61", flag: "🇦🇺", name: "Australie", digits: 9 },
+  { code: "IN", dial: "+91", flag: "🇮🇳", name: "Inde", digits: 10 },
+  { code: "PK", dial: "+92", flag: "🇵🇰", name: "Pakistan", digits: 10 },
+  { code: "NG", dial: "+234", flag: "🇳🇬", name: "Nigéria", digits: 10 },
+  { code: "ZA", dial: "+27", flag: "🇿🇦", name: "Afrique du Sud", digits: 9 },
+  { code: "RU", dial: "+7", flag: "🇷🇺", name: "Russie", digits: 10 },
 ];
 
 /* ══════════════════════════ HELPERS ══════════════════════════ */
@@ -346,76 +329,72 @@ function isAlphaOnly(str) {
 }
 
 function parsePhone(telephone) {
-  if (!telephone) return { countryCode: "TN", local: "" };
-  const country = COUNTRIES.find(c => telephone.startsWith(c.dial + " "));
-  if (country) return { countryCode: country.code, local: telephone.slice(country.dial.length + 1) };
-  return { countryCode: "TN", local: telephone.replace(/\D/g, "") };
+  if (!telephone || typeof telephone !== "string") return { countryCode: "TN", local: "" };
+  // Clean potential +undefined prefix
+  const cleanPhone = telephone.replace("+undefined", "").trim();
+  const found = COUNTRIES.find(c => cleanPhone.startsWith(c.dial));
+  if (found) {
+    const local = cleanPhone.slice(found.dial.length).trim();
+    return { countryCode: found.code, local };
+  }
+  return { countryCode: "TN", local: cleanPhone.replace(/\D/g, "") };
 }
 
 function buildPhone(countryCode, local) {
   const c = COUNTRIES.find(x => x.code === countryCode) || COUNTRIES[0];
-  return local ? `${c.dial} ${local}` : "";
+  const dial = c?.dial || "+216";
+  return local ? `${dial} ${local.replace(/\s/g, "")}` : "";
 }
 
 /* ══════════════════════════ STORAGE ══════════════════════════ */
-const LS_KEY = "nouvelair_users_v1";
-
-const initialUsers = [
-  { id: 1, nom: "Ahmed Mansour",  email: "ahmed.mansour@nouvelair.com",  telephone: "+216 22111333", role: "Admin",       banned: false },
-  { id: 2, nom: "Sami Ben Ali",   email: "sami.benali@nouvelair.com",    telephone: "+216 55888999", role: "Responsable", banned: false },
-  { id: 3, nom: "Karim Trabelsi", email: "karim.trabelsi@nouvelair.com", telephone: "+216 20000111", role: "Passager",    banned: false },
-  { id: 4, nom: "Lina Gharbi",    email: "lina.gharbi@nouvelair.com",    telephone: "+216 99777222", role: "Chauffeur",   banned: false },
-  { id: 5, nom: "Moez Ben Ali",   email: "moez.benali@nouvelair.com",    telephone: "+216 51222444", role: "Passager",    banned: true  },
-  { id: 6, nom: "Anis Gharbi",    email: "anis.gharbi@nouvelair.com",    telephone: "+216 28444666", role: "Responsable", banned: false },
-];
-
-function loadUsers() {
-  try { const s = localStorage.getItem(LS_KEY); return s ? JSON.parse(s) : initialUsers; } catch { return initialUsers; }
-}
-function saveUsers(users) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(users)); } catch {}
-}
+// Legacy mock storage removed to use API only.
 
 /* ══════════════════════════ ADMIN PROFILE STORAGE ══════════════════════════ */
-const ADMIN_FORM_KEY  = "airops_admin_profil_form_v1";
+const ADMIN_FORM_KEY = "airops_admin_profil_form_v1";
 const ADMIN_PHOTO_KEY = "airops_admin_profil_photo_v1";
 
 function getAdminName() {
-  try { const s = localStorage.getItem(ADMIN_FORM_KEY); return s ? (JSON.parse(s).nom || "Ahmed Mansour") : "Ahmed Mansour"; } catch { return "Ahmed Mansour"; }
+  try {
+    const s = localStorage.getItem("user");
+    return s ? (JSON.parse(s).name || "Admin") : "Admin";
+  } catch { return "Admin"; }
 }
 function getAdminPhoto() {
   try { return localStorage.getItem(ADMIN_PHOTO_KEY) || ""; } catch { return ""; }
 }
 function getAdminInitials(nom) {
-  return (nom || "Ahmed Mansour").trim().split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() || "AM";
+  return (nom || "").trim().split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
 }
 
 /* ══════════════════════════ NAV ══════════════════════════ */
 const navItems = [
   {
-    label: "Tableau de Bord",
-    to: "/dashbordADMIN",
-    icon: <svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>,
+    label: "Tableau de Bord", to: "/dashbordADMIN",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
   },
   {
-    label: "Liste des Utilisateurs",
-    to: "/listeU",
-    icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>,
+    label: "Liste des Utilisateurs", to: "/listeU",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
   },
   {
-    label: "Ajouter Utilisateur",
-    to: "/ajouterU",
-    icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>,
+    label: "Liste des Véhicules", to: "/listeV",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="22" height="13" rx="2" ry="2"/><circle cx="7" cy="21" r="2"/><circle cx="17" cy="21" r="2"/></svg>,
   },
   {
-    label: "Ajouter Véhicule",
-    to: "/ajouterVehicule",
-    icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 17h8M3 9l2-4h14l2 4M3 9h18v7a1 1 0 01-1 1H4a1 1 0 01-1-1V9z"/><circle cx="7" cy="17" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="17" r="1.5" fill="currentColor" stroke="none"/></svg>,
+    label: "Ajouter Utilisateur", to: "/ajouterU",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>,
   },
   {
-    label: "Mon Profil",
-    to: "/profilA",
-    icon: <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+    label: "Ajouter Véhicule", to: "/ajouterVehicule",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>,
+  },
+  {
+    label: "Gestion des Avis", to: "/avisAdmin",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+  },
+  {
+    label: "Mon Profil", to: "/profilA",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   },
 ];
 
@@ -447,7 +426,7 @@ function validateForm(form, users, editingId = null) {
 
 /* ══════════════════════════ ACTION MENU ══════════════════════════ */
 function ActionMenu({ user, isOpen, onToggle, onDetail, onEdit, onBan, onUnban, onDelete }) {
-  const btnRef  = useRef(null);
+  const btnRef = useRef(null);
   const dropRef = useRef(null);
   const [dropPos, setDropPos] = useState({ top: 0, left: 0 });
 
@@ -457,7 +436,7 @@ function ActionMenu({ user, isOpen, onToggle, onDetail, onEdit, onBan, onUnban, 
     const dropWidth = 200;
     const gap = 8;
     let left = rect.right - dropWidth;
-    let top  = rect.bottom + 6;
+    let top = rect.bottom + 6;
     if (left < gap) left = gap;
     if (left + dropWidth > window.innerWidth - gap) left = window.innerWidth - dropWidth - gap;
     const estimatedHeight = 220;
@@ -485,29 +464,29 @@ function ActionMenu({ user, isOpen, onToggle, onDetail, onEdit, onBan, onUnban, 
   const menu = isOpen ? (
     <div ref={dropRef} className="am-drop" style={{ top: `${dropPos.top}px`, left: `${dropPos.left}px` }}>
       <button type="button" className="am-item am-blue" onClick={() => { onDetail(user); onToggle(null); }}>
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
         Voir le détail
       </button>
       <div className="am-sep" />
       <button type="button" className="am-item" onClick={() => { onEdit(user); onToggle(null); }}>
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
         Modifier
       </button>
       <div className="am-sep" />
       {user.banned ? (
         <button type="button" className="am-item am-green" onClick={() => { onUnban(user); onToggle(null); }}>
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
           Réactiver
         </button>
       ) : (
         <button type="button" className="am-item am-red" onClick={() => { onBan(user); onToggle(null); }}>
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
           Bannir
         </button>
       )}
       <div className="am-sep" />
       <button type="button" className="am-item am-red" onClick={() => { onDelete(user); onToggle(null); }}>
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
         Supprimer
       </button>
     </div>
@@ -517,8 +496,8 @@ function ActionMenu({ user, isOpen, onToggle, onDetail, onEdit, onBan, onUnban, 
     <div className="am-wrap">
       <button ref={btnRef} type="button" className="am-btn"
         onClick={(e) => { e.stopPropagation(); onToggle(isOpen ? null : user.id); }}>
-        <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24">
-          <circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>
         </svg>
       </button>
       {typeof document !== "undefined" && menu ? createPortal(menu, document.body) : null}
@@ -530,10 +509,10 @@ function ActionMenu({ user, isOpen, onToggle, onDetail, onEdit, onBan, onUnban, 
 function DetailModal({ user, onClose }) {
   if (!user) return null;
   const rows = [
-    { label: "Nom complet",      value: user.nom },
-    { label: "Adresse email",    value: user.email },
-    { label: "Téléphone",        value: user.telephone },
-    { label: "Rôle",             value: user.role },
+    { label: "Nom complet", value: user.nom },
+    { label: "Adresse email", value: user.email },
+    { label: "Téléphone", value: user.telephone },
+    { label: "Rôle", value: user.role },
     { label: "Statut du compte", value: user.banned ? "Banni / Désactivé" : "Actif" },
   ];
   return (
@@ -580,7 +559,7 @@ function UserModal({ user, users, onClose, onSave }) {
   const [touched, setTouched] = useState({});
 
   const selectedCountry = COUNTRIES.find(c => c.code === form.phoneCountry) || COUNTRIES[0];
-  const errors  = validateForm(form, users, user?.id);
+  const errors = validateForm(form, users, user?.id);
   const isValid = Object.keys(errors).length === 0;
 
   const blur = (k) => setTouched(p => ({ ...p, [k]: true }));
@@ -631,7 +610,7 @@ function UserModal({ user, users, onClose, onSave }) {
                 onChange={handleChange}
                 onBlur={() => blur("nom")}
                 placeholder="Ex : Ahmed Ben Ali"
-                autoComplete="name"/>
+                autoComplete="name" />
               {touched.nom && errors.nom && <p className="ef-error">{errors.nom}</p>}
             </div>
 
@@ -643,7 +622,7 @@ function UserModal({ user, users, onClose, onSave }) {
                 value={form.email}
                 onChange={handleChange}
                 onBlur={() => blur("email")}
-                placeholder="Ex : ahmed@nouvelair.com"/>
+                placeholder="Ex : ahmed@nouvelair.com" />
               {touched.email && errors.email && <p className="ef-error">{errors.email}</p>}
             </div>
 
@@ -674,30 +653,21 @@ function UserModal({ user, users, onClose, onSave }) {
                   onBlur={() => blur("phoneLocal")}
                   placeholder={"0".repeat(selectedCountry.digits)}
                   inputMode="numeric"
-                  maxLength={selectedCountry.digits}/>
+                  maxLength={selectedCountry.digits} />
               </div>
               {touched.phoneLocal && errors.phoneLocal && <p className="ef-error">{errors.phoneLocal}</p>}
             </div>
 
-            {/* Rôle — Add: Responsable + Chauffeur only ; Edit: all roles */}
-            <div className="ef full">
-              <label className="ef-lbl">Rôle</label>
-              <select name="role" className="ef-sel" value={form.role}
-                onChange={handleChange}>
-                {isEdit ? (
-                  <>
-                   
-                    <option value="Responsable">Responsable</option>
-                    <option value="Chauffeur">Chauffeur</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="Responsable">Responsable</option>
-                    <option value="Chauffeur">Chauffeur</option>
-                  </>
-                )}
-              </select>
-            </div>
+            {/* Rôle — Accessible uniquement en création */}
+            {!isEdit && (
+              <div className="ef full">
+                <label className="ef-lbl">Rôle</label>
+                <select name="role" className="ef-sel" value={form.role} onChange={handleChange}>
+                  <option value="Responsable">Responsable</option>
+                  <option value="Chauffeur">Chauffeur</option>
+                </select>
+              </div>
+            )}
           </div>
           <div className="modal-actions">
             <button type="button" className="btn-cancel" onClick={onClose}>Annuler</button>
@@ -725,7 +695,7 @@ function ConfirmModal({ title, message, confirmLabel, danger, success, onConfirm
         <div className="confirm-body"><p className="confirm-msg">{message}</p></div>
         <div className="modal-actions">
           <button type="button" className="btn-cancel" onClick={onClose}>Annuler</button>
-          {danger  && <button type="button" className="btn-danger"  onClick={() => { onConfirm(); onClose(); }}>{confirmLabel}</button>}
+          {danger && <button type="button" className="btn-danger" onClick={() => { onConfirm(); onClose(); }}>{confirmLabel}</button>}
           {success && <button type="button" className="btn-success" onClick={() => { onConfirm(); onClose(); }}>{confirmLabel}</button>}
           {!danger && !success && <button type="button" className="btn-save" onClick={() => { onConfirm(); onClose(); }}>{confirmLabel}</button>}
         </div>
@@ -738,7 +708,7 @@ function ConfirmModal({ title, message, confirmLabel, danger, success, onConfirm
 function Pagination({ total, page, perPage, onPage, onPerPage }) {
   const totalPages = Math.max(1, Math.ceil(total / perPage));
   const start = total === 0 ? 0 : (page - 1) * perPage + 1;
-  const end   = Math.min(page * perPage, total);
+  const end = Math.min(page * perPage, total);
   const pages = [];
   for (let i = 1; i <= totalPages; i++) {
     if (i === 1 || i === totalPages || (i >= page - 1 && i <= page + 1)) pages.push(i);
@@ -770,24 +740,35 @@ function Pagination({ total, page, perPage, onPage, onPerPage }) {
 export default function ListeU() {
   const navigate = useNavigate();
 
-  const [users,         setUsers]         = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [collapsed,     setCollapsed]     = useState(false);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   const [sidebarMobile, setSidebarMobile] = useState(false);
-  const [search,        setSearch]        = useState("");
+  const [search, setSearch] = useState("");
   const [searchTouched, setSearchTouched] = useState(false);
-  const [roleFilter,    setRoleFilter]    = useState("Tous");
-  const [page,          setPage]          = useState(1);
-  const [perPage,       setPerPage]       = useState(8);
-  const [openMenu,      setOpenMenu]      = useState(null);
-  const [detailUser,    setDetailUser]    = useState(null);
-  const [editUser,      setEditUser]      = useState(null);
-  const [showAdd,       setShowAdd]       = useState(false);
-  const [confirm,       setConfirm]       = useState(null);
-  const [toast,         setToast]         = useState("");
+  const [pendingAvis, setPendingAvis] = useState(0);
+
+  useEffect(() => {
+    fetchPendingAvisCount().then(setPendingAvis);
+  }, []);
+  const [searchParams] = useSearchParams();
+  const [roleFilter, setRoleFilter] = useState(searchParams.get("role") || "Tous");
+
+  useEffect(() => {
+    const r = searchParams.get("role");
+    if (r) setRoleFilter(r);
+  }, [searchParams]);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(8);
+  const [openMenu, setOpenMenu] = useState(null);
+  const [detailUser, setDetailUser] = useState(null);
+  const [editUser, setEditUser] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [confirm, setConfirm] = useState(null);
+  const [toast, setToast] = useState("");
 
   /* Admin profile sync */
-  const [adminName,  setAdminName]  = useState(getAdminName);
+  const [adminName, setAdminName] = useState(getAdminName);
   const [adminPhoto, setAdminPhoto] = useState(getAdminPhoto);
 
   // ── Load users from API
@@ -801,9 +782,9 @@ export default function ListeU() {
         email: u.email ?? "—",
         telephone: u.phone ?? "—",
         role: u.role === "PASSAGER" ? "Passager"
-            : u.role === "CHAUFFEUR" ? "Chauffeur"
+          : u.role === "CHAUFFEUR" ? "Chauffeur"
             : u.role === "RESPONSABLE" ? "Responsable"
-            : u.role === "ADMIN" ? "Admin" : u.role,
+              : u.role === "ADMIN" ? "Admin" : u.role,
         banned: u.availability === "INDISPONIBLE",
         availability: u.availability,
         raw: u,
@@ -831,21 +812,15 @@ export default function ListeU() {
     return users.filter(u => {
       const q = search.trim().toLowerCase();
       const matchSearch = !q || [u.nom, u.email, u.telephone, u.role].join(" ").toLowerCase().includes(q);
-      const matchRole   = roleFilter === "Tous" || u.role === roleFilter;
+      const matchRole = roleFilter === "Tous" || u.role === roleFilter;
       return matchSearch && matchRole;
     });
   }, [users, search, roleFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const safePage   = Math.min(page, totalPages);
-  const paginated  = filtered.slice((safePage - 1) * perPage, safePage * perPage);
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice((safePage - 1) * perPage, safePage * perPage);
 
-  const stats = useMemo(() => ({
-    total:      users.length,
-    admins:     users.filter(u => u.role === "Admin").length,
-    chauffeurs: users.filter(u => u.role === "Chauffeur").length,
-    banned:     users.filter(u => u.banned).length,
-  }), [users]);
 
   const nextId = () => Math.max(0, ...users.map(u => u.id)) + 1;
 
@@ -860,8 +835,8 @@ export default function ListeU() {
     try {
       const role = form.role === "Passager" ? "PASSAGER"
         : form.role === "Chauffeur" ? "CHAUFFEUR"
-        : form.role === "Responsable" ? "RESPONSABLE"
-        : form.role === "Admin" ? "ADMIN" : form.role;
+          : form.role === "Responsable" ? "RESPONSABLE"
+            : form.role === "Admin" ? "ADMIN" : form.role;
       await updateUser(editUser.id, { name: form.nom.trim(), email: form.email.trim(), phone: form.telephone.trim(), role });
       setUsers(prev => prev.map(u => u.id === editUser.id
         ? { ...u, nom: form.nom.trim(), email: form.email.trim(), telephone: form.telephone.trim(), role: form.role }
@@ -877,7 +852,7 @@ export default function ListeU() {
   const handleDelete = async (id) => {
     const u = users.find(x => x.id === id);
     try {
-      await updateUser(id, { availability: "INDISPONIBLE" }); // soft delete
+      await deleteUser(id); // Réelle suppression en base
       setUsers(prev => prev.filter(x => x.id !== id));
       setToast(`Utilisateur « ${u?.nom} » supprimé.`);
     } catch {
@@ -923,7 +898,7 @@ export default function ListeU() {
         <div className="sb-brand" onClick={() => navigate("/")}>
           <div className="sb-brand-icon">
             <svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" />
             </svg>
           </div>
           <div className="sb-brand-text">
@@ -939,12 +914,15 @@ export default function ListeU() {
               onClick={() => setSidebarMobile(false)}>
               <span className="sb-nav-icon">{item.icon}</span>
               <span className="sb-nav-lbl">{item.label}</span>
+              {item.label === "Gestion des Avis" && pendingAvis > 0 && (
+                <span className="sb-badge">{pendingAvis}</span>
+              )}
             </NavLink>
           ))}
         </nav>
         <div className="sb-footer">
           <div className="sb-label" style={{ paddingTop: 0 }}>Compte</div>
-          <button type="button" className="sb-logout" onClick={() => navigate("/login")}>
+          <button type="button" className="sb-logout" onClick={() => { localStorage.clear(); navigate("/login", { replace: true }); }}>
             <span className="sb-logout-icon">
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -975,7 +953,7 @@ export default function ListeU() {
                 className={`search-input${searchError ? " err" : ""}`}
                 placeholder="Rechercher un utilisateur…"
                 onChange={e => setSearch(e.target.value)}
-                onBlur={() => setSearchTouched(true)}/>
+                onBlur={() => setSearchTouched(true)} />
               {searchError && <p className="search-err">{searchError}</p>}
             </div>
             <div className="user-chip">
@@ -984,7 +962,7 @@ export default function ListeU() {
                 <div className="user-role">Administrateur</div>
               </div>
               <div className="user-avatar" onClick={() => navigate("/profilA")} title="Mon profil">
-                {adminPhoto ? <img src={adminPhoto} alt="profil"/> : <span>{getAdminInitials(adminName)}</span>}
+                {adminPhoto ? <img src={adminPhoto} alt="profil" /> : <span>{getAdminInitials(adminName)}</span>}
               </div>
             </div>
           </div>
@@ -995,28 +973,6 @@ export default function ListeU() {
           <p className="page-sub">Gérez les comptes, rôles et accès de tous les utilisateurs.</p>
 
           {/* Stats */}
-          <div className="stats-grid">
-            <div className="sc blue">
-              <div className="sc-top"><div className="sc-icon blue">👥</div><span className="sc-tag blue">Total</span></div>
-              <div className="sc-value">{stats.total}</div>
-              <div className="sc-label">Comptes enregistrés</div>
-            </div>
-            <div className="sc purple">
-              <div className="sc-top"><div className="sc-icon purple">🛡️</div><span className="sc-tag purple">Administration</span></div>
-              <div className="sc-value">{stats.admins}</div>
-              <div className="sc-label">Administrateurs</div>
-            </div>
-            <div className="sc green">
-              <div className="sc-top"><div className="sc-icon green">🚗</div><span className="sc-tag green">Mobilité</span></div>
-              <div className="sc-value">{stats.chauffeurs}</div>
-              <div className="sc-label">Chauffeurs</div>
-            </div>
-            <div className="sc red">
-              <div className="sc-top"><div className="sc-icon red">🚫</div><span className="sc-tag red">Désactivés</span></div>
-              <div className="sc-value">{stats.banned}</div>
-              <div className="sc-label">Comptes bannis</div>
-            </div>
-          </div>
 
           {/* Toolbar */}
           <div className="toolbar">
@@ -1040,10 +996,10 @@ export default function ListeU() {
           {/* Table */}
           <div className="tbl-card">
             <div className="tbl-head">
-              <span>Utilisateur</span>
-              <span style={{ paddingLeft: 4 }}>Email</span>
+              <span>Utilisateur / Email</span>
+              <span />
               <span className="col-phone">Téléphone</span>
-              <span className="col-badges">Rôle &amp; Statut</span>
+              <span className="col-badges">Rôle & Statut</span>
               <span style={{ textAlign: "center" }}>Action</span>
             </div>
             <div className="tbl-body">
@@ -1051,7 +1007,7 @@ export default function ListeU() {
                 <div className="empty-state">
                   <div className="empty-icon">
                     <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#94a3b8" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   </div>
                   <p className="empty-title">Aucun utilisateur trouvé</p>
@@ -1063,16 +1019,25 @@ export default function ListeU() {
                     <div className={`cell-avatar${user.banned ? " banned-av" : ""}`}>
                       {initials(user.nom)}
                     </div>
-                    <div><div className="cell-name">{user.nom}</div></div>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="cell-name">{user.nom}</div>
+                      <div className="cell-email" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</div>
+                    </div>
                   </div>
                   <div style={{ paddingLeft: 4, fontSize: 12, color: "var(--text-muted)", wordBreak: "break-all" }}>
-                    {user.email}
+                    {/* Placeholder for empty space in second grid col if needed, but grid handles it */}
                   </div>
-                  <div className="col-phone"><span className="cell-phone">{user.telephone}</span></div>
+                  <div className="col-phone">
+                    <span className="cell-phone">
+                      {(user.telephone ?? "—").toLowerCase().includes("undefined") 
+                        ? (user.telephone ?? "").replace(/\+?undefined/gi, "").trim()
+                        : (user.telephone ?? "—")}
+                    </span>
+                  </div>
                   <div className="cell-badges col-badges">
                     <span className={`role-badge role-${user.role}`}>{user.role}</span>
                     <span className={`status-badge ${user.banned ? "status-banned" : "status-active"}`}>
-                      <span className="sdot" style={{ background: user.banned ? "#ef4444" : "#22c55e" }}/>
+                      <span className="sdot" style={{ background: user.banned ? "#ef4444" : "#22c55e" }} />
                       {user.banned ? "Banni" : "Actif"}
                     </span>
                   </div>
@@ -1090,15 +1055,15 @@ export default function ListeU() {
               ))}
             </div>
             {filtered.length > 0 && (
-              <Pagination total={filtered.length} page={safePage} perPage={perPage} onPage={setPage} onPerPage={setPerPage}/>
+              <Pagination total={filtered.length} page={safePage} perPage={perPage} onPage={setPage} onPerPage={setPerPage} />
             )}
           </div>
         </main>
 
         <footer className="lfoot">
           <div className="lfoot-brand">
-            <svg width="14" height="14" fill="#22c55e" viewBox="0 0 24 24">
-              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#22c55e" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
             Système de gestion sécurisé — AirOps Transport 2026
           </div>
@@ -1109,27 +1074,27 @@ export default function ListeU() {
       </div>
 
       {/* Modals */}
-      {showAdd    && <UserModal users={users} onClose={() => setShowAdd(false)} onSave={handleAdd}/>}
-      {editUser   && <UserModal user={editUser} users={users} onClose={() => setEditUser(null)} onSave={handleEdit}/>}
-      {detailUser && <DetailModal user={detailUser} onClose={() => setDetailUser(null)}/>}
+      {showAdd && <UserModal users={users} onClose={() => setShowAdd(false)} onSave={handleAdd} />}
+      {editUser && <UserModal user={editUser} users={users} onClose={() => setEditUser(null)} onSave={handleEdit} />}
+      {detailUser && <DetailModal user={detailUser} onClose={() => setDetailUser(null)} />}
 
       {confirm?.type === "ban" && (
         <ConfirmModal title="Désactiver le compte"
           message={`Voulez-vous vraiment bannir le compte de « ${confirm.user.nom} » ?`}
           confirmLabel="Bannir" danger
-          onConfirm={() => handleBan(confirm.user.id)} onClose={() => setConfirm(null)}/>
+          onConfirm={() => handleBan(confirm.user.id)} onClose={() => setConfirm(null)} />
       )}
       {confirm?.type === "unban" && (
         <ConfirmModal title="Réactiver le compte"
           message={`Voulez-vous réactiver le compte de « ${confirm.user.nom} » ?`}
           confirmLabel="Réactiver" success
-          onConfirm={() => handleUnban(confirm.user.id)} onClose={() => setConfirm(null)}/>
+          onConfirm={() => handleUnban(confirm.user.id)} onClose={() => setConfirm(null)} />
       )}
       {confirm?.type === "delete" && (
         <ConfirmModal title="Supprimer l'utilisateur"
           message={`Cette action est irréversible. Supprimer définitivement « ${confirm.user.nom} » ?`}
           confirmLabel="Supprimer" danger
-          onConfirm={() => handleDelete(confirm.user.id)} onClose={() => setConfirm(null)}/>
+          onConfirm={() => handleDelete(confirm.user.id)} onClose={() => setConfirm(null)} />
       )}
 
       {toast && <div className="toast">{toast}</div>}

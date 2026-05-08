@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { createUser } from "../../services/adminService";
+import { createUser, fetchPendingAvisCount } from "../../services/adminService";
 
 /* ══════════════════════════ CSS ══════════════════════════ */
 const css = `
@@ -54,6 +54,8 @@ const css = `
   .sb-nav-icon { flex-shrink: 0; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
   .sb-nav-lbl  { flex: 1; overflow: hidden; transition: opacity 0.2s, max-width 0.3s; max-width: 160px; }
   .sidebar.collapsed .sb-nav-lbl { opacity: 0; max-width: 0; }
+  .sb-badge { background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; flex-shrink: 0; transition: opacity 0.2s; margin-left: auto; }
+  .sidebar.collapsed .sb-badge { opacity: 0; }
   .sidebar.collapsed .sb-nav-item::after { content: attr(data-label); position: absolute; left: calc(var(--sidebar-mini) + 6px); top: 50%; transform: translateY(-50%); background: var(--brand-dark); color: #fff; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-md); border: 1px solid rgba(255,255,255,0.1); z-index: 200; opacity: 0; transition: opacity 0.15s; }
   .sidebar.collapsed .sb-nav-item:hover::after { opacity: 1; }
   .sb-footer { padding: 6px 9px 16px; border-top: 1px solid rgba(255,255,255,0.07); flex-shrink: 0; }
@@ -211,34 +213,101 @@ if (typeof document !== "undefined" && !document.getElementById("au-css")) {
 
 /* ══════════════════════════ COUNTRIES ══════════════════════════ */
 const COUNTRIES = [
-  { code:"TN", dial:"+216", flag:"🇹🇳", name:"Tunisie",        digits:8  },
-  { code:"DZ", dial:"+213", flag:"🇩🇿", name:"Algérie",        digits:9  },
-  { code:"MA", dial:"+212", flag:"🇲🇦", name:"Maroc",          digits:9  },
-  { code:"EG", dial:"+20",  flag:"🇪🇬", name:"Égypte",         digits:10 },
-  { code:"FR", dial:"+33",  flag:"🇫🇷", name:"France",         digits:9  },
-  { code:"DE", dial:"+49",  flag:"🇩🇪", name:"Allemagne",      digits:11 },
-  { code:"GB", dial:"+44",  flag:"🇬🇧", name:"Royaume-Uni",    digits:10 },
-  { code:"SA", dial:"+966", flag:"🇸🇦", name:"Arabie Saoudite",digits:9  },
-  { code:"AE", dial:"+971", flag:"🇦🇪", name:"Émirats",        digits:9  },
-  { code:"US", dial:"+1",   flag:"🇺🇸", name:"États-Unis",     digits:10 },
+  { code: "TN", dial: "+216", flag: "🇹🇳", name: "Tunisie", digits: 8, passportDigits: 8 },
+  { code: "DZ", dial: "+213", flag: "🇩🇿", name: "Algérie", digits: 9, passportDigits: 9 },
+  { code: "MA", dial: "+212", flag: "🇲🇦", name: "Maroc", digits: 9, passportDigits: 8 },
+  { code: "EG", dial: "+20", flag: "🇪🇬", name: "Égypte", digits: 10, passportDigits: 9 },
+  { code: "LY", dial: "+218", flag: "🇱🇾", name: "Libye", digits: 9, passportDigits: 8 },
+  { code: "FR", dial: "+33", flag: "🇫🇷", name: "France", digits: 9, passportDigits: 9 },
+  { code: "DE", dial: "+49", flag: "🇩🇪", name: "Allemagne", digits: 11, passportDigits: 9 },
+  { code: "GB", dial: "+44", flag: "🇬🇧", name: "Royaume-Uni", digits: 10, passportDigits: 9 },
+  { code: "ES", dial: "+34", flag: "🇪🇸", name: "Espagne", digits: 9, passportDigits: 9 },
+  { code: "IT", dial: "+39", flag: "🇮🇹", name: "Italie", digits: 10, passportDigits: 9 },
+  { code: "PT", dial: "+351", flag: "🇵🇹", name: "Portugal", digits: 9, passportDigits: 9 },
+  { code: "BE", dial: "+32", flag: "🇧🇪", name: "Belgique", digits: 9, passportDigits: 9 },
+  { code: "NL", dial: "+31", flag: "🇳🇱", name: "Pays-Bas", digits: 9, passportDigits: 9 },
+  { code: "CH", dial: "+41", flag: "🇨🇭", name: "Suisse", digits: 9, passportDigits: 9 },
+  { code: "SA", dial: "+966", flag: "🇸🇦", name: "Arabie Saoudite", digits: 9, passportDigits: 9 },
+  { code: "AE", dial: "+971", flag: "🇦🇪", name: "Émirats Arabes", digits: 9, passportDigits: 9 },
+  { code: "QA", dial: "+974", flag: "🇶🇦", name: "Qatar", digits: 8, passportDigits: 8 },
+  { code: "KW", dial: "+965", flag: "🇰🇼", name: "Koweït", digits: 8, passportDigits: 8 },
+  { code: "BH", dial: "+973", flag: "🇧🇭", name: "Bahreïn", digits: 8, passportDigits: 8 },
+  { code: "OM", dial: "+968", flag: "🇴🇲", name: "Oman", digits: 8, passportDigits: 8 },
+  { code: "JO", dial: "+962", flag: "🇯🇴", name: "Jordanie", digits: 9, passportDigits: 9 },
+  { code: "LB", dial: "+961", flag: "🇱🇧", name: "Liban", digits: 8, passportDigits: 8 },
+  { code: "TR", dial: "+90", flag: "🇹🇷", name: "Turquie", digits: 10, passportDigits: 9 },
+  { code: "SN", dial: "+221", flag: "🇸🇳", name: "Sénégal", digits: 9, passportDigits: 9 },
+  { code: "CI", dial: "+225", flag: "🇨🇮", name: "Côte d Ivoire", digits: 10, passportDigits: 9 },
+  { code: "CM", dial: "+237", flag: "🇨🇲", name: "Cameroun", digits: 9, passportDigits: 9 },
+  { code: "GN", dial: "+224", flag: "🇬🇳", name: "Guinée", digits: 9, passportDigits: 9 },
+  { code: "ML", dial: "+223", flag: "🇲🇱", name: "Mali", digits: 8, passportDigits: 8 },
+  { code: "MR", dial: "+222", flag: "🇲🇷", name: "Mauritanie", digits: 8, passportDigits: 8 },
+  { code: "US", dial: "+1", flag: "🇺🇸", name: "États-Unis", digits: 10, passportDigits: 9 },
+  { code: "CA", dial: "+1", flag: "🇨🇦", name: "Canada", digits: 10, passportDigits: 8 },
+  { code: "BR", dial: "+55", flag: "🇧🇷", name: "Brésil", digits: 11, passportDigits: 8 },
+  { code: "CN", dial: "+86", flag: "🇨🇳", name: "Chine", digits: 11, passportDigits: 9 },
+  { code: "JP", dial: "+81", flag: "🇯🇵", name: "Japon", digits: 10, passportDigits: 7 },
+  { code: "KR", dial: "+82", flag: "🇰🇷", name: "Corée du Sud", digits: 10, passportDigits: 9 },
+  { code: "AU", dial: "+61", flag: "🇦🇺", name: "Australie", digits: 9, passportDigits: 8 },
+  { code: "IN", dial: "+91", flag: "🇮🇳", name: "Inde", digits: 10, passportDigits: 8 },
+  { code: "PK", dial: "+92", flag: "🇵🇰", name: "Pakistan", digits: 10, passportDigits: 9 },
+  { code: "NG", dial: "+234", flag: "🇳🇬", name: "Nigéria", digits: 10, passportDigits: 9 },
+  { code: "ZA", dial: "+27", flag: "🇿🇦", name: "Afrique du Sud", digits: 9, passportDigits: 9 },
+  { code: "RU", dial: "+7", flag: "🇷🇺", name: "Russie", digits: 10, passportDigits: 9 },
 ];
 
 /* ══════════════════════════ NAV ITEMS ══════════════════════════ */
 const navItems = [
-  { label:"Tableau de Bord",       to:"/dashbordADMIN",     icon:<svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> },
-  { label:"Liste des Utilisateurs",to:"/listeU",            icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg> },
-  { label:"Ajouter Utilisateur",   to:"/ajouterU",          icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg> },
-  { label:"Ajouter Véhicule",      to:"/ajouterVehicule",   icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 17h8M3 9l2-4h14l2 4M3 9h18v7a1 1 0 01-1 1H4a1 1 0 01-1-1V9z"/><circle cx="7" cy="17" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="17" r="1.5" fill="currentColor" stroke="none"/></svg> },
-  { label:"Mon Profil",            to:"/profilA",           icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+  {
+    label: "Tableau de Bord", to: "/dashbordADMIN",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>,
+  },
+  {
+    label: "Liste des Utilisateurs", to: "/listeU",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
+  },
+  {
+    label: "Liste des Véhicules", to: "/listeV",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="22" height="13" rx="2" ry="2" /><circle cx="7" cy="21" r="2" /><circle cx="17" cy="21" r="2" /></svg>,
+  },
+  {
+    label: "Ajouter Utilisateur", to: "/ajouterU",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="16" y1="11" x2="22" y2="11" /></svg>,
+  },
+  {
+    label: "Ajouter Véhicule", to: "/ajouterVehicule",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>,
+  },
+  {
+    label: "Gestion des Avis", to: "/avisAdmin",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>,
+  },
+  {
+    label: "Mon Profil", to: "/profilA",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>,
+  },
 ];
 
 const USER_CATEGORIES = [
-  { key:"Passager", desc:"Formulaire passager" },
-  { key:"Chauffeur", desc:"Formulaire chauffeur" },
+  { key: "Passager", desc: "Formulaire passager" },
+  { key: "Chauffeur", desc: "Formulaire chauffeur" },
 ];
 
+function getAdminName() {
+  try {
+    const s = localStorage.getItem("user");
+    return s ? (JSON.parse(s).name || "Admin") : "Admin";
+  } catch { return "Admin"; }
+}
+function getAdminPhoto() {
+  try { return localStorage.getItem("airops_admin_profil_photo_v1") || ""; } catch { return ""; }
+}
+function getAdminInitials(nom) {
+  return (nom || "").trim().split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+}
+
 function initials(nom) {
-  return (nom || "?").trim().split(" ").map(w => w[0]).slice(0,2).join("").toUpperCase() || "?";
+  return (nom || "?").trim().split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() || "?";
 }
 
 
@@ -265,44 +334,92 @@ function calcAge(dateValue) {
   return age;
 }
 
+function pwdStrength(pwd) {
+  if (!pwd) return 0;
+  let s = 0;
+  if (pwd.length >= 8) s++;
+  if (/[A-Z]/.test(pwd)) s++;
+  if (/[0-9]/.test(pwd)) s++;
+  if (/[^a-zA-Z0-9]/.test(pwd)) s++;
+  return Math.min(s, 3);
+}
+const pwdLabels = ["", "Faible", "Moyen", "Fort"];
+const pwdBarColors = ["", "#ef4444", "#f97316", "#16a34a"];
+
+const todayStr = formatDateInput(new Date());
+
 function validate(form, country, activeCategory) {
   const e = {};
+  // ── Nom
   if (!form.nom.trim()) e.nom = "Le nom est obligatoire.";
   else if (form.nom.trim().length < 2) e.nom = "Minimum 2 caractères.";
-  else if (!/^[a-zA-ZÀ-ÖØ-öø-ÿ\s\-']+$/.test(form.nom.trim())) e.nom = "Lettres uniquement.";
+  else if (form.nom.trim().length > 50) e.nom = "Maximum 50 caractères.";
+  else if (!/^[a-zA-ZÀ-ÖØ-öø-ÿ\s\-']+$/.test(form.nom.trim())) e.nom = "Lettres uniquement (pas de chiffres ni symboles).";
+  // ── Prénom
   if (!form.prenom.trim()) e.prenom = "Le prénom est obligatoire.";
   else if (form.prenom.trim().length < 2) e.prenom = "Minimum 2 caractères.";
-  else if (!/^[a-zA-ZÀ-ÖØ-öø-ÿ\s\-']+$/.test(form.prenom.trim())) e.prenom = "Lettres uniquement.";
+  else if (form.prenom.trim().length > 50) e.prenom = "Maximum 50 caractères.";
+  else if (!/^[a-zA-ZÀ-ÖØ-öø-ÿ\s\-']+$/.test(form.prenom.trim())) e.prenom = "Lettres uniquement (pas de chiffres ni symboles).";
+  // ── CIN
   if (!form.cin.trim()) e.cin = "Le CIN est obligatoire.";
-  else if (!/^\d{8}$/.test(form.cin.trim())) e.cin = "8 chiffres requis.";
+  else {
+    if (activeCategory === "Chauffeur" || form.cinPays === "TN") {
+      if (!/^\d{8}$/.test(form.cin.trim())) e.cin = "Le CIN tunisien doit contenir exactement 8 chiffres.";
+    } else {
+      // Pour les passagers étrangers, validation plus souple (alphanumérique 4-20)
+      if (!/^[A-Z0-9]{4,20}$/.test(form.cin.trim().toUpperCase())) e.cin = "Le CIN doit contenir entre 4 et 20 caractères alphanumériques.";
+    }
+  }
+  // ── Nationalité
   if (!form.nationalite) e.nationalite = "La nationalité est obligatoire.";
+  // ── Email
   if (!form.email.trim()) e.email = "L'email est obligatoire.";
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Email invalide.";
-  if (!form.phoneLocal.trim()) e.phoneLocal = "Le téléphone est obligatoire.";
-  else if (!/^\d+$/.test(form.phoneLocal)) e.phoneLocal = "Chiffres uniquement.";
-  else if (form.phoneLocal.length !== country.digits) e.phoneLocal = `${country.digits} chiffres requis.`;
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email)) e.email = "Format email invalide (ex: nom@domaine.tn).";
+  // ── Téléphone
+  if (!form.phoneLocal.trim()) e.phoneLocal = "Le numéro de téléphone est obligatoire.";
+  else if (!/^\d+$/.test(form.phoneLocal)) e.phoneLocal = "Chiffres uniquement, sans espaces.";
+  else if (form.phoneLocal.length !== country.digits) e.phoneLocal = `${country.digits} chiffres requis pour ${country.name}.`;
+  else if (/^0+$/.test(form.phoneLocal)) e.phoneLocal = "Numéro invalide.";
+  // ── Mot de passe
   if (!form.password.trim()) e.password = "Le mot de passe est obligatoire.";
-  else if (form.password.length < 6) e.password = "Minimum 6 caractères.";
+  else if (form.password.length < 8) e.password = "Minimum 8 caractères.";
+  else if (!/[A-Z]/.test(form.password)) e.password = "Au moins une lettre majuscule requise.";
+  else if (!/[0-9]/.test(form.password)) e.password = "Au moins un chiffre requis.";
+  // ── Confirmation mot de passe
+  if (!form.confirmPwd || !form.confirmPwd.trim()) e.confirmPwd = "Veuillez confirmer le mot de passe.";
+  else if (form.confirmPwd !== form.password) e.confirmPwd = "Les mots de passe ne correspondent pas.";
+  // ── Passager
   if (activeCategory === "Passager") {
+    const pCountry = COUNTRIES.find(c => c.code === form.passeportPays) || COUNTRIES[0];
     if (!form.passeport.trim()) e.passeport = "Le numéro de passeport est obligatoire.";
+    else if (form.passeport.trim().length !== pCountry.passportDigits) {
+      e.passeport = `${pCountry.passportDigits} caractères requis pour le passeport (${pCountry.name}).`;
+    }
+    else if (!/^[A-Z0-9]+$/.test(form.passeport.trim().toUpperCase())) {
+      e.passeport = "Caractères alphanumériques uniquement.";
+    }
+
     if (!form.dateNaissance) e.dateNaissance = "La date de naissance est obligatoire.";
     else {
       const age = calcAge(form.dateNaissance);
       if (Number.isNaN(new Date(form.dateNaissance).getTime())) e.dateNaissance = "Date invalide.";
-      else if (new Date(form.dateNaissance) > new Date()) e.dateNaissance = "La date doit être réelle.";
-      else if (age < 18) e.dateNaissance = "L'âge minimum accepté est 18 ans.";
-      else if (age > 100) e.dateNaissance = "Date de naissance non logique.";
+      else if (new Date(form.dateNaissance) > new Date()) e.dateNaissance = "La date doit être dans le passé.";
+      else if (age < 18) e.dateNaissance = `Âge minimum requis : 18 ans (âge actuel : ${age} ans).`;
+      else if (age > 100) e.dateNaissance = "Date de naissance non logique (plus de 100 ans).";
     }
   }
+  // ── Chauffeur
   if (activeCategory === "Chauffeur") {
     if (!form.numeroPermis.trim()) e.numeroPermis = "Le numéro de permis est obligatoire.";
+    else if (!/^\d{8}$/.test(form.numeroPermis.trim())) e.numeroPermis = "Le numéro de permis tunisien doit contenir exactement 8 chiffres.";
     if (!form.dateExpiration) e.dateExpiration = "La date d'expiration est obligatoire.";
+    else if (new Date(form.dateExpiration) <= new Date()) e.dateExpiration = "La date d'expiration doit être dans le futur.";
   }
   return e;
 }
 
 function calcProgress(form, activeCategory) {
-  const common = [form.nom, form.prenom, form.cin, form.nationalite, form.email, form.phoneLocal, form.password];
+  const common = [form.nom, form.prenom, form.cin, form.nationalite, form.email, form.phoneLocal, form.password, form.confirmPwd];
   const specific = activeCategory === "Passager" ? [form.passeport, form.dateNaissance] : [form.numeroPermis, form.dateExpiration];
   const all = [...common, ...specific];
   const filled = all.filter(v => String(v || "").trim()).length;
@@ -311,28 +428,78 @@ function calcProgress(form, activeCategory) {
 
 export default function AjouterUtilisateur() {
   const navigate = useNavigate();
+  const [adminInfo] = useState(() => ({ name: getAdminName(), photo: getAdminPhoto() }));
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarMobile, setSidebarMobile] = useState(false);
-  const [toast, setToast] = useState({ msg:"", type:"" });
+  const [toast, setToast] = useState({ msg: "", type: "" });
   const [submitted, setSubmitted] = useState(false);
+
+  const [pendingAvis, setPendingAvis] = useState(0);
+  useEffect(() => {
+    fetchPendingAvisCount().then(setPendingAvis);
+  }, []);
+
   const [activeCategory, setActiveCategory] = useState("Passager");
   const [form, setForm] = useState({
-    nom:"", prenom:"", cin:"", nationalite:"Tunisienne", email:"",
-    phoneCountry:"TN", phoneLocal:"", password:"",
-    passeportPays:"TN", passeport:"", dateNaissance:"",
-    numeroPermis:"", dateExpiration:""
+    nom: "", prenom: "", cin: "", cinPays: "TN", nationalite: "Tunisienne", email: "",
+    phoneCountry: "TN", phoneLocal: "", password: "", confirmPwd: "",
+    passeportPays: "TN", passeport: "", dateNaissance: "",
+    numeroPermis: "", dateExpiration: ""
   });
   const [errors, setErrors] = useState({});
+
+  function handleCategoryChange(cat) {
+    setActiveCategory(cat);
+    setSubmitted(false);
+    setErrors({});
+    if (cat === "Chauffeur") {
+      setForm(f => ({ ...f, phoneCountry: "TN", cinPays: "TN", nationalite: "Tunisienne" }));
+    } else {
+      setForm(f => ({ ...f, nationalite: "Tunisienne" }));
+    }
+  }
 
   const country = COUNTRIES.find(c => c.code === form.phoneCountry) || COUNTRIES[0];
   const progress = calcProgress(form, activeCategory);
 
-  function showToast(msg, type="") {
+  function showToast(msg, type = "") {
     setToast({ msg, type });
-    setTimeout(() => setToast({ msg:"", type:"" }), 3000);
+    setTimeout(() => setToast({ msg: "", type: "" }), 3000);
   }
 
   function handleChange(field, val) {
+    // Filtrage en temps réel pour nom/prénom : lettres seulement
+    if ((field === "nom" || field === "prenom") && val !== "" && !/^[a-zA-ZÀ-ÖØ-öø-ÿ\s\-']*$/.test(val)) return;
+    // CIN (Tunisien) / Permis : chiffres uniquement
+    if ((field === "cin" && (activeCategory === "Chauffeur" || form.cinPays === "TN")) || field === "numeroPermis") {
+      if (val !== "" && !/^\d*$/.test(val)) return;
+    }
+    // CIN (Etranger) : Alphanumérique
+    if (field === "cin" && activeCategory === "Passager" && form.cinPays !== "TN") {
+      if (val !== "" && !/^[a-zA-Z0-9]*$/.test(val)) return;
+    }
+    // Passeport : Alphanumérique uniquement
+    if (field === "passeport" && val !== "" && !/^[a-zA-Z0-9]*$/.test(val)) return;
+
+    // Réinitialiser le numéro local si changement de pays (Téléphone)
+    if (field === "phoneCountry") {
+      setForm(f => ({ ...f, phoneCountry: val, phoneLocal: "" }));
+      if (submitted) setErrors(prev => ({ ...prev, phoneLocal: undefined }));
+      return;
+    }
+    // Réinitialiser le CIN si changement de pays (CIN)
+    if (field === "cinPays") {
+      setForm(f => ({ ...f, cinPays: val, cin: "" }));
+      if (submitted) setErrors(prev => ({ ...prev, cin: undefined }));
+      return;
+    }
+    // Réinitialiser le Passeport si changement de pays (Passeport)
+    if (field === "passeportPays") {
+      setForm(f => ({ ...f, passeportPays: val, passeport: "" }));
+      if (submitted) setErrors(prev => ({ ...prev, passeport: undefined }));
+      return;
+    }
+
     setForm(f => ({ ...f, [field]: val }));
     if (submitted) setErrors(prev => ({ ...prev, [field]: undefined }));
   }
@@ -344,10 +511,13 @@ export default function AjouterUtilisateur() {
     setSubmitted(true);
     const errs = validate(form, country, activeCategory);
     setErrors(errs);
-    if (Object.keys(errs).length > 0) { showToast("Veuillez corriger les erreurs.", ""); return; }
+    if (Object.keys(errs).length > 0) {
+      showToast(`Veuillez corriger les ${Object.keys(errs).length} erreur(s) dans le formulaire.`, "");
+      return;
+    }
 
     const role = activeCategory === "Passager" ? "PASSAGER" : "CHAUFFEUR";
-    const phone = `+${country.dialCode}${form.phoneLocal.replace(/^0/, "")}`;
+    const phone = `${country.dial}${form.phoneLocal.replace(/^0/, "")}`;
     const payload = {
       name: `${form.nom.trim()} ${form.prenom.trim()}`,
       email: form.email.trim(),
@@ -356,6 +526,7 @@ export default function AjouterUtilisateur() {
       phone,
       cin: form.cin.trim() || undefined,
       passportNumber: form.passeport.trim() || undefined,
+      numeroPermis: form.numeroPermis.trim() || undefined,
       address: form.nationalite || undefined,
     };
 
@@ -369,23 +540,23 @@ export default function AjouterUtilisateur() {
     }
   }
 
-  const previewName  = `${form.nom} ${form.prenom}`.trim() || "Nom Prénom";
+  const previewName = `${form.nom} ${form.prenom}`.trim() || "Nom Prénom";
   const previewEmail = form.email.trim() || "email@exemple.com";
 
   return (
     <div className="au-wrap">
-      {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)}/>}
+      {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)} />}
 
       {/* ── Sidebar ── */}
       <aside className={["sidebar", collapsed ? "collapsed" : "", sidebarMobile ? "open" : ""].filter(Boolean).join(" ")}>
         <button type="button" className="sb-toggle-btn" onClick={() => setCollapsed(v => !v)}>
           <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         <div className="sb-brand" onClick={() => navigate("/")}>
           <div className="sb-brand-icon">
-            <svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            <svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" /></svg>
           </div>
           <div className="sb-brand-text">
             <span className="sb-brand-name">AirOps</span>
@@ -400,12 +571,15 @@ export default function AjouterUtilisateur() {
               onClick={() => setSidebarMobile(false)}>
               <span className="sb-nav-icon">{item.icon}</span>
               <span className="sb-nav-lbl">{item.label}</span>
+              {item.label === "Gestion des Avis" && pendingAvis > 0 && (
+                <span className="sb-badge">{pendingAvis}</span>
+              )}
             </NavLink>
           ))}
         </nav>
         <div className="sb-footer">
-          <button type="button" className="sb-logout" onClick={() => navigate("/login")}>
-            <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></span>
+          <button type="button" className="sb-logout" onClick={() => { localStorage.clear(); navigate("/login", { replace: true }); }}>
+            <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></span>
             <span className="sb-logout-lbl">Déconnexion</span>
           </button>
         </div>
@@ -416,17 +590,19 @@ export default function AjouterUtilisateur() {
         <header className="au-header">
           <div className="au-hdr-left">
             <button type="button" className="au-menu-btn" onClick={() => setSidebarMobile(v => !v)}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
             <span className="au-hdr-title">Ajouter un utilisateur</span>
           </div>
           <div className="au-hdr-right">
             <div className="user-chip">
               <div className="user-info">
-                <div className="user-name">Ahmed Mansour</div>
+                <div className="user-name">{adminInfo.name}</div>
                 <div className="user-role">Administrateur</div>
               </div>
-              <div className="user-avatar" onClick={() => navigate("/profilA")}>AM</div>
+              <div className="user-avatar" onClick={() => navigate("/profilA")}>
+                {adminInfo.photo ? <img src={adminInfo.photo} alt="profil" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : <span>{getAdminInitials(adminInfo.name)}</span>}
+              </div>
             </div>
           </div>
         </header>
@@ -435,10 +611,7 @@ export default function AjouterUtilisateur() {
           {/* Page header */}
           <div className="au-page-header">
             <div className="au-page-header-left">
-              <button type="button" className="au-back-btn" onClick={() => navigate("/listeU")}>
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                Retour
-              </button>
+
               <div>
                 <div className="au-page-title">Nouvel Utilisateur</div>
                 <div className="au-page-sub">Remplissez les informations pour créer un compte.</div>
@@ -447,11 +620,11 @@ export default function AjouterUtilisateur() {
           </div>
 
           <div className="au-form-layout">
-            <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               <div className="au-card">
                 <div className="au-card-header">
                   <div className="au-card-header-icon purple">
-                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#7c3aed" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M9 20H4v-2a3 3 0 015.356-1.857M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#7c3aed" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M9 20H4v-2a3 3 0 015.356-1.857M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                   </div>
                   <div>
                     <div className="au-card-title">Catégorie utilisateur</div>
@@ -461,7 +634,7 @@ export default function AjouterUtilisateur() {
                 <div className="au-category-tabs">
                   {USER_CATEGORIES.map(r => (
                     <button key={r.key} type="button" className={`au-category-btn${activeCategory === r.key ? " active" : ""}`}
-                      onClick={() => { setActiveCategory(r.key); setSubmitted(false); setErrors({}); }}>
+                      onClick={() => handleCategoryChange(r.key)}>
                       {r.key}
                     </button>
                   ))}
@@ -471,42 +644,150 @@ export default function AjouterUtilisateur() {
               <div className="au-card">
                 <div className="au-card-header">
                   <div className="au-card-header-icon blue">
-                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#2980e8" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#2980e8" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                   </div>
                   <div>
                     <div className="au-card-title">Nouveau {activeCategory}</div>
                     <div className="au-card-sub">Champs marqués * obligatoires</div>
                   </div>
                 </div>
-                <div className="au-progress-wrap" style={{ paddingTop:16 }}>
+                <div className="au-progress-wrap" style={{ paddingTop: 16 }}>
                   <div className="au-progress-label">
                     <span>Complétion du formulaire</span>
                     <span style={{ color: progress === 100 ? "var(--accent-green)" : "var(--brand-blue)" }}>{progress}%</span>
                   </div>
-                  <div className="au-progress-bar"><div className="au-progress-fill" style={{ width:`${progress}%` }}/></div>
+                  <div className="au-progress-bar"><div className="au-progress-fill" style={{ width: `${progress}%` }} /></div>
                 </div>
                 <div className="au-form-grid">
-                  <div className="au-field"><label className="au-label">Nom *</label><input type="text" className={`au-input${errors.nom ? " err" : ""}`} placeholder="Ex: Ben Salah" value={form.nom} onChange={e => handleChange("nom", e.target.value)}/>{errors.nom && <span className="au-error">{errors.nom}</span>}</div>
-                  <div className="au-field"><label className="au-label">Prénom *</label><input type="text" className={`au-input${errors.prenom ? " err" : ""}`} placeholder={activeCategory === "Passager" ? "Ex: Ines" : "Ex: Ahmed"} value={form.prenom} onChange={e => handleChange("prenom", e.target.value)}/>{errors.prenom && <span className="au-error">{errors.prenom}</span>}</div>
-                  <div className="au-field"><label className="au-label">CIN *</label><input type="text" className={`au-input${errors.cin ? " err" : ""}`} placeholder="12345678" value={form.cin} maxLength={8} onChange={e => handleChange("cin", e.target.value.replace(/\D/g,""))}/>{errors.cin && <span className="au-error">{errors.cin}</span>}</div>
-                  {activeCategory === "Passager" ? <div className="au-field"><label className="au-label">Numéro de passeport *</label><div className="au-phone-row"><select className="au-country-sel" value={form.passeportPays} onChange={e => handleChange("passeportPays", e.target.value)}>{COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.code} {c.name}</option>)}</select><input type="text" className={`au-input au-phone-local${errors.passeport ? " err" : ""}`} placeholder="0000000" value={form.passeport} onChange={e => handleChange("passeport", e.target.value.toUpperCase())}/></div>{errors.passeport && <span className="au-error">{errors.passeport}</span>}</div> : <div className="au-field"><label className="au-label">Nationalité *</label><select className={`au-select${errors.nationalite ? " err" : ""}`} value={form.nationalite} onChange={e => handleChange("nationalite", e.target.value)}><option value="Tunisienne">Tunisienne</option><option value="Française">Française</option><option value="Algérienne">Algérienne</option><option value="Marocaine">Marocaine</option></select>{errors.nationalite && <span className="au-error">{errors.nationalite}</span>}</div>}
-                  {activeCategory === "Passager" && <><div className="au-field"><label className="au-label">Nationalité *</label><select className={`au-select${errors.nationalite ? " err" : ""}`} value={form.nationalite} onChange={e => handleChange("nationalite", e.target.value)}><option value="Tunisienne">Tunisienne</option><option value="Française">Française</option><option value="Algérienne">Algérienne</option><option value="Marocaine">Marocaine</option></select>{errors.nationalite && <span className="au-error">{errors.nationalite}</span>}</div><div className="au-field"><label className="au-label">Date de naissance *</label><input type="date" min={minDateNaissance} max={maxDateNaissance} className={`au-input${errors.dateNaissance ? " err" : ""}`} value={form.dateNaissance} onChange={e => handleChange("dateNaissance", e.target.value)}/>{errors.dateNaissance && <span className="au-error">{errors.dateNaissance}</span>}</div></>}
-                  <div className="au-field full"><label className="au-label">Email *</label><input type="email" className={`au-input${errors.email ? " err" : ""}`} placeholder={activeCategory === "Passager" ? "passager@mail.tn" : "chauffeur@airops.tn"} value={form.email} onChange={e => handleChange("email", e.target.value)}/>{errors.email && <span className="au-error">{errors.email}</span>}</div>
-                  <div className="au-field full"><label className="au-label">Téléphone *</label><div className="au-phone-row"><select className="au-country-sel" value={form.phoneCountry} onChange={e => handleChange("phoneCountry", e.target.value)}>{COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.dial} {c.name}</option>)}</select><div className="au-phone-local"><input type="text" className={`au-input${errors.phoneLocal ? " err" : ""}`} placeholder="00000000" value={form.phoneLocal} onChange={e => handleChange("phoneLocal", e.target.value.replace(/\D/g,""))} maxLength={country.digits}/>{errors.phoneLocal && <span className="au-error">{errors.phoneLocal}</span>}</div></div></div>
+                  <div className="au-field"><label className="au-label">Nom *</label><input type="text" className={`au-input${errors.nom ? " err" : ""}`} placeholder="Ex: Ben Salah" value={form.nom} onChange={e => handleChange("nom", e.target.value)} />{errors.nom && <span className="au-error">{errors.nom}</span>}</div>
+                  <div className="au-field"><label className="au-label">Prénom *</label><input type="text" className={`au-input${errors.prenom ? " err" : ""}`} placeholder={activeCategory === "Passager" ? "Ex: Ines" : "Ex: Ahmed"} value={form.prenom} onChange={e => handleChange("prenom", e.target.value)} />{errors.prenom && <span className="au-error">{errors.prenom}</span>}</div>
+                  <div className="au-field">
+                    <label className="au-label">CIN *</label>
+                    {activeCategory === "Passager" ? (
+                      <div className="au-phone-row">
+                        <select className="au-country-sel" value={form.cinPays} onChange={e => handleChange("cinPays", e.target.value)}>
+                          {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.code} {c.name}</option>)}
+                        </select>
+                        <input type="text" className={`au-input au-phone-local${errors.cin ? " err" : ""}`}
+                          placeholder={form.cinPays === "TN" ? "8 chiffres" : "Alphanumérique"}
+                          value={form.cin}
+                          maxLength={form.cinPays === "TN" ? 8 : 20}
+                          onChange={e => handleChange("cin", form.cinPays === "TN" ? e.target.value.replace(/\D/g, "") : e.target.value.toUpperCase())} />
+                      </div>
+                    ) : (
+                      <input type="text" className={`au-input${errors.cin ? " err" : ""}`} placeholder="12345678" value={form.cin} maxLength={8} onChange={e => handleChange("cin", e.target.value.replace(/\D/g, ""))} />
+                    )}
+                    {errors.cin && <span className="au-error">{errors.cin}</span>}
+                  </div>
+                  {activeCategory === "Passager" ? (
+                    <>
+                      <div className="au-field">
+                        <label className="au-label">Numéro de passeport *</label>
+                        <div className="au-phone-row">
+                          <select className="au-country-sel" value={form.passeportPays} onChange={e => handleChange("passeportPays", e.target.value)}>
+                            {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.code} {c.name}</option>)}
+                          </select>
+                          <input type="text"
+                            className={`au-input au-phone-local${errors.passeport ? " err" : ""}`}
+                            placeholder={`${(COUNTRIES.find(c => c.code === form.passeportPays) || {}).passportDigits || 9} car.`}
+                            value={form.passeport}
+                            maxLength={(COUNTRIES.find(c => c.code === form.passeportPays) || {}).passportDigits || 15}
+                            onChange={e => handleChange("passeport", e.target.value.toUpperCase())} />
+                        </div>
+                        {errors.passeport && <span className="au-error">{errors.passeport}</span>}
+                      </div>
+                      <div className="au-field">
+                        <label className="au-label">Nationalité *</label>
+                        <select className={`au-select${errors.nationalite ? " err" : ""}`} value={form.nationalite} onChange={e => handleChange("nationalite", e.target.value)}>
+                          {COUNTRIES.map(c => <option key={c.code} value={c.name}>{c.name}</option>)}
+                        </select>
+                        {errors.nationalite && <span className="au-error">{errors.nationalite}</span>}
+                      </div>
+                      <div className="au-field">
+                        <label className="au-label">Date de naissance *</label>
+                        <input type="date" min={minDateNaissance} max={maxDateNaissance} className={`au-input${errors.dateNaissance ? " err" : ""}`} value={form.dateNaissance} onChange={e => handleChange("dateNaissance", e.target.value)} />
+                        {errors.dateNaissance && <span className="au-error">{errors.dateNaissance}</span>}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="au-field">
+                      <label className="au-label">Nationalité *</label>
+                      <input type="text" className="au-input" value="Tunisienne" readOnly style={{ background: "#f8fafc", color: "#64748b" }} />
+                    </div>
+                  )}
+                  <div className="au-field full"><label className="au-label">Email *</label><input type="email" className={`au-input${errors.email ? " err" : ""}`} placeholder={activeCategory === "Passager" ? "passager@mail.tn" : "chauffeur@airops.tn"} value={form.email} onChange={e => handleChange("email", e.target.value)} />{errors.email && <span className="au-error">{errors.email}</span>}</div>
+                  <div className="au-field full">
+                    <label className="au-label">Téléphone *</label>
+                    <div className="au-phone-row">
+                      {activeCategory === "Passager" ? (
+                        <select className="au-country-sel" value={form.phoneCountry} onChange={e => handleChange("phoneCountry", e.target.value)}>
+                          {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.dial} ({c.name})</option>)}
+                        </select>
+                      ) : (
+                        <div className="au-country-sel" style={{ display: "flex", alignItems: "center", gap: 6, background: "#f8fafc", color: "#64748b", pointerEvents: "none" }}>🇹🇳 +216</div>
+                      )}
+                      <div className="au-phone-local">
+                        <input type="tel" inputMode="numeric" className={`au-input${errors.phoneLocal ? " err" : ""}`}
+                          placeholder={activeCategory === "Chauffeur" ? "8 chiffres" : "0".repeat(country.digits)}
+                          value={form.phoneLocal}
+                          onChange={e => handleChange("phoneLocal", e.target.value.replace(/\D/g, ""))}
+                          maxLength={activeCategory === "Chauffeur" ? 8 : country.digits} />
+                        {errors.phoneLocal && <span className="au-error">{errors.phoneLocal}</span>}
+                      </div>
+                    </div>
+                  </div>
 
-                  {activeCategory === "Chauffeur" && <><div className="au-field"><label className="au-label">Numéro de permis *</label><input type="text" className={`au-input${errors.numeroPermis ? " err" : ""}`} placeholder="Ex: A123456" value={form.numeroPermis} onChange={e => handleChange("numeroPermis", e.target.value)}/>{errors.numeroPermis && <span className="au-error">{errors.numeroPermis}</span>}</div><div className="au-field"><label className="au-label">Date d'expiration *</label><input type="date" className={`au-input${errors.dateExpiration ? " err" : ""}`} value={form.dateExpiration} onChange={e => handleChange("dateExpiration", e.target.value)}/>{errors.dateExpiration && <span className="au-error">{errors.dateExpiration}</span>}</div></>}
-                  <div className="au-field full"><label className="au-label">Mot de passe *</label><input type="password" className={`au-input${errors.password ? " err" : ""}`} placeholder="••••••••" value={form.password} onChange={e => handleChange("password", e.target.value)}/>{errors.password && <span className="au-error">{errors.password}</span>}</div>
+                  {activeCategory === "Chauffeur" && (
+                    <>
+                      <div className="au-field">
+                        <label className="au-label">Numéro de permis *</label>
+                        <input type="text" className={`au-input${errors.numeroPermis ? " err" : ""}`}
+                          placeholder="12345678" value={form.numeroPermis} maxLength={8}
+                          onChange={e => handleChange("numeroPermis", e.target.value.replace(/\D/g, ""))} />
+                        {errors.numeroPermis && <span className="au-error">{errors.numeroPermis}</span>}
+                      </div>
+                      <div className="au-field">
+                        <label className="au-label">Date d'expiration *</label>
+                        <input type="date" className={`au-input${errors.dateExpiration ? " err" : ""}`} value={form.dateExpiration} onChange={e => handleChange("dateExpiration", e.target.value)} />
+                        {errors.dateExpiration && <span className="au-error">{errors.dateExpiration}</span>}
+                      </div>
+                    </>
+                  )}
+                  <div className="au-field full">
+                    <label className="au-label">Mot de passe * <span style={{ fontWeight: 400, textTransform: "none", color: "var(--text-muted)", marginLeft: 4 }}>(min. 8 car., 1 majuscule, 1 chiffre)</span></label>
+                    <input type="password" className={`au-input${errors.password ? " err" : ""}`} placeholder="••••••••" value={form.password} onChange={e => handleChange("password", e.target.value)} />
+                    {errors.password && <span className="au-error">{errors.password}</span>}
+                    {form.password.length > 0 && (() => {
+                      const s = pwdStrength(form.password);
+                      return (
+                        <>
+                          <div style={{ display: "flex", gap: 4, marginTop: 5 }}>
+                            {[1, 2, 3].map(i => <div key={i} style={{ flex: 1, height: 3, borderRadius: 3, background: i <= s ? pwdBarColors[s] : "#e4ecf4", transition: "background 0.3s" }} />)}
+                          </div>
+                          <span style={{ fontSize: 10.5, color: pwdBarColors[s], marginTop: 2 }}>Force : <strong>{pwdLabels[s]}</strong></span>
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <div className="au-field full">
+                    <label className="au-label">Confirmer le mot de passe *</label>
+                    <input type="password" className={`au-input${errors.confirmPwd ? " err" : ""}`} placeholder="Répéter le mot de passe" value={form.confirmPwd} onChange={e => handleChange("confirmPwd", e.target.value)} />
+                    {errors.confirmPwd && <span className="au-error">{errors.confirmPwd}</span>}
+                    {!errors.confirmPwd && form.confirmPwd && form.confirmPwd === form.password && <span style={{ fontSize: 10.5, color: "#16a34a", marginTop: 2 }}>✓ Les mots de passe correspondent</span>}
+                  </div>
                 </div>
-                <div className="au-form-actions"><button type="button" className="au-btn-cancel" onClick={() => navigate("/listeU")}>Annuler</button><button type="button" className="au-btn-save" onClick={handleSubmit} disabled={progress < 25}><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>Enregistrer le {activeCategory.toLowerCase()}</button></div>
+                <div className="au-form-actions"><button type="button" className="au-btn-cancel" onClick={() => navigate("/listeU")}>Annuler</button><button type="button" className="au-btn-save" onClick={handleSubmit} disabled={progress < 25}><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Enregistrer le {activeCategory.toLowerCase()}</button></div>
               </div>
             </div>
-            <div><div className="au-card au-preview-card"><div className="au-card-header"><div className="au-card-header-icon green"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#16a34a" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></div><div><div className="au-card-title">Aperçu</div><div className="au-card-sub">Prévisualisation en temps réel</div></div></div><div className="au-preview-body"><div className="au-avatar-preview">{activeCategory === "Chauffeur" ? "CH" : initials(previewName)}</div><div><div className="au-preview-name">{previewName}</div><div className="au-preview-email">{previewEmail}</div></div><div className="au-preview-divider"/><div style={{ width:"100%", display:"flex", flexDirection:"column", gap:10 }}><div className="au-preview-row"><span className="au-preview-lbl">CIN</span><span className="au-preview-val">{form.cin || "Non renseigné"}</span></div><div className="au-preview-row"><span className="au-preview-lbl">Téléphone</span><span className="au-preview-val">{form.phoneLocal ? `${country.dial} ${form.phoneLocal}` : "Non renseigné"}</span></div><div className="au-preview-row"><span className="au-preview-lbl">{activeCategory === "Passager" ? "Passeport" : "N° permis"}</span><span className="au-preview-val">{activeCategory === "Passager" ? (form.passeport || "Non renseigné") : (form.numeroPermis || "Non renseigné")}</span></div><div className="au-preview-row"><span className="au-preview-lbl">Catégorie</span><span className={`au-role-badge ${activeCategory}`}>{activeCategory}</span></div></div></div></div></div>
+            <div><div className="au-card au-preview-card"><div className="au-card-header"><div className="au-card-header-icon green"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#16a34a" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg></div><div><div className="au-card-title">Aperçu</div><div className="au-card-sub">Prévisualisation en temps réel</div></div></div><div className="au-preview-body"><div className="au-avatar-preview">{activeCategory === "Chauffeur" ? "CH" : initials(previewName)}</div><div><div className="au-preview-name">{previewName}</div><div className="au-preview-email">{previewEmail}</div></div><div className="au-preview-divider" /><div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 10 }}><div className="au-preview-row"><span className="au-preview-lbl">CIN</span><span className="au-preview-val">{form.cin || "Non renseigné"}</span></div><div className="au-preview-row"><span className="au-preview-lbl">Téléphone</span><span className="au-preview-val">{form.phoneLocal ? `${country.dial} ${form.phoneLocal}` : "Non renseigné"}</span></div><div className="au-preview-row"><span className="au-preview-lbl">{activeCategory === "Passager" ? "Passeport" : "N° permis"}</span><span className="au-preview-val">{activeCategory === "Passager" ? (form.passeport || "Non renseigné") : (form.numeroPermis || "Non renseigné")}</span></div><div className="au-preview-row"><span className="au-preview-lbl">Catégorie</span><span className={`au-role-badge ${activeCategory}`}>{activeCategory}</span></div></div></div></div></div>
           </div>
         </main>
 
         <footer className="au-footer">
-          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-            <svg width="12" height="12" fill="#22c55e" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#22c55e" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
             Système de gestion sécurisé — AirOps Transport 2026
           </div>
           <span>Nouvel utilisateur</span>

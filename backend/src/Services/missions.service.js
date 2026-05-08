@@ -21,7 +21,7 @@ const {
   findVehicleById,
   updateVehicle,
 } = require("../Repository/vehicle.repository");
-const { notifyUser } = require("./notifications.service");
+const { notifyUser, notifyResponsables } = require("./notifications.service");
 const { logAction } = require("./logs.service");
 const { getDayRange } = require("../utils/date");
 
@@ -337,6 +337,10 @@ const startMission = async (missionId, driverId) => {
     status: "OCCUPE",
   });
 
+  await notifyResponsables(`Mission ${missionId} démarrée par le chauffeur`, {
+    type: "MISSION",
+    missionId,
+  });
   await logAction(driverId, `MISSION_STARTED:${missionId}`);
   return updated;
 };
@@ -368,7 +372,45 @@ const endMission = async (missionId, driverId) => {
     status: "DISPONIBLE",
   });
 
+  await notifyResponsables(`Mission ${missionId} terminée par le chauffeur`, {
+    type: "MISSION",
+    missionId,
+  });
   await logAction(driverId, `MISSION_ENDED:${missionId}`);
+  return updated;
+};
+
+const cancelMission = async (missionId, driverId) => {
+  const mission = await findMissionById(missionId);
+  if (!mission) {
+    throw new AppError("Mission not found", 404);
+  }
+
+  const missionDriverId = mission.driverId._id
+    ? mission.driverId._id.toString()
+    : mission.driverId.toString();
+  if (missionDriverId !== driverId) {
+    throw new AppError("Forbidden", 403);
+  }
+
+  if (["TERMINEE", "ANNULEE"].includes(mission.status)) {
+    throw new AppError("Mission already completed or cancelled", 409);
+  }
+
+  const updated = await updateMission(missionId, {
+    status: "ANNULEE",
+  });
+
+  await updateUserById(driverId, { availability: "DISPONIBLE" });
+  await updateVehicle(mission.vehicleId._id || mission.vehicleId, {
+    status: "DISPONIBLE",
+  });
+
+  await notifyResponsables(`Mission ${missionId} annulée par le chauffeur`, {
+    type: "MISSION",
+    missionId,
+  });
+  await logAction(driverId, `MISSION_CANCELLED:${missionId}`);
   return updated;
 };
 
@@ -380,4 +422,5 @@ module.exports = {
   updateMissionByManager,
   startMission,
   endMission,
+  cancelMission,
 };

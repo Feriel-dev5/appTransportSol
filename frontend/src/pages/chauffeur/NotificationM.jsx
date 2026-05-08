@@ -4,8 +4,12 @@ import {
   fetchNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  deleteNotification,
+  deleteAllNotifications,
   formatTimeAgo,
 } from "../../services/chauffeurService";
+import { useProfileSync } from "../../services/useProfileSync";
+import { useChauffeurNotifications } from "../../services/useChauffeurNotifications";
 
 /* ─── Inject CSS ────────────────────────────────────────── */
 const NOTIF_CSS = `
@@ -101,9 +105,8 @@ const NOTIF_CSS = `
   .np-card-body{flex:1;min-width:0;}
   .np-card-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
   .np-card-ref{font-size:14px;font-weight:800;color:var(--brand-blue);}
-  .np-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;}
-  .np-badge.new{background:#fce7f3;color:#be185d;}
-  .np-badge.unread{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
+  .np-badge.new{background:#e0f2fe;color:#0369a1;}
+  .np-badge.unread{background:#eff6ff;color:#2563eb;border:1px solid #dbeafe;}
   .np-card-route{font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
   .np-arrow{color:var(--brand-blue);}
   .np-card-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
@@ -148,8 +151,8 @@ const NOTIF_CSS = `
   .nm-confirm-ok:hover{transform:translateY(-1px);}
 
   .nm-toast{position:fixed;top:18px;right:18px;z-index:600;background:var(--brand-dark);color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);border-left:3px solid var(--brand-light);animation:nmToast 0.3s ease;}
-  .nm-toast.green{border-left-color:#4ade80;}
-  .nm-toast.red{border-left-color:#f87171;}
+  .nm-toast.green{border-left-color:#3b82f6;}
+  .nm-toast.red{border-left-color:#1e40af;}
   @keyframes nmToast{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
 
   @media(max-width:768px){
@@ -178,11 +181,31 @@ function saveData(d) { try { localStorage.setItem(LS_KEY,JSON.stringify(d)); } c
 
 /* ─── Same navItems as DashbordCH ─────────── */
 const navItems = [
-  { label:"Tableau de Bord",     to:"/dashbordchauffeur", icon:<svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> },
-  { label:"Historique Missions", to:"/historiqueM",       icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
-  { label:"Réclamations",        to:"/reclamationsCH",    icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg> },
-  { label:"Navigation",          to:"/navigationCH",      icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6-3V7m6 16l4.553-2.276A1 1 0 0021 19.382V8.618a1 1 0 00-.553-.894L15 5m0 14V5"/></svg> },
-  { label:"Notifications",       to:"/notificationM",     icon:<svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> },
+  {
+    label: "Tableau de Bord",
+    to: "/dashbordchauffeur",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
+  },
+  {
+    label: "Historique Missions",
+    to: "/historiqueM",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
+  },
+  {
+    label: "Incidents",
+    to: "/incidentsCH",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
+  },
+  {
+    label: "Navigation",
+    to: "/navigationCH",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>,
+  },
+  {
+    label: "Notifications",
+    to: "/notificationM",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
+  },
 ];
 
 /* ─── Detail Modal ─────────────────────────── */
@@ -245,6 +268,8 @@ function ConfirmDelete({ notif, onConfirm, onClose }) {
 /* ─── MAIN ─────────────────────────────────── */
 export default function NotificationM() {
   const navigate = useNavigate();
+  const { nom: nomCH, photo, initials } = useProfileSync();
+  const { unreadCount: globalUnread, updateCount } = useChauffeurNotifications();
   const [notifs,        setNotifs]        = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [collapsed,     setCollapsed]     = useState(false);
@@ -303,23 +328,33 @@ export default function NotificationM() {
       await markAllNotificationsAsRead();
       setNotifs(p => p.map(n => ({ ...n, lu: true, statut: "LU" })));
       setToast({ msg: "✓ Toutes les notifications marquées comme lues.", type: "green" });
+      updateCount();
     } catch { setToast({ msg: "Erreur.", type: "" }); }
   };
   const markRead = async (id) => {
     try {
       await markNotificationAsRead(id);
       setNotifs(p => p.map(n => n.id === id ? { ...n, lu: true, statut: "LU" } : n));
+      updateCount();
     } catch {/* silently fail */}
   };
   const openDetail  = n => { markRead(n.id); setDetail(n); };
-  const deleteNotif = id => { setNotifs(p => p.filter(n => n.id !== id)); setToast({ msg: "✓ Notification supprimée.", type: "red" }); };
-  const deleteAll   = () => { setNotifs([]); setToast({ msg: "✓ Toutes les notifications supprimées.", type: "red" }); };
+  const deleteNotif = async (id) => {
+    try {
+      await deleteNotification(id);
+      setNotifs(p => p.filter(n => n.id !== id));
+      setToast({ msg: "✓ Notification supprimée.", type: "red" });
+    } catch { setToast({ msg: "Erreur.", type: "" }); }
+  };
+  const deleteAll   = async () => {
+    try {
+      await deleteAllNotifications();
+      setNotifs([]);
+      setToast({ msg: "✓ Toutes les notifications supprimées.", type: "red" });
+    } catch { setToast({ msg: "Erreur.", type: "" }); }
+  };
 
-  const profile  = (()=>{try{const p=localStorage.getItem("airops_ch_profile_v1");return p?JSON.parse(p):{nom:"Ahmed Ben Salem",photo:""};}catch{return{nom:"Ahmed Ben Salem",photo:""};} })();
-  const nomCH    = profile.nom||"Ahmed Ben Salem";
-  const photo    = profile.photo||"";
-  const initials = nomCH.split(" ").map(x=>x[0]).slice(0,2).join("").toUpperCase()||"AB";
-  const navWithBadge = navItems.map(i=>i.to==="/notificationM"?{...i,badge:unread>0?unread:undefined}:i);
+  const navWithBadge = navItems.map(i=>i.to==="/notificationM"?{...i,badge:globalUnread>0?globalUnread:undefined}:i);
 
   return (
     <div className="chw">
@@ -331,7 +366,7 @@ export default function NotificationM() {
           <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </button>
         <div className="sb-brand" onClick={()=>navigate("/")}>
-          <div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg></div>
+          <div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12"/></svg></div>
           <div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">ESPACE CHAUFFEUR</span></div>
         </div>
         <div className="sb-label">Navigation</div>
@@ -346,7 +381,7 @@ export default function NotificationM() {
         </nav>
         <div className="sb-footer">
           <div className="sb-label" style={{paddingTop:0}}>Compte</div>
-          <button type="button" className="sb-logout" onClick={()=>navigate("/login")}>
+          <button type="button" className="sb-logout" onClick={()=>{localStorage.clear(); navigate("/login",{replace:true});}}>
             <span style={{flexShrink:0}}><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></span>
             <span className="sb-logout-lbl">Déconnexion</span>
           </button>

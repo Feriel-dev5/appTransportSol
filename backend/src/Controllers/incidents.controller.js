@@ -6,6 +6,8 @@ const {
   getIncidents,
   getDriverIncidents,
   getPassagerIncidents,
+  removeIncident,
+  removeAllMyIncidents,
 } = require("../Services/incidents.service");
 
 const createIncident = asyncHandler(async (req, res) => {
@@ -35,4 +37,21 @@ const listMyIncidents = asyncHandler(async (req, res) => {
   res.json({ page: pagination.page, limit: pagination.limit, data: incidents });
 });
 
-module.exports = { createIncident, createPassagerIncident, listIncidents, listMyIncidents };
+const deleteIncident = asyncHandler(async (req, res) => {
+  await removeIncident(req.params.id, req.user.id, req.user.role);
+  res.json({ message: "Incident deleted successfully" });
+});
+
+const deleteAllMyIncidents = asyncHandler(async (req, res) => {
+  await removeAllMyIncidents(req.user.id, req.user.role);
+  res.json({ message: "All incidents deleted successfully" });
+});
+
+module.exports = {
+  createIncident,
+  createPassagerIncident,
+  listIncidents,
+  listMyIncidents,
+  deleteIncident,
+  deleteAllMyIncidents,
+};
