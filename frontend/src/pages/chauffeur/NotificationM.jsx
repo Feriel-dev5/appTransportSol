@@ -4,14 +4,14 @@ import {
   fetchNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
-  deleteNotification,
-  deleteAllNotifications,
   formatTimeAgo,
 } from "../../services/chauffeurService";
 import { useProfileSync } from "../../services/useProfileSync";
 import { useChauffeurNotifications } from "../../services/useChauffeurNotifications";
 
-/* ─── Inject CSS ────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   CSS — COPIE EXACTE de NotificationM, préfixe .chw → .nrw
+   ════════════════════════════════════════════════════════════════ */
 const NOTIF_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
@@ -23,7 +23,9 @@ const NOTIF_CSS = `
     --shadow-sm:0 2px 12px rgba(13,43,94,0.07); --shadow-md:0 8px 32px rgba(13,43,94,0.13); --shadow-lg:0 20px 50px rgba(13,43,94,0.18);
     --tr:all 0.25s ease;
   }
-  .chw{display:flex;height:100vh;overflow:hidden;background:var(--bg-page);font-family:'DM Sans','Segoe UI',sans-serif;color:var(--text-primary);}
+  /* ── wrapper ── */
+  .nrw{display:flex;height:100vh;overflow:hidden;background:var(--bg-page);font-family:'DM Sans','Segoe UI',sans-serif;color:var(--text-primary);}
+  /* ── sidebar (identique NotifM) ── */
   .sidebar{width:var(--sidebar-full);background:var(--brand-dark);display:flex;flex-direction:column;flex-shrink:0;position:relative;z-index:30;transition:width 0.3s ease;box-shadow:4px 0 24px rgba(0,0,0,0.2);overflow:hidden;}
   .sidebar.collapsed{width:var(--sidebar-mini);}
   .sb-brand{display:flex;align-items:center;gap:10px;padding:18px 13px 16px;border-bottom:1px solid rgba(255,255,255,0.07);cursor:pointer;flex-shrink:0;min-height:68px;overflow:hidden;}
@@ -57,13 +59,14 @@ const NOTIF_CSS = `
   .sb-logout-lbl{transition:opacity 0.2s,max-width 0.3s;max-width:160px;overflow:hidden;}
   .sidebar.collapsed .sb-logout-lbl{opacity:0;max-width:0;}
   .sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:25;backdrop-filter:blur(2px);}
-  .chm{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
-  .chh{height:var(--header-h);background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0;box-shadow:var(--shadow-sm);}
-  .chh-left{display:flex;align-items:center;gap:12px;}
-  .chh-right{display:flex;align-items:center;gap:10px;}
-  .chh-menu-btn{display:none;background:none;border:none;cursor:pointer;color:var(--text-sec);padding:6px;border-radius:8px;transition:var(--tr);}
-  .chh-menu-btn:hover{background:var(--bg-page);color:var(--text-primary);}
-  .chh-title{font-size:15px;font-weight:700;color:var(--text-primary);}
+  /* ── main ── */
+  .nrm{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+  .nrh{height:var(--header-h);background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0;box-shadow:var(--shadow-sm);}
+  .nrh-left{display:flex;align-items:center;gap:12px;}
+  .nrh-right{display:flex;align-items:center;gap:10px;}
+  .nrh-menu-btn{display:none;background:none;border:none;cursor:pointer;color:var(--text-sec);padding:6px;border-radius:8px;transition:var(--tr);}
+  .nrh-menu-btn:hover{background:var(--bg-page);color:var(--text-primary);}
+  .nrh-title{font-size:15px;font-weight:700;color:var(--text-primary);}
   .search-wrap{position:relative;}
   .search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;}
   .search-input{width:230px;padding:9px 12px 9px 34px;border:1.5px solid var(--border);border-radius:22px;background:var(--bg-page);font-size:13px;font-family:inherit;color:var(--text-primary);outline:none;transition:var(--tr);}
@@ -74,18 +77,18 @@ const NOTIF_CSS = `
   .user-role{font-size:11px;color:var(--text-muted);}
   .user-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--brand-blue),var(--brand-mid));display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;box-shadow:0 3px 10px rgba(41,128,232,0.35);border:2.5px solid rgba(41,128,232,0.2);flex-shrink:0;overflow:hidden;}
   .user-avatar img{width:100%;height:100%;object-fit:cover;}
-  .chc{flex:1;overflow-y:auto;padding:26px;}
-  .ch-footer{padding:12px 26px;background:#fff;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-muted);flex-shrink:0;}
+  .nrc{flex:1;overflow-y:auto;padding:26px;}
+  .ch-footer-r{padding:12px 26px;background:#fff;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-muted);flex-shrink:0;}
   .ch-footer-brand{display:flex;align-items:center;gap:6px;font-weight:600;}
 
-  /* ── Notification page ── */
+  /* ══ NOTIFICATION PAGE — identique NotificationM ══ */
   .np-page-title{font-size:25px;font-weight:800;color:var(--brand-dark);letter-spacing:-0.5px;margin-bottom:4px;}
   .np-page-title span{color:var(--brand-blue);}
   .np-page-sub{font-size:13px;color:var(--text-muted);margin-bottom:22px;}
 
   .np-main-card{background:#fff;border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow-sm);overflow:hidden;}
   .np-toolbar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap;}
-  .np-filters{display:flex;align-items:center;gap:6px;}
+  .np-filters{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
   .np-filter-btn{padding:7px 16px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:all 0.2s;color:var(--text-sec);}
   .np-filter-btn:hover{border-color:var(--brand-blue);color:var(--brand-blue);}
   .np-filter-btn.active{background:#eff6ff;border-color:var(--brand-blue);color:var(--brand-blue);}
@@ -94,6 +97,7 @@ const NOTIF_CSS = `
   .np-act-btn:hover{border-color:var(--brand-blue);color:var(--brand-blue);background:#eff6ff;}
   .np-act-btn.danger:hover{border-color:#ef4444;color:#ef4444;background:#fef2f2;}
 
+  /* ── card list ── */
   .np-list{padding:12px 16px;display:flex;flex-direction:column;gap:10px;}
   .np-card{border:1.5px solid var(--border);border-radius:16px;padding:16px 18px;transition:all 0.2s;position:relative;overflow:hidden;cursor:pointer;}
   .np-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:16px 0 0 16px;background:transparent;}
@@ -101,18 +105,32 @@ const NOTIF_CSS = `
   .np-card.unread::before{background:var(--brand-blue);}
   .np-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
   .np-card-inner{display:flex;align-items:flex-start;gap:14px;}
-  .np-card-icon{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#dbeafe,#93c5fd);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .np-card-icon{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#dbeafe,#93c5fd);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;}
   .np-card-body{flex:1;min-width:0;}
   .np-card-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
   .np-card-ref{font-size:14px;font-weight:800;color:var(--brand-blue);}
-  .np-badge.new{background:#e0f2fe;color:#0369a1;}
-  .np-badge.unread{background:#eff6ff;color:#2563eb;border:1px solid #dbeafe;}
-  .np-card-route{font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-  .np-arrow{color:var(--brand-blue);}
+  .np-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+  .np-badge.cat-demande{background:#fff7ed;color:#ea580c;}
+  .np-badge.cat-reclam{background:#fef2f2;color:#dc2626;}
+  .np-badge.unread{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
+  .np-card-title{font-size:13.5px;font-weight:700;color:var(--text-primary);margin-bottom:4px;}
+  .np-card-desc{font-size:12px;color:var(--text-sec);line-height:1.5;margin-bottom:6px;}
   .np-card-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-  .np-meta-item{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text-sec);font-weight:500;}
+  .np-tag{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+  .np-tag.orange{color:var(--accent-orange);background:#fff7ed;}
+  .np-tag.blue{color:var(--brand-blue);background:#eff6ff;}
+  .np-tag.green{color:var(--accent-green);background:#f0fdf4;}
+  .np-tag.red{color:var(--accent-red);background:#fef2f2;}
+  .np-tag.sky{color:#0ea5e9;background:#f0f9ff;}
   .np-time{font-size:10px;font-weight:700;color:var(--text-muted);background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:3px 9px;white-space:nowrap;}
+  /* ── card footer buttons (identiques NotifM) ── */
   .np-card-footer{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #f1f5f9;flex-wrap:wrap;}
+  .np-btn-primary{display:flex;align-items:center;gap:6px;padding:8px 14px;background:linear-gradient(135deg,var(--brand-blue),var(--brand-mid));color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;transition:all 0.2s;}
+  .np-btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(41,128,232,0.35);}
+  .np-btn-accept{display:flex;align-items:center;gap:5px;padding:8px 14px;border:1.5px solid #bbf7d0;background:#f0fdf4;color:var(--accent-green);border-radius:10px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;transition:all 0.2s;}
+  .np-btn-accept:hover{background:var(--accent-green);border-color:var(--accent-green);color:#fff;}
+  .np-btn-refuse{display:flex;align-items:center;gap:5px;padding:8px 14px;border:1.5px solid #fecaca;background:#fef2f2;color:var(--accent-red);border-radius:10px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;transition:all 0.2s;}
+  .np-btn-refuse:hover{background:var(--accent-red);border-color:var(--accent-red);color:#fff;}
   .np-btn-mark{display:flex;align-items:center;gap:5px;padding:8px 14px;border:1.5px solid var(--border);color:var(--text-sec);background:#fff;border-radius:10px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:all 0.2s;}
   .np-btn-mark:hover{background:#f0fdf4;border-color:#22c55e;color:#16a34a;}
   .np-btn-del{display:flex;align-items:center;gap:5px;padding:8px 14px;border:1.5px solid #fecaca;color:#ef4444;background:none;border-radius:10px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;transition:all 0.2s;}
@@ -121,28 +139,11 @@ const NOTIF_CSS = `
   .np-empty{padding:60px 22px;text-align:center;}
   .np-empty-icon{width:72px;height:72px;margin:0 auto 18px;border-radius:20px;background:#eff6ff;display:flex;align-items:center;justify-content:center;}
 
-  /* ── Modals ── */
+  /* ── modals (identiques NotifM) ── */
   .nm-ov{position:fixed;inset:0;z-index:100;background:rgba(13,43,94,0.45);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;animation:nmFade 0.2s ease;}
   @keyframes nmFade{from{opacity:0}to{opacity:1}}
-  .nm-box{background:#fff;border-radius:24px;width:100%;max-width:520px;overflow:hidden;box-shadow:var(--shadow-lg);animation:nmUp 0.25s ease;max-height:90vh;display:flex;flex-direction:column;}
-  @keyframes nmUp{from{opacity:0;transform:translateY(24px) scale(0.97)}to{opacity:1;transform:none}}
-  .nm-head{background:linear-gradient(135deg,var(--brand-dark),var(--brand-mid));padding:22px 24px;color:#fff;flex-shrink:0;}
-  .nm-head-row{display:flex;align-items:flex-start;justify-content:space-between;}
-  .nm-close-btn{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.14);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;transition:var(--tr);}
-  .nm-close-btn:hover{background:rgba(255,255,255,0.26);transform:rotate(90deg);}
-  .nm-body{padding:18px 24px;overflow-y:auto;flex:1;}
-  .nm-field{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #f1f5f9;}
-  .nm-field:last-child{border-bottom:none;}
-  .nm-field-lbl{font-size:11px;font-weight:600;color:var(--text-muted);}
-  .nm-field-val{font-size:13px;font-weight:700;color:var(--text-primary);text-align:right;max-width:65%;}
-  .nm-foot{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;}
-  .nm-btn-close{padding:9px 20px;font-size:13px;font-family:inherit;color:var(--text-sec);border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;transition:var(--tr);}
-  .nm-btn-close:hover{background:var(--bg-page);}
-  .nm-btn-nav{display:flex;align-items:center;gap:7px;padding:9px 20px;font-size:13px;font-family:inherit;font-weight:700;color:#fff;border:none;border-radius:10px;background:linear-gradient(135deg,var(--brand-blue),var(--brand-mid));cursor:pointer;transition:var(--tr);}
-  .nm-btn-nav:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(41,128,232,0.35);}
-
-  /* confirm box */
   .nm-confirm-box{background:#fff;border-radius:24px;width:100%;max-width:400px;padding:28px;box-shadow:var(--shadow-lg);animation:nmUp 0.25s ease;text-align:center;}
+  @keyframes nmUp{from{opacity:0;transform:translateY(24px) scale(0.97)}to{opacity:1;transform:none}}
   .nm-confirm-icon{width:64px;height:64px;border-radius:20px;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
   .nm-confirm-btns{display:flex;gap:10px;margin-top:22px;}
   .nm-confirm-cancel{flex:1;padding:11px;font-size:13px;font-family:inherit;font-weight:600;color:var(--text-sec);border:1.5px solid var(--border);border-radius:12px;background:#fff;cursor:pointer;transition:all 0.2s;}
@@ -151,158 +152,128 @@ const NOTIF_CSS = `
   .nm-confirm-ok:hover{transform:translateY(-1px);}
 
   .nm-toast{position:fixed;top:18px;right:18px;z-index:600;background:var(--brand-dark);color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);border-left:3px solid var(--brand-light);animation:nmToast 0.3s ease;}
-  .nm-toast.green{border-left-color:#3b82f6;}
-  .nm-toast.red{border-left-color:#1e40af;}
+  .nm-toast.green{border-left-color:#4ade80;}
+  .nm-toast.red{border-left-color:#f87171;}
   @keyframes nmToast{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
 
   @media(max-width:768px){
     .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:30;transform:translateX(-100%);width:var(--sidebar-full)!important;transition:transform 0.3s ease!important;}
     .sidebar.open{transform:translateX(0);}.sidebar.collapsed{transform:translateX(-100%);}.sidebar.collapsed.open{transform:translateX(0);}
-    .sb-overlay{display:block;}.chh-menu-btn{display:flex;}.sb-toggle-btn{display:none;}
-    .chc{padding:16px;}.chh{padding:0 16px;}.search-wrap{display:none;}
+    .sb-overlay{display:block;}.nrh-menu-btn{display:flex;}.sb-toggle-btn{display:none;}
+    .nrc{padding:16px;}.nrh{padding:0 16px;}.search-wrap{display:none;}.user-role{display:none;}
   }
-  @media(max-width:480px){.np-card-footer{flex-wrap:wrap;}}
+  @media(max-width:480px){.np-card-footer{flex-wrap:wrap;}.nrc{padding:12px;}}
 `;
 
-if (typeof document !== "undefined" && !document.getElementById("airops-notif-css")) {
-  const s = document.createElement("style"); s.id="airops-notif-css"; s.textContent=NOTIF_CSS; document.head.appendChild(s);
+if (typeof document !== "undefined" && !document.getElementById("airops-notifm2-css")) {
+  const s = document.createElement("style"); s.id = "airops-notifm2-css"; s.textContent = NOTIF_CSS; document.head.appendChild(s);
 }
 
-/* ─── Data ─────────────────────────────────── */
-const LS_KEY = "airops_notif_ch_v1";
-const initialNotifications = [
-  { id:1, ref:"#MSN-4501", titre:"Nouvelle mission assignée", client:"Mme. Salma Ben Youssef",  depart:"Aéroport Tunis Carthage",    arrivee:"Hôtel Laico Tunis",      date:"08/04/2026", heure:"14:30", statut:"NOUVEAU", passagers:2, bagage:"2 valises",     vehicule:"Mercedes Classe E — TN 456 AB", note:"Cliente VIP — ponctualité requise", lu:false },
-  { id:2, ref:"#MSN-4502", titre:"Nouvelle mission assignée", client:"M. Hatem Gharbi",          depart:"Hôtel El Mouradi Gammarth",  arrivee:"Aéroport Tunis Carthage", date:"08/04/2026", heure:"16:00", statut:"NOUVEAU", passagers:1, bagage:"1 valise cabine",vehicule:"BMW Série 5 — TN 789 CD",       note:"Départ vers vol international",   lu:false },
-  { id:3, ref:"#MSN-4503", titre:"Nouvelle mission assignée", client:"Mme. Ines Jaziri",         depart:"Aéroport Enfidha",           arrivee:"Résidence Les Jasmins",   date:"09/04/2026", heure:"09:15", statut:"NOUVEAU", passagers:3, bagage:"3 valises",     vehicule:"Audi A6 — TN 321 EF",          note:"Prévoir assistance bagages",      lu:true  },
-  { id:4, ref:"#MSN-4504", titre:"Nouvelle mission assignée", client:"M. Karim Belhaj",          depart:"Centre-ville Sousse",        arrivee:"Aéroport Monastir",       date:"09/04/2026", heure:"11:45", statut:"NOUVEAU", passagers:2, bagage:"2 sacs",         vehicule:"Toyota Camry — TN 654 GH",     note:"Client demande arrivée 20 min avant", lu:true },
-];
-function loadData()  { try { const s=localStorage.getItem(LS_KEY); return s?JSON.parse(s):initialNotifications; } catch { return initialNotifications; } }
-function saveData(d) { try { localStorage.setItem(LS_KEY,JSON.stringify(d)); } catch {} }
+const TABS = ["Tout", "Demandes"];
 
-/* ─── Same navItems as DashbordCH ─────────── */
-const navItems = [
-  {
-    label: "Tableau de Bord",
-    to: "/dashbordchauffeur",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
-  },
-  {
-    label: "Historique Missions",
-    to: "/historiqueM",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
-  },
-  {
-    label: "Incidents",
-    to: "/incidentsCH",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
-  },
-  {
-    label: "Navigation",
-    to: "/navigationCH",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>,
-  },
-  {
-    label: "Notifications",
-    to: "/notificationM",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
-  },
-];
+const TYPE_MAP = {
+  VALIDATION: { category: "Demandes", emoji: "✅", tag: "Confirmée", tagColor: "green" },
+  REJET: { category: "Demandes", emoji: "❌", tag: "Refusée", tagColor: "red" },
+  MISSION: { category: "Demandes", emoji: "🚗", tag: "Mission", tagColor: "blue" },
+  INFO: { category: "Incidents", emoji: "⚠️", tag: "Incident", tagColor: "orange" },
+  INCIDENT: { category: "Incidents", emoji: "⚠️", tag: "Incident", tagColor: "red" },
+  GENERAL: { category: "Demandes", emoji: "⏳", tag: "Général", tagColor: "orange" },
+};
 
-/* ─── Detail Modal ─────────────────────────── */
-function DetailModal({ notif, onClose, navigate }) {
-  if (!notif) return null;
-  return (
-    <div className="nm-ov" onClick={onClose}>
-      <div className="nm-box" onClick={e=>e.stopPropagation()}>
-        <div className="nm-head">
-          <div className="nm-head-row">
-            <div>
-              <p style={{fontSize:10,letterSpacing:"1.5px",color:"rgba(255,255,255,0.5)",fontWeight:700,marginBottom:4,textTransform:"uppercase"}}>Détail notification</p>
-              <p style={{fontSize:20,fontWeight:800}}>{notif.ref}</p>
-              <p style={{fontSize:13,color:"rgba(255,255,255,0.65)",marginTop:2}}>{notif.date} à {notif.heure}</p>
-            </div>
-            <button type="button" className="nm-close-btn" onClick={onClose}>✕</button>
-          </div>
-          <div style={{marginTop:10,display:"flex",gap:8,flexWrap:"wrap"}}>
-            <span style={{background:"rgba(255,255,255,0.2)",color:"#fff",fontSize:10,fontWeight:700,padding:"4px 10px",borderRadius:20}}>{notif.statut}</span>
-            {!notif.lu&&<span style={{background:"#ef4444",color:"#fff",fontSize:10,fontWeight:700,padding:"4px 10px",borderRadius:20}}>NON LU</span>}
-          </div>
-        </div>
-        <div className="nm-body">
-          {[["Référence",notif.ref],["Date & heure",`${notif.date} à ${notif.heure}`],["Client",notif.client],["Départ",notif.depart],["Arrivée",notif.arrivee],["Véhicule",notif.vehicule],["Passagers",`${notif.passagers} pers. · ${notif.bagage}`]].map(([l,v])=>(
-            <div key={l} className="nm-field"><span className="nm-field-lbl">{l}</span><span className="nm-field-val">{v}</span></div>
-          ))}
-        </div>
-        <div className="nm-foot">
-          <button type="button" className="nm-btn-close" onClick={onClose}>Fermer</button>
-          <button type="button" className="nm-btn-nav" onClick={()=>{onClose();navigate("/navigationCH");}}>
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6-3V7m6 16l4.553-2.276A1 1 0 0021 19.382V8.618a1 1 0 00-.553-.894L15 5m0 14V5"/></svg>
-            Naviguer vers la mission
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Confirm Delete Modal ─────────────────── */
+/* ─── Confirm Delete ─────────────────────────────────────────── */
 function ConfirmDelete({ notif, onConfirm, onClose }) {
   if (!notif) return null;
   return (
     <div className="nm-ov" onClick={onClose}>
-      <div className="nm-confirm-box" onClick={e=>e.stopPropagation()}>
+      <div className="nm-confirm-box" onClick={e => e.stopPropagation()}>
         <div className="nm-confirm-icon">
-          <svg width="30" height="30" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          <svg width="30" height="30" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
         </div>
-        <h3 style={{fontSize:16,fontWeight:800,color:"var(--text-primary)",marginBottom:8}}>Supprimer la notification</h3>
-        <p style={{fontSize:13,color:"var(--text-muted)"}}>Voulez-vous supprimer <strong style={{color:"var(--brand-blue)"}}>{notif.ref}</strong> ? Cette action est irréversible.</p>
+        <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", marginBottom: 8 }}>Supprimer la notification</h3>
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Voulez-vous supprimer <strong style={{ color: "var(--brand-blue)" }}>{notif.ref}</strong> ? Cette action est irréversible.</p>
         <div className="nm-confirm-btns">
           <button type="button" className="nm-confirm-cancel" onClick={onClose}>Annuler</button>
-          <button type="button" className="nm-confirm-ok" onClick={()=>{onConfirm(notif.id);onClose();}}>Supprimer</button>
+          <button type="button" className="nm-confirm-ok" onClick={() => { onConfirm(notif.id); onClose(); }}>Supprimer</button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ─── MAIN ─────────────────────────────────── */
+const translateMsg = (msg) => {
+  if (!msg) return '';
+  let t = msg;
+  t = t.replace(/Your request (.*?) was approved/g, 'Votre demande $1 a été approuvée');
+  t = t.replace(/Your request (.*?) was rejected/g, 'Votre demande $1 a été rejetée');
+  t = t.replace(/New mission assigned for request (.*?)$/g, 'Nouvelle mission assignée pour la demande $1');
+  t = t.replace(/New mission assigned (.*?)$/g, 'Nouvelle mission assignée : $1');
+  t = t.replace(/Mission (.*?) was reassigned/g, 'La mission $1 a été réassignée');
+  t = t.replace(/Mission (.*?) was cancelled/g, 'La mission $1 a été annulée');
+  t = t.replace(/Mission for request (.*?) was cancelled/g, 'La mission pour la demande $1 a été annulée');
+  t = t.replace(/New mission created for request (.*?)$/g, 'Nouvelle mission créée pour la demande $1');
+  return t;
+};
+
+/* ─── MAIN ───────────────────────────────────────────────────── */
 export default function NotificationM() {
   const navigate = useNavigate();
-  const { nom: nomCH, photo, initials } = useProfileSync();
-  const { unreadCount: globalUnread, updateCount } = useChauffeurNotifications();
-  const [notifs,        setNotifs]        = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [collapsed,     setCollapsed]     = useState(false);
-  const [sidebarMobile, setSidebarMobile] = useState(false);
-  const [search,        setSearch]        = useState("");
-  const [filter,        setFilter]        = useState("Tout");
-  const [detail,        setDetail]        = useState(null);
-  const [confirmDel,    setConfirmDel]    = useState(null);
-  const [toast,         setToast]         = useState({msg:"",type:""});
+  const { nom, photo, initials } = useProfileSync();
+  const { unreadCount } = useChauffeurNotifications();
 
-  // ── Load notifications from API
+  const navItems = [
+    {
+      label: "Tableau de Bord",
+      to: "/dashbordchauffeur",
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
+    },
+    {
+      label: "Historique Missions",
+      to: "/historiqueM",
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
+    },
+    {
+      label: "Incidents",
+      to: "/incidentsCH",
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
+    },
+    {
+      label: "Navigation",
+      to: "/navigationCH",
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>,
+    },
+    {
+      label: "Notifications",
+      to: "/notificationM",
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
+    },
+  ];
+
+  const [notifs, setNotifs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const loadNotifs = useCallback(async () => {
     try {
       setLoading(true);
       const data = await fetchNotifications({ limit: 50 });
-      setNotifs((data.data || []).map(n => ({
-        id: n._id || n.id,
-        _id: n._id || n.id,
-        ref: `#NT-${String(n._id || n.id).slice(-4).toUpperCase()}`,
-        titre: n.message?.split(":")[0] || "Notification",
-        client: n.message || "",
-        depart: "",
-        arrivee: "",
-        date: n.createdAt ? new Date(n.createdAt).toLocaleDateString("fr-FR") : "",
-        heure: "",
-        statut: n.isRead ? "LU" : "NOUVEAU",
-        lu: n.isRead,
-        note: n.message || "",
-        vehicule: "",
-        passagers: 0,
-        bagage: "",
-        time: formatTimeAgo(n.createdAt),
-      })));
+      setNotifs((data.data || []).map(n => {
+        const cfg = TYPE_MAP[n.type] || TYPE_MAP.GENERAL;
+        return {
+          id: n._id || n.id,
+          _id: n._id || n.id,
+          category: cfg.category,
+          ref: `#NT-${String(n._id || n.id).slice(-4).toUpperCase()}`,
+          emoji: cfg.emoji,
+          catBadge: cfg.category === "Demandes" ? "cat-demande" : "cat-reclam",
+          catLabel: cfg.category === "Incidents" ? "Incident" : cfg.category.slice(0, -1),
+          title: translateMsg(n.message)?.split(":")[0] || "Notification",
+          desc: translateMsg(n.message) || "",
+          tag: cfg.tag,
+          tagColor: cfg.tagColor,
+          time: formatTimeAgo(n.createdAt),
+          lu: n.isRead,
+          actionable: false,
+        };
+      }));
     } catch {
       setToast({ msg: "Erreur lors du chargement.", type: "" });
     } finally {
@@ -311,177 +282,201 @@ export default function NotificationM() {
   }, []);
 
   useEffect(() => { loadNotifs(); }, [loadNotifs]);
-  useEffect(()=>{ if(!toast.msg)return; const t=setTimeout(()=>setToast({msg:"",type:""}),2800); return()=>clearTimeout(t); },[toast]);
+  const [filter, setFilter] = useState("Tout");
+  const [search, setSearch] = useState("");
+  const [collapsed, setCollapsed] = useState(false);
+  const [sidebarMobile, setSidebarMobile] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(null);
+  const [toast, setToast] = useState({ msg: "", type: "" });
 
-  const unread = notifs.filter(n=>!n.lu).length;
+  useEffect(() => { if (!toast.msg) return; const t = setTimeout(() => setToast({ msg: "", type: "" }), 2800); return () => clearTimeout(t); }, [toast]);
 
-  const filtered = useMemo(()=>{
-    let list=notifs;
-    if(filter==="Non lus") list=list.filter(n=>!n.lu);
-    if(filter==="Lus")     list=list.filter(n=>n.lu);
-    if(search.trim()){const q=search.trim().toLowerCase();list=list.filter(n=>[n.ref,n.client,n.depart,n.arrivee,n.date].join(" ").toLowerCase().includes(q));}
+  const unread = notifs.filter(n => !n.lu).length;
+
+  const filtered = useMemo(() => {
+    let list = notifs;
+    if (filter !== "Tout") list = list.filter(n => n.category === filter);
+    if (search.trim()) { const q = search.trim().toLowerCase(); list = list.filter(n => [n.ref, n.title, n.desc, n.tag, n.category].join(" ").toLowerCase().includes(q)); }
     return list;
-  },[notifs,search,filter]);
+  }, [notifs, filter, search]);
 
   const markAllRead = async () => {
     try {
       await markAllNotificationsAsRead();
-      setNotifs(p => p.map(n => ({ ...n, lu: true, statut: "LU" })));
+      setNotifs(p => p.map(n => ({ ...n, lu: true })));
       setToast({ msg: "✓ Toutes les notifications marquées comme lues.", type: "green" });
-      updateCount();
+      window.dispatchEvent(new CustomEvent("airops-notif-update"));
     } catch { setToast({ msg: "Erreur.", type: "" }); }
   };
   const markRead = async (id) => {
     try {
       await markNotificationAsRead(id);
-      setNotifs(p => p.map(n => n.id === id ? { ...n, lu: true, statut: "LU" } : n));
-      updateCount();
-    } catch {/* silently fail */}
+      setNotifs(p => p.map(n => n.id === id ? { ...n, lu: true } : n));
+      window.dispatchEvent(new CustomEvent("airops-notif-update"));
+    } catch {/* silently fail */ }
   };
-  const openDetail  = n => { markRead(n.id); setDetail(n); };
-  const deleteNotif = async (id) => {
-    try {
-      await deleteNotification(id);
-      setNotifs(p => p.filter(n => n.id !== id));
-      setToast({ msg: "✓ Notification supprimée.", type: "red" });
-    } catch { setToast({ msg: "Erreur.", type: "" }); }
-  };
-  const deleteAll   = async () => {
-    try {
-      await deleteAllNotifications();
-      setNotifs([]);
-      setToast({ msg: "✓ Toutes les notifications supprimées.", type: "red" });
-    } catch { setToast({ msg: "Erreur.", type: "" }); }
-  };
+  const deleteAll = () => { setNotifs([]); setToast({ msg: "✓ Toutes les notifications supprimées.", type: "red" }); };
+  const deleteOne = id => { setNotifs(p => p.filter(n => n.id !== id)); setToast({ msg: "✓ Notification supprimée.", type: "red" }); };
+  const handleAccept = ref => { setNotifs(p => p.map(n => n.ref === ref ? { ...n, lu: true, tag: "Confirmée", tagColor: "green", actionable: false } : n)); setToast({ msg: `✓ Demande ${ref} acceptée.`, type: "green" }); };
+  const handleRefuse = ref => { setNotifs(p => p.map(n => n.ref === ref ? { ...n, lu: true, tag: "Refusée", tagColor: "red", actionable: false } : n)); setToast({ msg: `Demande ${ref} refusée.`, type: "" }); };
 
-  const navWithBadge = navItems.map(i=>i.to==="/notificationM"?{...i,badge:globalUnread>0?globalUnread:undefined}:i);
+  const navWithBadge = navItems.map(i => i.to === "/notificationM" ? { ...i, badge: unreadCount > 0 ? unreadCount : undefined } : i);
+  const tabCounts = { "Tout": notifs.length, "Demandes": notifs.filter(n => n.category === "Demandes").length };
 
   return (
-    <div className="chw">
-      {sidebarMobile&&<div className="sb-overlay" onClick={()=>setSidebarMobile(false)}/>}
+    <div className="nrw">
+      {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)} />}
 
-      {/* Sidebar */}
-      <aside className={["sidebar",collapsed?"collapsed":"",sidebarMobile?"open":""].filter(Boolean).join(" ")}>
-        <button type="button" className="sb-toggle-btn" onClick={()=>setCollapsed(v=>!v)}>
-          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      <aside className={["sidebar", collapsed ? "collapsed" : "", sidebarMobile ? "open" : ""].filter(Boolean).join(" ")}>
+        <button type="button" className="sb-toggle-btn" onClick={() => setCollapsed(v => !v)}>
+          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
         </button>
-        <div className="sb-brand" onClick={()=>navigate("/")}>
-          <div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12"/></svg></div>
+        <div className="sb-brand" onClick={() => navigate("/dashbordchauffeur")}>
+          <div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" /></svg></div>
           <div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">ESPACE CHAUFFEUR</span></div>
         </div>
         <div className="sb-label">Navigation</div>
         <nav className="sb-nav">
-          {navWithBadge.map(item=>(
-            <NavLink key={item.label} to={item.to} data-label={item.label} className={({isActive})=>`sb-nav-item${isActive?" active":""}`} onClick={()=>setSidebarMobile(false)}>
+          {navWithBadge.map(item => (
+            <NavLink key={item.label} to={item.to} data-label={item.label} className={({ isActive }) => `sb-nav-item${isActive ? " active" : ""}`} onClick={() => setSidebarMobile(false)}>
               <span className="sb-nav-icon">{item.icon}</span>
               <span className="sb-nav-lbl">{item.label}</span>
-              {item.badge?<span className="sb-badge">{item.badge}</span>:null}
+              {item.badge ? <span className="sb-badge">{item.badge}</span> : null}
             </NavLink>
           ))}
         </nav>
         <div className="sb-footer">
-          <div className="sb-label" style={{paddingTop:0}}>Compte</div>
-          <button type="button" className="sb-logout" onClick={()=>{localStorage.clear(); navigate("/login",{replace:true});}}>
-            <span style={{flexShrink:0}}><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></span>
+          <div className="sb-label" style={{ paddingTop: 0 }}>Compte</div>
+          <button type="button" className="sb-logout" onClick={() => { localStorage.clear(); navigate("/login"); }}>
+            <span style={{ flexShrink: 0 }}><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></span>
             <span className="sb-logout-lbl">Déconnexion</span>
           </button>
         </div>
       </aside>
 
-      {/* Main */}
-      <div className="chm">
-        <header className="chh">
-          <div className="chh-left">
-            <button type="button" className="chh-menu-btn" onClick={()=>setSidebarMobile(v=>!v)}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      <div className="nrm">
+        <header className="nrh">
+          <div className="nrh-left">
+            <button type="button" className="nrh-menu-btn" onClick={() => setSidebarMobile(v => !v)}>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
-            <span className="chh-title">Notifications</span>
+            <span className="nrh-title">Notifications</span>
           </div>
-          <div className="chh-right">
+          <div className="nrh-right">
             <div className="search-wrap">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              <input type="text" className="search-input" placeholder="Rechercher une notification…" value={search} onChange={e=>setSearch(e.target.value)}/>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <input type="text" className="search-input" placeholder="Rechercher une notification…" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <div className="user-chip">
-              <div style={{textAlign:"right"}}><div className="user-name">{nomCH}</div><div className="user-role">Chauffeur</div></div>
-              <div className="user-avatar">{photo?<img src={photo} alt="profil"/>:initials}</div>
+              <div style={{ textAlign: "right" }}><div className="user-name">{nom}</div><div className="user-role">Chauffeur</div></div>
+              <div className="user-avatar">{photo ? <img src={photo} alt="profil" /> : initials}</div>
             </div>
           </div>
         </header>
 
-        <main className="chc">
+        <main className="nrc">
           <h1 className="np-page-title">Mes <span>Notifications</span></h1>
-          <p className="np-page-sub">Nouvelles missions assignées automatiquement par le système.</p>
+          <p className="np-page-sub">Suivez les nouvelles demandes, les changements de mission et les incidents en temps réel.</p>
 
-          {/* Card */}
           <div className="np-main-card">
             <div className="np-toolbar">
               <div className="np-filters">
-                {["Tout","Non lus","Lus"].map(f=>(
-                  <button key={f} type="button" className={`np-filter-btn${filter===f?" active":""}`} onClick={()=>setFilter(f)}>
-                    {f}{f==="Non lus"&&unread>0&&<span style={{marginLeft:6,background:"#ef4444",color:"#fff",fontSize:9,fontWeight:700,padding:"1px 6px",borderRadius:10}}>{unread}</span>}
+                {TABS.map(tab => (
+                  <button key={tab} type="button" className={`np-filter-btn${filter === tab ? " active" : ""}`} onClick={() => setFilter(tab)}>
+                    {tab}
+                    <span style={{ marginLeft: 5, background: filter === tab ? "rgba(41,128,232,0.2)" : "#f0f5fb", color: filter === tab ? "var(--brand-blue)" : "var(--text-muted)", fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 10 }}>{tabCounts[tab]}</span>
                   </button>
                 ))}
               </div>
               <div className="np-actions">
-                {unread>0&&<button type="button" className="np-act-btn" onClick={markAllRead}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Tout marquer lu</button>}
-                {notifs.length>0&&<button type="button" className="np-act-btn danger" onClick={deleteAll}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>Tout supprimer</button>}
+                {unread > 0 && (
+                  <button type="button" className="np-act-btn" onClick={markAllRead}>
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Tout marquer lu
+                  </button>
+                )}
+                {notifs.length > 0 && (
+                  <button type="button" className="np-act-btn danger" onClick={deleteAll}>
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    Tout supprimer
+                  </button>
+                )}
               </div>
             </div>
 
-            {filtered.length===0?(
+            {filtered.length === 0 ? (
               <div className="np-empty">
-                <div className="np-empty-icon"><svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#93c5fd" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg></div>
-                <p style={{fontSize:15,fontWeight:700,color:"var(--text-primary)",marginBottom:6}}>Aucune notification</p>
-                <p style={{fontSize:13,color:"var(--text-muted)"}}>{filter==="Tout"?"Vous n'avez aucune notification pour le moment.":` Aucune notification "${filter}".`}</p>
+                <div className="np-empty-icon">
+                  <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#93c5fd" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                </div>
+                <p style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>Aucune notification</p>
+                <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{filter === "Tout" ? "Vous n'avez aucune notification pour le moment." : ` Aucune notification dans "${filter}".`}</p>
               </div>
-            ):(
+            ) : (
               <div className="np-list">
-                {filtered.map(n=>(
-                  <div key={n.id} className={`np-card ${n.lu?"":"unread"}`} onClick={()=>openDetail(n)}>
+                {filtered.map(n => (
+                  <div key={n.id} className={`np-card ${n.lu ? "" : "unread"}`} onClick={() => markRead(n.id)}>
                     <div className="np-card-inner">
-                      <div className="np-card-icon">
-                        <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#2980e8" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                      </div>
+                      <div className="np-card-icon">{n.emoji}</div>
                       <div className="np-card-body">
                         <div className="np-card-head">
                           <span className="np-card-ref">{n.ref}</span>
-                          <span className="np-badge new">NOUVEAU</span>
-                          {!n.lu&&<span className="np-badge unread">Non lu</span>}
+                          <span className={`np-badge ${n.catBadge}`}>{n.catLabel}</span>
+                          {!n.lu && <span className="np-badge unread">Non lu</span>}
                         </div>
-                        <div className="np-card-route">
-                          <span style={{color:"var(--text-sec)",fontWeight:500}}>{n.depart}</span>
-                          <span className="np-arrow">→</span>
-                          <span>{n.arrivee}</span>
-                        </div>
+                        <div className="np-card-title">{n.title}</div>
+                        <div className="np-card-desc">{n.desc}</div>
                         <div className="np-card-meta">
-                          <span className="np-meta-item"><svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>{n.client}</span>
-                          <span className="np-meta-item"><svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>{n.passagers} passager{n.passagers>1?"s":""}</span>
-                          <span className="np-time">{n.date} · {n.heure}</span>
+                          <span className={`np-tag ${n.tagColor}`}>{n.tag}</span>
+                          <span className="np-time">{n.time}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="np-card-footer" onClick={e=>e.stopPropagation()}>
-                      {!n.lu&&<button type="button" className="np-btn-mark" onClick={()=>markRead(n.id)}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>Marquer lu</button>}
-                      <button type="button" className="np-btn-del" onClick={()=>setConfirmDel(n)}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>Supprimer</button>
+
+                    <div className="np-card-footer" onClick={e => e.stopPropagation()}>
+                      {n.actionable && n.category === "Demandes" && (
+                        <>
+                          <button type="button" className="np-btn-accept" onClick={() => handleAccept(n.ref)}>
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                            Accepter
+                          </button>
+                          <button type="button" className="np-btn-refuse" onClick={() => handleRefuse(n.ref)}>
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            Refuser
+                          </button>
+                        </>
+                      )}
+                      {!n.lu && (
+                        <button type="button" className="np-btn-mark" onClick={() => markRead(n.id)}>
+                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          Marquer lu
+                        </button>
+                      )}
+                      <button type="button" className="np-btn-del" onClick={() => setConfirmDel(n)}>
+                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        Supprimer
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-          <div style={{fontSize:10,color:"var(--text-muted)",textAlign:"center",padding:"14px 0 4px",letterSpacing:1,textTransform:"uppercase"}}>© 2026 AirOps Transport Management</div>
+
+          <div style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "center", padding: "14px 0 4px", letterSpacing: 1, textTransform: "uppercase" }}>© 2026 AirOps – Gestion Transport Chauffeur</div>
         </main>
 
-        <footer className="ch-footer">
-          <div className="ch-footer-brand"><svg width="14" height="14" fill="#22c55e" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>Système de gestion sécurisé — AirOps Transport 2026</div>
-          <span style={{fontSize:12,color:"var(--text-muted)"}}>{filtered.length} notification{filtered.length!==1?"s":""}</span>
+        <footer className="ch-footer-r">
+          <div className="ch-footer-brand">
+            <svg width="14" height="14" fill="#22c55e" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
+            Système de gestion sécurisé — AirOps Transport 2026
+          </div>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{filtered.length} notification{filtered.length !== 1 ? "s" : ""}</span>
         </footer>
       </div>
 
-      {detail    &&<DetailModal   notif={detail}    onClose={()=>setDetail(null)}    navigate={navigate}/>}
-      {confirmDel&&<ConfirmDelete notif={confirmDel} onClose={()=>setConfirmDel(null)} onConfirm={deleteNotif}/>}
-      {toast.msg &&<div className={`nm-toast ${toast.type}`}>{toast.msg}</div>}
+      {confirmDel && <ConfirmDelete notif={confirmDel} onClose={() => setConfirmDel(null)} onConfirm={deleteOne} />}
+      {toast.msg && <div className={`nm-toast ${toast.type}`}>{toast.msg}</div>}
     </div>
   );
 }

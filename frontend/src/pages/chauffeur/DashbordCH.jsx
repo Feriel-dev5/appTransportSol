@@ -639,7 +639,9 @@ export default function DashbordCH() {
     { label: "Total Missions", value: missions.length, color: "blue", icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg> },
     { label: "Missions En Cours", value: enCoursCount, color: "sky", icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> },
     { label: "Missions Terminées", value: terminéesCount, color: "indigo", icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-    { label: "Incidents", value: dashStats?.alerts ?? 0, color: "gray", icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg> },
+    { label: "Notifications", value: unreadCount, color: "sky", onClick: () => navigate("/notificationM"),
+      icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+    },
   ];
 
   return (
@@ -650,7 +652,7 @@ export default function DashbordCH() {
         <button type="button" className="sb-toggle-btn" onClick={() => setCollapsed(v => !v)}>
           <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
         </button>
-        <div className="sb-brand" onClick={() => navigate("/")}>
+        <div className="sb-brand" onClick={() => navigate("/dashbordchauffeur")}>
           <div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" /></svg></div>
           <div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">ESPACE CHAUFFEUR</span></div>
         </div>
@@ -702,7 +704,7 @@ export default function DashbordCH() {
         <main className="chc">
           <div className="stats-grid">
             {statCards.map(s => (
-              <div key={s.label} className={`sc ${s.color}`} onClick={() => setToast({ msg: `${s.label} : ${s.value}`, type: "" })}>
+              <div key={s.label} className={`sc ${s.color}`} onClick={s.onClick}>
                 <div className="sc-icon-wrap">{s.icon}</div>
                 <div className="sc-content"><div className="sc-value">{s.value}</div><div className="sc-label">{s.label}</div></div>
               </div>

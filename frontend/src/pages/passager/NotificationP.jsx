@@ -1,394 +1,496 @@
-import React, { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { useProfileSync } from "../../services/useProfileSync";
 import {
   fetchNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
-  mapNotification,
+  formatTimeAgo,
 } from "../../services/passengerService";
-import { logout } from "../../services/authService";
+import { useProfileSync } from "../../services/useProfileSync";
 
-const notifCSS = `
+/* ═══════════════════════════════════════════════════════════════
+   CSS — COPIE EXACTE de NotificationM, préfixe .chw → .nrw
+   ════════════════════════════════════════════════════════════════ */
+const NOTIF_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
   :root {
-    --brand-dark:#0d2b5e;--brand-mid:#1252aa;--brand-blue:#2980e8;--brand-light:#7ec8ff;
-    --accent-orange:#f97316;--accent-green:#16a34a;--accent-red:#ef4444;
-    --bg-page:#f0f5fb;--border:#e4ecf4;--text-primary:#0d2b5e;--text-sec:#5a6e88;--text-muted:#94a3b8;
-    --sidebar-full:230px;--sidebar-mini:66px;--header-h:64px;
-    --shadow-sm:0 2px 12px rgba(13,43,94,0.07);--shadow-md:0 8px 32px rgba(13,43,94,0.13);--shadow-lg:0 20px 50px rgba(13,43,94,0.18);
+    --brand-dark:#0d2b5e; --brand-mid:#1252aa; --brand-blue:#2980e8; --brand-light:#7ec8ff;
+    --accent-orange:#f97316; --accent-green:#16a34a; --accent-red:#ef4444;
+    --bg-page:#f0f5fb; --border:#e4ecf4; --text-primary:#0d2b5e; --text-sec:#5a6e88; --text-muted:#94a3b8;
+    --sidebar-full:230px; --sidebar-mini:66px; --header-h:64px;
+    --shadow-sm:0 2px 12px rgba(13,43,94,0.07); --shadow-md:0 8px 32px rgba(13,43,94,0.13); --shadow-lg:0 20px 50px rgba(13,43,94,0.18);
     --tr:all 0.25s ease;
   }
-  .nw { display:flex; height:100vh; overflow:hidden; background:var(--bg-page); font-family:'DM Sans','Segoe UI',sans-serif; color:var(--text-primary); }
-  .sidebar { width:var(--sidebar-full); background:var(--brand-dark); display:flex; flex-direction:column; flex-shrink:0; position:relative; z-index:30; transition:width 0.3s ease; box-shadow:4px 0 24px rgba(0,0,0,0.2); overflow:hidden; }
-  .sidebar.collapsed { width:var(--sidebar-mini); }
-  .sb-brand { display:flex; align-items:center; gap:10px; padding:18px 13px 16px; border-bottom:1px solid rgba(255,255,255,0.07); cursor:pointer; flex-shrink:0; min-height:68px; overflow:hidden; }
-  .sb-brand-icon { width:40px; height:40px; min-width:40px; background:var(--brand-blue); border-radius:12px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(41,128,232,0.4); }
-  .sb-brand-text { overflow:hidden; white-space:nowrap; opacity:1; transition:opacity 0.2s ease; }
-  .sidebar.collapsed .sb-brand-text { opacity:0; }
-  .sb-brand-name { font-size:17px; font-weight:800; color:#fff; letter-spacing:-0.4px; display:block; }
-  .sb-brand-sub  { font-size:9px; color:rgba(255,255,255,0.4); letter-spacing:1.8px; font-weight:600; display:block; }
-  .sb-toggle-btn { position:absolute; top:22px; right:10px; width:22px; height:22px; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; transition:var(--tr); flex-shrink:0; }
-  .sb-toggle-btn:hover { background:var(--brand-blue); border-color:var(--brand-blue); }
-  .sb-toggle-btn svg { transition:transform 0.3s ease; }
-  .sidebar.collapsed .sb-toggle-btn svg { transform:rotate(180deg); }
-  .sb-label { font-size:9px; font-weight:700; letter-spacing:1.8px; color:rgba(255,255,255,0.25); padding:14px 14px 5px; text-transform:uppercase; white-space:nowrap; overflow:hidden; transition:opacity 0.2s; }
-  .sidebar.collapsed .sb-label { opacity:0; }
-  .sb-nav { padding:0 9px; flex:1; overflow-y:auto; overflow-x:hidden; }
-  .sb-nav::-webkit-scrollbar { display:none; }
-  .sb-nav-item { display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:12px; text-decoration:none; font-size:13.5px; font-weight:500; color:rgba(255,255,255,0.58); transition:var(--tr); margin-bottom:3px; position:relative; overflow:hidden; white-space:nowrap; }
-  .sb-nav-item:hover { color:#fff; background:rgba(255,255,255,0.09); }
-  .sb-nav-item.active { color:#fff; font-weight:700; background:linear-gradient(135deg,var(--brand-blue),#1a6fd4); box-shadow:0 4px 16px rgba(41,128,232,0.35); }
-  .sb-nav-item.active::before { content:''; position:absolute; left:-9px; top:50%; transform:translateY(-50%); width:3px; height:55%; background:var(--brand-light); border-radius:0 3px 3px 0; }
-  .sb-nav-icon { flex-shrink:0; width:18px; height:18px; display:flex; align-items:center; justify-content:center; }
-  .sb-nav-lbl  { flex:1; overflow:hidden; transition:opacity 0.2s,max-width 0.3s; max-width:160px; }
-  .sidebar.collapsed .sb-nav-lbl { opacity:0; max-width:0; }
-  .sb-badge { background:#ef4444; color:#fff; font-size:10px; font-weight:700; min-width:18px; height:18px; border-radius:9px; display:flex; align-items:center; justify-content:center; padding:0 4px; flex-shrink:0; transition:opacity 0.2s; }
-  .sidebar.collapsed .sb-badge { opacity:0; }
-  .sidebar.collapsed .sb-nav-item::after { content:attr(data-label); position:absolute; left:calc(var(--sidebar-mini) + 6px); top:50%; transform:translateY(-50%); background:var(--brand-dark); color:#fff; font-size:12px; font-weight:600; padding:6px 12px; border-radius:8px; white-space:nowrap; pointer-events:none; box-shadow:var(--shadow-md); border:1px solid rgba(255,255,255,0.1); z-index:200; opacity:0; transition:opacity 0.15s; }
-  .sidebar.collapsed .sb-nav-item:hover::after { opacity:1; }
-  .sb-footer { padding:6px 9px 16px; border-top:1px solid rgba(255,255,255,0.07); flex-shrink:0; }
-  .sb-logout { width:100%; display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:12px; border:none; background:transparent; color:rgba(255,255,255,0.4); font-size:13.5px; font-weight:500; cursor:pointer; transition:var(--tr); font-family:inherit; white-space:nowrap; overflow:hidden; }
-  .sb-logout:hover { color:#fca5a5; background:rgba(239,68,68,0.1); }
-  .sb-logout-icon { flex-shrink:0; }
-  .sb-logout-lbl  { transition:opacity 0.2s,max-width 0.3s; max-width:160px; overflow:hidden; }
-  .sidebar.collapsed .sb-logout-lbl { opacity:0; max-width:0; }
-  .sb-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:25; backdrop-filter:blur(2px); }
+  /* ── wrapper ── */
+  .nrw{display:flex;height:100vh;overflow:hidden;background:var(--bg-page);font-family:'DM Sans','Segoe UI',sans-serif;color:var(--text-primary);}
+  /* ── sidebar (identique NotifM) ── */
+  .sidebar{width:var(--sidebar-full);background:var(--brand-dark);display:flex;flex-direction:column;flex-shrink:0;position:relative;z-index:30;transition:width 0.3s ease;box-shadow:4px 0 24px rgba(0,0,0,0.2);overflow:hidden;}
+  .sidebar.collapsed{width:var(--sidebar-mini);}
+  .sb-brand{display:flex;align-items:center;gap:10px;padding:18px 13px 16px;border-bottom:1px solid rgba(255,255,255,0.07);cursor:pointer;flex-shrink:0;min-height:68px;overflow:hidden;}
+  .sb-brand-icon{width:40px;height:40px;min-width:40px;background:var(--brand-blue);border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(41,128,232,0.4);}
+  .sb-brand-text{overflow:hidden;white-space:nowrap;opacity:1;transition:opacity 0.2s ease;}
+  .sidebar.collapsed .sb-brand-text{opacity:0;}
+  .sb-brand-name{font-size:17px;font-weight:800;color:#fff;letter-spacing:-0.4px;display:block;}
+  .sb-brand-sub{font-size:9px;color:rgba(255,255,255,0.4);letter-spacing:1.8px;font-weight:600;display:block;}
+  .sb-toggle-btn{position:absolute;top:22px;right:10px;width:22px;height:22px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;transition:var(--tr);flex-shrink:0;}
+  .sb-toggle-btn:hover{background:var(--brand-blue);border-color:var(--brand-blue);}
+  .sb-toggle-btn svg{transition:transform 0.3s ease;}
+  .sidebar.collapsed .sb-toggle-btn svg{transform:rotate(180deg);}
+  .sb-label{font-size:9px;font-weight:700;letter-spacing:1.8px;color:rgba(255,255,255,0.25);padding:14px 14px 5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;transition:opacity 0.2s;}
+  .sidebar.collapsed .sb-label{opacity:0;}
+  .sb-nav{padding:0 9px;flex:1;overflow-y:auto;overflow-x:hidden;}
+  .sb-nav::-webkit-scrollbar{display:none;}
+  .sb-nav-item{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:12px;text-decoration:none;font-size:13.5px;font-weight:500;color:rgba(255,255,255,0.58);transition:var(--tr);margin-bottom:3px;position:relative;overflow:hidden;white-space:nowrap;}
+  .sb-nav-item:hover{color:#fff;background:rgba(255,255,255,0.09);}
+  .sb-nav-item.active{color:#fff;font-weight:700;background:linear-gradient(135deg,var(--brand-blue),#1a6fd4);box-shadow:0 4px 16px rgba(41,128,232,0.35);}
+  .sb-nav-item.active::before{content:'';position:absolute;left:-9px;top:50%;transform:translateY(-50%);width:3px;height:55%;background:var(--brand-light);border-radius:0 3px 3px 0;}
+  .sb-nav-icon{flex-shrink:0;width:18px;height:18px;display:flex;align-items:center;justify-content:center;}
+  .sb-nav-lbl{flex:1;overflow:hidden;transition:opacity 0.2s,max-width 0.3s;max-width:160px;}
+  .sidebar.collapsed .sb-nav-lbl{opacity:0;max-width:0;}
+  .sb-badge{background:#ef4444;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;flex-shrink:0;transition:opacity 0.2s;margin-left:auto;}
+  .sidebar.collapsed .sb-badge{opacity:0;}
+  .sidebar.collapsed .sb-nav-item::after{content:attr(data-label);position:absolute;left:calc(var(--sidebar-mini) + 6px);top:50%;transform:translateY(-50%);background:var(--brand-dark);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:8px;white-space:nowrap;pointer-events:none;box-shadow:var(--shadow-md);border:1px solid rgba(255,255,255,0.1);z-index:200;opacity:0;transition:opacity 0.15s;}
+  .sidebar.collapsed .sb-nav-item:hover::after{opacity:1;}
+  .sb-footer{padding:6px 9px 16px;border-top:1px solid rgba(255,255,255,0.07);flex-shrink:0;}
+  .sb-logout{width:100%;display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:12px;border:none;background:transparent;color:rgba(255,255,255,0.4);font-size:13.5px;font-weight:500;cursor:pointer;transition:var(--tr);font-family:inherit;white-space:nowrap;overflow:hidden;}
+  .sb-logout:hover{color:#fca5a5;background:rgba(239,68,68,0.1);}
+  .sb-logout-lbl{transition:opacity 0.2s,max-width 0.3s;max-width:160px;overflow:hidden;}
+  .sidebar.collapsed .sb-logout-lbl{opacity:0;max-width:0;}
+  .sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:25;backdrop-filter:blur(2px);}
+  /* ── main ── */
+  .nrm{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+  .nrh{height:var(--header-h);background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0;box-shadow:var(--shadow-sm);}
+  .nrh-left{display:flex;align-items:center;gap:12px;}
+  .nrh-right{display:flex;align-items:center;gap:10px;}
+  .nrh-menu-btn{display:none;background:none;border:none;cursor:pointer;color:var(--text-sec);padding:6px;border-radius:8px;transition:var(--tr);}
+  .nrh-menu-btn:hover{background:var(--bg-page);color:var(--text-primary);}
+  .nrh-title{font-size:15px;font-weight:700;color:var(--text-primary);}
+  .search-wrap{position:relative;}
+  .search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;}
+  .search-input{width:230px;padding:9px 12px 9px 34px;border:1.5px solid var(--border);border-radius:22px;background:var(--bg-page);font-size:13px;font-family:inherit;color:var(--text-primary);outline:none;transition:var(--tr);}
+  .search-input:focus{border-color:var(--brand-blue);background:#fff;box-shadow:0 0 0 3px rgba(41,128,232,0.1);}
+  .search-input::placeholder{color:var(--text-muted);}
+  .user-chip{display:flex;align-items:center;gap:9px;cursor:default;}
+  .user-name{font-size:13px;font-weight:700;color:var(--text-primary);}
+  .user-role{font-size:11px;color:var(--text-muted);}
+  .user-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--brand-blue),var(--brand-mid));display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;box-shadow:0 3px 10px rgba(41,128,232,0.35);border:2.5px solid rgba(41,128,232,0.2);flex-shrink:0;overflow:hidden;}
+  .user-avatar img{width:100%;height:100%;object-fit:cover;}
+  .nrc{flex:1;overflow-y:auto;padding:26px;}
+  .ch-footer-r{padding:12px 26px;background:#fff;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-muted);flex-shrink:0;}
+  .ch-footer-brand{display:flex;align-items:center;gap:6px;font-weight:600;}
 
-  .nm { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
-  .nh { height:var(--header-h); background:#fff; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 24px; flex-shrink:0; box-shadow:var(--shadow-sm); }
-  .nh-left  { display:flex; align-items:center; gap:12px; }
-  .nh-right { display:flex; align-items:center; gap:10px; }
-  .nh-menu-btn { display:none; background:none; border:none; cursor:pointer; color:var(--text-sec); padding:6px; border-radius:8px; transition:var(--tr); }
-  .nh-menu-btn:hover { background:var(--bg-page); color:var(--text-primary); }
-  .nh-title { font-size:15px; font-weight:700; color:var(--text-primary); }
-  .search-wrap { position:relative; }
-  .search-wrap svg { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--text-muted); pointer-events:none; }
-  .search-input { width:230px; padding:9px 12px 9px 34px; border:1.5px solid var(--border); border-radius:22px; background:var(--bg-page); font-size:13px; font-family:inherit; color:var(--text-primary); outline:none; transition:var(--tr); }
-  .search-input:focus { border-color:var(--brand-blue); background:#fff; box-shadow:0 0 0 3px rgba(41,128,232,0.1); }
-  .search-input::placeholder { color:var(--text-muted); }
-  .user-chip { display:flex; align-items:center; gap:9px; cursor:default; }
-  .user-info-r { text-align:right; }
-  .user-name { font-size:13px; font-weight:700; color:var(--text-primary); }
-  .user-role { font-size:11px; color:var(--text-muted); }
-  .user-avatar { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,var(--brand-blue),var(--brand-mid)); display:flex; align-items:center; justify-content:center; color:#fff; font-size:13px; font-weight:700; box-shadow:0 3px 10px rgba(41,128,232,0.35); border:2.5px solid rgba(41,128,232,0.2); flex-shrink:0; overflow:hidden; }
-  .user-avatar img { width:100%; height:100%; object-fit:cover; }
+  /* ══ NOTIFICATION PAGE — identique NotificationM ══ */
+  .np-page-title{font-size:25px;font-weight:800;color:var(--brand-dark);letter-spacing:-0.5px;margin-bottom:4px;}
+  .np-page-title span{color:var(--brand-blue);}
+  .np-page-sub{font-size:13px;color:var(--text-muted);margin-bottom:22px;}
 
-  .nc { flex:1; overflow-y:auto; padding:26px; }
-  .page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:22px; flex-wrap:wrap; }
-  .page-title { font-size:clamp(22px,3vw,34px); font-weight:800; color:var(--brand-blue); letter-spacing:-0.8px; line-height:1; }
-  .page-subtitle { font-size:13px; color:var(--text-muted); margin-top:6px; }
-  .unread-card { background:#fff; border:1px solid var(--border); border-radius:20px; box-shadow:var(--shadow-sm); padding:18px 24px; min-width:200px; display:flex; flex-direction:column; gap:4px; transition:var(--tr); flex-shrink:0; }
-  .unread-card:hover { box-shadow:var(--shadow-md); }
-  .unread-label { font-size:9px; font-weight:700; letter-spacing:2px; color:var(--text-muted); text-transform:uppercase; }
-  .unread-count { font-size:38px; font-weight:800; color:var(--text-primary); letter-spacing:-1px; }
-  .mark-all-btn { font-size:13px; font-weight:700; color:var(--brand-blue); background:none; border:none; cursor:pointer; padding:0; text-align:left; font-family:inherit; transition:color 0.2s; margin-top:4px; }
-  .mark-all-btn:hover { color:var(--brand-mid); }
-  .notif-card { background:#fff; border:1px solid var(--border); border-radius:20px; box-shadow:var(--shadow-sm); overflow:hidden; transition:var(--tr); margin-bottom:20px; }
-  .notif-card:hover { box-shadow:var(--shadow-md); }
-  .notif-toolbar { display:flex; align-items:center; justify-content:space-between; padding:14px 22px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:10px; }
-  .filter-tabs { display:flex; align-items:center; gap:2px; background:#f0f5fb; border-radius:14px; padding:4px; }
-  .filter-btn { padding:8px 16px; border-radius:12px; border:none; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:var(--tr); background:transparent; color:var(--text-sec); }
-  .filter-btn:hover { color:var(--text-primary); background:rgba(255,255,255,0.7); }
-  .filter-btn.active { background:#fff; color:var(--brand-blue); box-shadow:var(--shadow-sm); }
-  .notif-count { font-size:12px; color:var(--text-muted); white-space:nowrap; }
-  .notif-list {}
-  .notif-item { display:flex; align-items:flex-start; gap:16px; padding:18px 22px; border-bottom:1px solid #f1f5f9; transition:background 0.18s; }
-  .notif-item:last-child { border-bottom:none; }
-  .notif-item:hover { background:#f8fafc; }
-  .notif-icon-wrap { width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .notif-body { flex:1; min-width:0; }
-  .notif-title-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap; }
-  .notif-title { font-size:13.5px; font-weight:700; color:var(--text-primary); }
-  .notif-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-  .notif-msg { font-size:13px; color:var(--text-sec); line-height:1.55; }
-  .notif-time { font-size:11px; color:var(--text-muted); margin-top:8px; }
-  .notif-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; }
-  .btn-toggle-read { padding:7px 13px; font-size:12px; font-weight:600; border-radius:10px; border:1px solid var(--border); background:#f8fafc; color:var(--text-sec); cursor:pointer; font-family:inherit; transition:var(--tr); white-space:nowrap; }
-  .btn-toggle-read:hover { background:#eff6ff; color:var(--brand-blue); border-color:#bfdbfe; }
-  .btn-delete { padding:7px 13px; font-size:12px; font-weight:600; border-radius:10px; border:1px solid #fecaca; background:#fef2f2; color:var(--accent-red); cursor:pointer; font-family:inherit; transition:var(--tr); white-space:nowrap; }
-  .btn-delete:hover { background:#fee2e2; border-color:#fca5a5; }
-  .empty-state { display:flex; flex-direction:column; align-items:center; padding:60px 20px; text-align:center; }
-  .empty-icon { width:64px; height:64px; border-radius:20px; background:#f0f5fb; display:flex; align-items:center; justify-content:center; margin-bottom:16px; }
-  .empty-title { font-size:17px; font-weight:700; color:var(--text-primary); margin-bottom:6px; }
-  .empty-sub   { font-size:13px; color:var(--text-muted); }
-  .toast { position:fixed; top:18px; right:18px; z-index:200; background:var(--brand-dark); color:#fff; padding:12px 18px; border-radius:12px; font-size:13px; font-weight:500; box-shadow:var(--shadow-lg); border-left:3px solid var(--brand-light); animation:toastIn 0.3s ease; pointer-events:none; }
-  @keyframes toastIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:none} }
+  .np-main-card{background:#fff;border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow-sm);overflow:hidden;}
+  .np-toolbar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap;}
+  .np-filters{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .np-filter-btn{padding:7px 16px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:all 0.2s;color:var(--text-sec);}
+  .np-filter-btn:hover{border-color:var(--brand-blue);color:var(--brand-blue);}
+  .np-filter-btn.active{background:#eff6ff;border-color:var(--brand-blue);color:var(--brand-blue);}
+  .np-actions{display:flex;align-items:center;gap:6px;}
+  .np-act-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:all 0.2s;color:var(--text-sec);}
+  .np-act-btn:hover{border-color:var(--brand-blue);color:var(--brand-blue);background:#eff6ff;}
+  .np-act-btn.danger:hover{border-color:#ef4444;color:#ef4444;background:#fef2f2;}
 
-  @media (max-width:768px) {
-    .sidebar { position:fixed; left:0; top:0; bottom:0; z-index:30; transform:translateX(-100%); width:var(--sidebar-full) !important; transition:transform 0.3s ease !important; }
-    .sidebar.open { transform:translateX(0); } .sidebar.collapsed { transform:translateX(-100%); } .sidebar.collapsed.open { transform:translateX(0); }
-    .sb-overlay { display:block; } .nh-menu-btn { display:flex; } .sb-toggle-btn { display:none; }
-    .nc { padding:16px; } .nh { padding:0 16px; } .page-header { flex-direction:column; } .unread-card { width:100%; }
-    .notif-item { flex-wrap:wrap; gap:12px; } .notif-actions { width:100%; justify-content:flex-start; }
+  /* ── card list ── */
+  .np-list{padding:12px 16px;display:flex;flex-direction:column;gap:10px;}
+  .np-card{border:1.5px solid var(--border);border-radius:16px;padding:16px 18px;transition:all 0.2s;position:relative;overflow:hidden;cursor:pointer;}
+  .np-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:16px 0 0 16px;background:transparent;}
+  .np-card.unread{background:#f8fbff;border-color:#bfdbfe;}
+  .np-card.unread::before{background:var(--brand-blue);}
+  .np-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
+  .np-card-inner{display:flex;align-items:flex-start;gap:14px;}
+  .np-card-icon{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#dbeafe,#93c5fd);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;}
+  .np-card-body{flex:1;min-width:0;}
+  .np-card-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+  .np-card-ref{font-size:14px;font-weight:800;color:var(--brand-blue);}
+  .np-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+  .np-badge.cat-demande{background:#fff7ed;color:#ea580c;}
+  .np-badge.cat-reclam{background:#fef2f2;color:#dc2626;}
+  .np-badge.unread{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
+  .np-card-title{font-size:13.5px;font-weight:700;color:var(--text-primary);margin-bottom:4px;}
+  .np-card-desc{font-size:12px;color:var(--text-sec);line-height:1.5;margin-bottom:6px;}
+  .np-card-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .np-tag{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+  .np-tag.orange{color:var(--accent-orange);background:#fff7ed;}
+  .np-tag.blue{color:var(--brand-blue);background:#eff6ff;}
+  .np-tag.green{color:var(--accent-green);background:#f0fdf4;}
+  .np-tag.red{color:var(--accent-red);background:#fef2f2;}
+  .np-tag.sky{color:#0ea5e9;background:#f0f9ff;}
+  .np-time{font-size:10px;font-weight:700;color:var(--text-muted);background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:3px 9px;white-space:nowrap;}
+  /* ── card footer buttons (identiques NotifM) ── */
+  .np-card-footer{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #f1f5f9;flex-wrap:wrap;}
+  .np-btn-primary{display:flex;align-items:center;gap:6px;padding:8px 14px;background:linear-gradient(135deg,var(--brand-blue),var(--brand-mid));color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;transition:all 0.2s;}
+  .np-btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(41,128,232,0.35);}
+  .np-btn-accept{display:flex;align-items:center;gap:5px;padding:8px 14px;border:1.5px solid #bbf7d0;background:#f0fdf4;color:var(--accent-green);border-radius:10px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;transition:all 0.2s;}
+  .np-btn-accept:hover{background:var(--accent-green);border-color:var(--accent-green);color:#fff;}
+  .np-btn-refuse{display:flex;align-items:center;gap:5px;padding:8px 14px;border:1.5px solid #fecaca;background:#fef2f2;color:var(--accent-red);border-radius:10px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;transition:all 0.2s;}
+  .np-btn-refuse:hover{background:var(--accent-red);border-color:var(--accent-red);color:#fff;}
+  .np-btn-mark{display:flex;align-items:center;gap:5px;padding:8px 14px;border:1.5px solid var(--border);color:var(--text-sec);background:#fff;border-radius:10px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:all 0.2s;}
+  .np-btn-mark:hover{background:#f0fdf4;border-color:#22c55e;color:#16a34a;}
+  .np-btn-del{display:flex;align-items:center;gap:5px;padding:8px 14px;border:1.5px solid #fecaca;color:#ef4444;background:none;border-radius:10px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;transition:all 0.2s;}
+  .np-btn-del:hover{background:#fef2f2;border-color:#ef4444;}
+
+  .np-empty{padding:60px 22px;text-align:center;}
+  .np-empty-icon{width:72px;height:72px;margin:0 auto 18px;border-radius:20px;background:#eff6ff;display:flex;align-items:center;justify-content:center;}
+
+  /* ── modals (identiques NotifM) ── */
+  .nm-ov{position:fixed;inset:0;z-index:100;background:rgba(13,43,94,0.45);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;animation:nmFade 0.2s ease;}
+  @keyframes nmFade{from{opacity:0}to{opacity:1}}
+  .nm-confirm-box{background:#fff;border-radius:24px;width:100%;max-width:400px;padding:28px;box-shadow:var(--shadow-lg);animation:nmUp 0.25s ease;text-align:center;}
+  @keyframes nmUp{from{opacity:0;transform:translateY(24px) scale(0.97)}to{opacity:1;transform:none}}
+  .nm-confirm-icon{width:64px;height:64px;border-radius:20px;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+  .nm-confirm-btns{display:flex;gap:10px;margin-top:22px;}
+  .nm-confirm-cancel{flex:1;padding:11px;font-size:13px;font-family:inherit;font-weight:600;color:var(--text-sec);border:1.5px solid var(--border);border-radius:12px;background:#fff;cursor:pointer;transition:all 0.2s;}
+  .nm-confirm-cancel:hover{background:var(--bg-page);}
+  .nm-confirm-ok{flex:1;padding:11px;font-size:13px;font-family:inherit;font-weight:700;color:#fff;border:none;border-radius:12px;background:linear-gradient(135deg,#ef4444,#b91c1c);cursor:pointer;box-shadow:0 4px 14px rgba(239,68,68,0.3);transition:all 0.2s;}
+  .nm-confirm-ok:hover{transform:translateY(-1px);}
+
+  .nm-toast{position:fixed;top:18px;right:18px;z-index:600;background:var(--brand-dark);color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);border-left:3px solid var(--brand-light);animation:nmToast 0.3s ease;}
+  .nm-toast.green{border-left-color:#4ade80;}
+  .nm-toast.red{border-left-color:#f87171;}
+  @keyframes nmToast{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+
+  @media(max-width:768px){
+    .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:30;transform:translateX(-100%);width:var(--sidebar-full)!important;transition:transform 0.3s ease!important;}
+    .sidebar.open{transform:translateX(0);}.sidebar.collapsed{transform:translateX(-100%);}.sidebar.collapsed.open{transform:translateX(0);}
+    .sb-overlay{display:block;}.nrh-menu-btn{display:flex;}.sb-toggle-btn{display:none;}
+    .nrc{padding:16px;}.nrh{padding:0 16px;}.search-wrap{display:none;}.user-role{display:none;}
   }
-  @media (max-width:480px) {
-    .search-wrap { display:none; } .user-info-r { display:none; } .nc { padding:12px; }
-    .notif-toolbar { flex-direction:column; align-items:flex-start; }
-    .filter-tabs { width:100%; justify-content:space-between; }
-    .filter-btn { flex:1; text-align:center; padding:7px 8px; font-size:12px; }
-    .notif-item { padding:14px 14px; }
-    .notif-actions { gap:6px; }
-    .btn-toggle-read,.btn-delete { font-size:11px; padding:6px 10px; }
-  }
+  @media(max-width:480px){.np-card-footer{flex-wrap:wrap;}.nrc{padding:12px;}}
 `;
 
-if (typeof document !== "undefined" && !document.getElementById("notif-page-css")) {
-  const tag = document.createElement("style");
-  tag.id = "notif-page-css";
-  tag.textContent = notifCSS;
-  document.head.appendChild(tag);
+if (typeof document !== "undefined" && !document.getElementById("airops-notifp2-css")) {
+  const s = document.createElement("style"); s.id = "airops-notifp2-css"; s.textContent = NOTIF_CSS; document.head.appendChild(s);
 }
 
-/* Mapping type backend → type UI pour les icônes */
+
+
+/* Unified nav — responsable */
+
+const TABS = ["Tout", "Demandes"];
+
 const TYPE_MAP = {
-  VALIDATION: "validation",
-  REJET: "annulation",
-  MISSION: "rappel",
-  INFO: "info",
-  GENERAL: "info",
+  VALIDATION: { category: "Demandes", emoji: "✅", tag: "Confirmée", tagColor: "green" },
+  REJET: { category: "Demandes", emoji: "❌", tag: "Refusée", tagColor: "red" },
+  MISSION: { category: "Demandes", emoji: "🚗", tag: "Mission", tagColor: "blue" },
+  INFO: { category: "Incidents", emoji: "⚠️", tag: "Incident", tagColor: "orange" },
+  INCIDENT: { category: "Incidents", emoji: "⚠️", tag: "Incident", tagColor: "red" },
+  GENERAL: { category: "Demandes", emoji: "⏳", tag: "Général", tagColor: "orange" },
 };
 
-const typeConfig = {
-  validation: { iconBg: "#dcfce7", iconColor: "#16a34a", dot: "#22c55e", itemBg: "#f0fdf4" },
-  attente: { iconBg: "#fff7ed", iconColor: "#ea580c", dot: "#f97316", itemBg: "#fff7ed" },
-  rappel: { iconBg: "#eff6ff", iconColor: "#2563eb", dot: "#3b82f6", itemBg: "#eff6ff" },
-  annulation: { iconBg: "#fef2f2", iconColor: "#dc2626", dot: "#ef4444", itemBg: "#fef2f2" },
-  info: { iconBg: "#f1f5f9", iconColor: "#64748b", dot: "#94a3b8", itemBg: "#f8fafc" },
-};
-
-const navItems = [
-  {
-    label: "Tableau de bord",
-    to: "/dashbordP",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
-  },
-  {
-    label: "Réserver demande",
-    to: "/reserverD",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg>,
-  },
-  {
-    label: "Notifications",
-    to: "/notificationP",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
-  },
-  {
-    label: "Avis des acteurs",
-    to: "/avisP",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>,
-  },
-  {
-    label: "Profile",
-    to: "/profilP",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
-  },
-];
-
-function NotifIcon({ type }) {
-  const cfg = typeConfig[type] || typeConfig.info;
+/* ─── Confirm Delete ─────────────────────────────────────────── */
+function ConfirmDelete({ notif, onConfirm, onClose }) {
+  if (!notif) return null;
   return (
-    <div className="notif-icon-wrap" style={{ background: cfg.iconBg }}>
-      {type === "validation" && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-      {type === "attente" && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-      {type === "rappel" && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5" /></svg>}
-      {type === "annulation" && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>}
-      {type === "info" && <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={cfg.iconColor} strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+    <div className="nm-ov" onClick={onClose}>
+      <div className="nm-confirm-box" onClick={e => e.stopPropagation()}>
+        <div className="nm-confirm-icon">
+          <svg width="30" height="30" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+        </div>
+        <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", marginBottom: 8 }}>Supprimer la notification</h3>
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Voulez-vous supprimer <strong style={{ color: "var(--brand-blue)" }}>{notif.ref}</strong> ? Cette action est irréversible.</p>
+        <div className="nm-confirm-btns">
+          <button type="button" className="nm-confirm-cancel" onClick={onClose}>Annuler</button>
+          <button type="button" className="nm-confirm-ok" onClick={() => { onConfirm(notif.id); onClose(); }}>Supprimer</button>
+        </div>
+      </div>
     </div>
   );
 }
 
+
+const translateMsg = (msg) => {
+  if (!msg) return '';
+  let t = msg;
+  t = t.replace(/Your request (.*?) was approved/g, 'Votre demande $1 a été approuvée');
+  t = t.replace(/Your request (.*?) was rejected/g, 'Votre demande $1 a été rejetée');
+  t = t.replace(/New mission assigned for request (.*?)$/g, 'Nouvelle mission assignée pour la demande $1');
+  t = t.replace(/New mission assigned (.*?)$/g, 'Nouvelle mission assignée : $1');
+  t = t.replace(/Mission (.*?) was reassigned/g, 'La mission $1 a été réassignée');
+  t = t.replace(/Mission (.*?) was cancelled/g, 'La mission $1 a été annulée');
+  t = t.replace(/Mission for request (.*?) was cancelled/g, 'La mission pour la demande $1 a été annulée');
+  t = t.replace(/New mission created for request (.*?)$/g, 'Nouvelle mission créée pour la demande $1');
+  return t;
+};
+
+/* ─── MAIN ───────────────────────────────────────────────────── */
 export default function NotificationP() {
   const navigate = useNavigate();
+  const { nom, photo, initials, unreadCount, refreshNotifs } = useProfileSync();
 
-  /* ── Synchronisation nom + photo ── */
-  const { nom, photo, initials } = useProfileSync();
+    const navItems = [
+    {
+      label: "Tableau de bord",
+      to: "/dashbordP",
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
+    },
+    {
+      label: "Réserver demande",
+      to: "/reserverD",
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg>,
+    },
+    {
+      label: "Notifications",
+      to: "/notificationP",
+      badge: unreadCount,
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
+    },
+    {
+      label: "Ajouter avis",
+      to: "/avisP",
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>,
+    },
+    {
+      label: "Profile",
+      to: "/profilP",
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
+    },
+  ];
 
-  const [notifications, setNotifications] = useState([]);
-  const [loadingNotifs, setLoadingNotifs] = useState(true);
+  const [notifs, setNotifs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Chargement des notifications depuis l'API
-  useEffect(() => {
-    let cancelled = false;
-    setLoadingNotifs(true);
-    fetchNotifications({ limit: 50 })
-      .then(res => {
-        if (cancelled) return;
-        const mapped = (res.data || []).map(n => ({
+  // ── Load from API
+  const loadNotifs = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await fetchNotifications({ limit: 50 });
+      setNotifs((data.data || []).map(n => {
+        const cfg = TYPE_MAP[n.type] || TYPE_MAP.GENERAL;
+        return {
           id: n._id || n.id,
-          type: TYPE_MAP[n.type] || "info",
-          title: n.message || "Notification",
-          message: n.message || "",
-          time: mapNotification(n).time,
-          unread: !n.isRead,
-          _raw: n,
-        }));
-        setNotifications(mapped);
-      })
-      .catch(() => { if (!cancelled) setNotifications([]); })
-      .finally(() => { if (!cancelled) setLoadingNotifs(false); });
-    return () => { cancelled = true; };
+          _id: n._id || n.id,
+          category: cfg.category,
+          ref: `#NT-${String(n._id || n.id).slice(-4).toUpperCase()}`,
+          emoji: cfg.emoji,
+          catBadge: cfg.category === "Demandes" ? "cat-demande" : "cat-reclam",
+          catLabel: cfg.category === "Incidents" ? "Incident" : cfg.category.slice(0, -1),
+          title: translateMsg(n.message)?.split(":")[0] || "Notification",
+          desc: translateMsg(n.message) || "",
+          tag: cfg.tag,
+          tagColor: cfg.tagColor,
+          time: formatTimeAgo(n.createdAt),
+          lu: n.isRead,
+          actionable: false,
+        };
+      }));
+    } catch {
+      setToast({ msg: "Erreur lors du chargement.", type: "" });
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => { loadNotifs(); }, [loadNotifs]);
+  const [filter, setFilter] = useState("Tout"); // Tout | Demandes | Réclamations | Avis
+  const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarMobile, setSidebarMobile] = useState(false);
-  const [filter, setFilter] = useState("Toutes");
-  const [search, setSearch] = useState("");
-  const [toast, setToast] = useState("");
+  const [confirmDel, setConfirmDel] = useState(null);
+  const [toast, setToast] = useState({ msg: "", type: "" });
 
-  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 2800); return () => clearTimeout(t); }, [toast]);
+  useEffect(() => { if (!toast.msg) return; const t = setTimeout(() => setToast({ msg: "", type: "" }), 2800); return () => clearTimeout(t); }, [toast]);
 
-  const unreadCount = notifications.filter(n => n.unread).length;
+  const unread = notifs.filter(n => !n.lu).length;
 
-  const filtered = useMemo(() => notifications.filter(n => {
-    const matchFilter = filter === "Toutes" ? true : filter === "Non lues" ? n.unread : !n.unread;
-    const q = search.trim().toLowerCase();
-    return matchFilter && (q === "" || `${n.title} ${n.message}`.toLowerCase().includes(q));
-  }), [notifications, filter, search]);
+  const filtered = useMemo(() => {
+    let list = notifs;
+    if (filter !== "Tout") list = list.filter(n => n.category === filter);
+    if (search.trim()) { const q = search.trim().toLowerCase(); list = list.filter(n => [n.ref, n.title, n.desc, n.tag, n.category].join(" ").toLowerCase().includes(q)); }
+    return list;
+  }, [notifs, filter, search]);
 
-  const markAllAsRead = async () => {
+  const markAllRead = async () => {
     try {
       await markAllNotificationsAsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
-      setToast("Toutes les notifications marquées comme lues.");
-    } catch {
-      setToast("❌ Erreur lors de la mise à jour.");
-    }
+      setNotifs(p => p.map(n => ({ ...n, lu: true })));
+      setToast({ msg: "✓ Toutes les notifications marquées comme lues.", type: "green" });
+      window.dispatchEvent(new CustomEvent("airops-notif-update"));
+    } catch { setToast({ msg: "Erreur.", type: "" }); }
   };
-  const toggleRead = async (id) => {
-    const notif = notifications.find(n => n.id === id);
-    if (!notif) return;
-    if (notif.unread) {
-      try {
-        await markNotificationAsRead(id);
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
-      } catch { setToast("❌ Erreur."); }
-    } else {
-      // Marquer comme non-lu : juste localement (pas d'API pour ça)
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: true } : n));
-    }
+  const markRead = async (id) => {
+    try {
+      await markNotificationAsRead(id);
+      setNotifs(p => p.map(n => n.id === id ? { ...n, lu: true } : n));
+      window.dispatchEvent(new CustomEvent("airops-notif-update"));
+    } catch {/* silently fail */ }
   };
-  const removeNotification = id => { setNotifications(prev => prev.filter(n => n.id !== id)); setToast("Notification supprimée."); };
+  const deleteAll = () => { setNotifs([]); setToast({ msg: "✓ Toutes les notifications supprimées.", type: "red" }); };
+  const deleteOne = id => { setNotifs(p => p.filter(n => n.id !== id)); setToast({ msg: "✓ Notification supprimée.", type: "red" }); };
+  const handleAccept = ref => { setNotifs(p => p.map(n => n.ref === ref ? { ...n, lu: true, tag: "Confirmée", tagColor: "green", actionable: false } : n)); setToast({ msg: `✓ Demande ${ref} acceptée.`, type: "green" }); };
+  const handleRefuse = ref => { setNotifs(p => p.map(n => n.ref === ref ? { ...n, lu: true, tag: "Refusée", tagColor: "red", actionable: false } : n)); setToast({ msg: `Demande ${ref} refusée.`, type: "" }); };
 
-  const handleLogout = async () => {
-    await logout();
-    navigate("/login");
-  };
 
-  const navWithBadge = navItems.map(item => item.to === "/notificationP" ? { ...item, badge: unreadCount > 0 ? unreadCount : null } : item);
+  const navWithBadge = navItems.map(i => i.to === "/notificationP" ? { ...i, badge: unread > 0 ? unread : undefined } : i);
+
+  const tabCounts = { "Tout": notifs.length, "Demandes": notifs.filter(n => n.category === "Demandes").length };
 
   return (
-    <div className="nw">
+    <div className="nrw">
       {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)} />}
 
+      {/* Sidebar */}
       <aside className={["sidebar", collapsed ? "collapsed" : "", sidebarMobile ? "open" : ""].filter(Boolean).join(" ")}>
         <button type="button" className="sb-toggle-btn" onClick={() => setCollapsed(v => !v)}>
           <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
         </button>
-        <div className="sb-brand" onClick={() => navigate("/")}><div className="sb-brand-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" /></svg></div><div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">ESPACE PASSAGER</span></div></div>
+        <div className="sb-brand" onClick={() => navigate("/dashbordP")}>
+          <div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" /></svg></div>
+          <div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">ESPACE PASSAGER</span></div>
+        </div>
         <div className="sb-label">Navigation</div>
         <nav className="sb-nav">
           {navWithBadge.map(item => (
             <NavLink key={item.label} to={item.to} data-label={item.label} className={({ isActive }) => `sb-nav-item${isActive ? " active" : ""}`} onClick={() => setSidebarMobile(false)}>
-              <span className="sb-nav-icon">{item.icon}</span><span className="sb-nav-lbl">{item.label}</span>
+              <span className="sb-nav-icon">{item.icon}</span>
+              <span className="sb-nav-lbl">{item.label}</span>
               {item.badge ? <span className="sb-badge">{item.badge}</span> : null}
             </NavLink>
           ))}
         </nav>
         <div className="sb-footer">
           <div className="sb-label" style={{ paddingTop: 0 }}>Compte</div>
-          <button type="button" className="sb-logout" onClick={handleLogout}>
-            <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></span>
+          <button type="button" className="sb-logout" onClick={() => { localStorage.clear(); navigate("/login"); }}>
+            <span style={{ flexShrink: 0 }}><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></span>
             <span className="sb-logout-lbl">Déconnexion</span>
           </button>
         </div>
       </aside>
 
-      <div className="nm">
-        <header className="nh">
-          <div className="nh-left">
-            <button type="button" className="nh-menu-btn" onClick={() => setSidebarMobile(v => !v)}>
+      {/* Main */}
+      <div className="nrm">
+        <header className="nrh">
+          <div className="nrh-left">
+            <button type="button" className="nrh-menu-btn" onClick={() => setSidebarMobile(v => !v)}>
               <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
-            <span className="nh-title">Notifications</span>
+            <span className="nrh-title">Notifications</span>
           </div>
-          <div className="nh-right">
+          <div className="nrh-right">
             <div className="search-wrap">
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               <input type="text" className="search-input" placeholder="Rechercher une notification…" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            {/* ── Avatar synchronisé ── */}
             <div className="user-chip">
-              <div className="user-info-r">
-                <div className="user-name">{nom}</div>
-                <div className="user-role">Passager</div>
-              </div>
-              <div className="user-avatar">
-                {photo ? <img src={photo} alt="profil" /> : initials}
-              </div>
+              <div style={{ textAlign: "right" }}><div className="user-name">{nom}</div><div className="user-role">Passager</div></div>
+              <div className="user-avatar">{photo ? <img src={photo} alt="profil" /> : initials}</div>
             </div>
           </div>
         </header>
 
-        <main className="nc">
-          <div className="page-header">
-            <div>
-              <h1 className="page-title">Centre de notifications</h1>
-              <p className="page-subtitle">Consultez toutes les mises à jour liées à vos demandes de transport.</p>
-            </div>
-            <div className="unread-card">
-              <span className="unread-label">Non lues</span>
-              <span className="unread-count">{unreadCount}</span>
-              <button type="button" className="mark-all-btn" onClick={markAllAsRead} disabled={unreadCount === 0} style={{ opacity: unreadCount === 0 ? 0.4 : 1, cursor: unreadCount === 0 ? "default" : "pointer" }}>
-                Tout marquer comme lu
-              </button>
-            </div>
-          </div>
+        <main className="nrc">
+          {/* ── Titre identique NotificationM ── */}
+          <h1 className="np-page-title">Mes <span>Notifications</span></h1>
+          <p className="np-page-sub">Suivez les nouvelles demandes, les changements de mission et les incidents en temps réel.</p>
 
-          <div className="notif-card">
-            <div className="notif-toolbar">
-              <div className="filter-tabs">
-                {["Toutes", "Non lues", "Lues"].map(tab => (
-                  <button key={tab} type="button" className={`filter-btn${filter === tab ? " active" : ""}`} onClick={() => setFilter(tab)}>{tab}</button>
+          {/* ── Card principale identique NotificationM ── */}
+          <div className="np-main-card">
+            <div className="np-toolbar">
+              <div className="np-filters">
+                {TABS.map(tab => (
+                  <button key={tab} type="button" className={`np-filter-btn${filter === tab ? " active" : ""}`} onClick={() => setFilter(tab)}>
+                    {tab}
+                    <span style={{ marginLeft: 5, background: filter === tab ? "rgba(41,128,232,0.2)" : "#f0f5fb", color: filter === tab ? "var(--brand-blue)" : "var(--text-muted)", fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 10 }}>{tabCounts[tab]}</span>
+                  </button>
                 ))}
               </div>
-              <span className="notif-count">{filtered.length} notification{filtered.length > 1 ? "s" : ""}</span>
+              <div className="np-actions">
+                {unread > 0 && (
+                  <button type="button" className="np-act-btn" onClick={markAllRead}>
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Tout marquer lu
+                  </button>
+                )}
+                {notifs.length > 0 && (
+                  <button type="button" className="np-act-btn danger" onClick={deleteAll}>
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    Tout supprimer
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="notif-list">
-              {filtered.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon"><svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#94a3b8" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5" /></svg></div>
-                  <p className="empty-title">Aucune notification trouvée</p>
-                  <p className="empty-sub">Essayez un autre filtre ou une autre recherche.</p>
+
+            {filtered.length === 0 ? (
+              <div className="np-empty">
+                <div className="np-empty-icon">
+                  <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#93c5fd" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
                 </div>
-              ) : filtered.map(item => {
-                const cfg = typeConfig[item.type] || typeConfig.info;
-                return (
-                  <div key={item.id} className="notif-item" style={{ background: item.unread ? cfg.itemBg : "transparent" }}>
-                    <NotifIcon type={item.type} />
-                    <div className="notif-body">
-                      <div className="notif-title-row">
-                        <span className="notif-title">{item.title}</span>
-                        {item.unread && <span className="notif-dot" style={{ background: cfg.dot }} />}
+                <p style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>Aucune notification</p>
+                <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{filter === "Tout" ? "Vous n'avez aucune notification pour le moment." : ` Aucune notification dans "${filter}".`}</p>
+              </div>
+            ) : (
+              <div className="np-list">
+                {filtered.map(n => (
+                  <div key={n.id} className={`np-card ${n.lu ? "" : "unread"}`} onClick={() => markRead(n.id)}>
+                    <div className="np-card-inner">
+                      {/* icône identique NotificationM — gradient bleu */}
+                      <div className="np-card-icon">{n.emoji}</div>
+                      <div className="np-card-body">
+                        <div className="np-card-head">
+                          <span className="np-card-ref">{n.ref}</span>
+                          <span className={`np-badge ${n.catBadge}`}>{n.catLabel}</span>
+                          {!n.lu && <span className="np-badge unread">Non lu</span>}
+                        </div>
+                        <div className="np-card-title">{n.title}</div>
+                        <div className="np-card-desc">{n.desc}</div>
+                        <div className="np-card-meta">
+                          <span className={`np-tag ${n.tagColor}`}>{n.tag}</span>
+                          <span className="np-time">{n.time}</span>
+                        </div>
                       </div>
-                      <p className="notif-msg">{item.message}</p>
-                      <p className="notif-time">{item.time}</p>
                     </div>
-                    <div className="notif-actions">
-                      <button type="button" className="btn-toggle-read" onClick={() => toggleRead(item.id)}>{item.unread ? "Marquer lu" : "Marquer non lu"}</button>
-                      <button type="button" className="btn-delete" onClick={() => removeNotification(item.id)}>Supprimer</button>
+
+                    {/* footer identique NotificationM */}
+                    <div className="np-card-footer" onClick={e => e.stopPropagation()}>
+                      {n.actionable && n.category === "Demandes" && (
+                        <>
+                          <button type="button" className="np-btn-accept" onClick={() => handleAccept(n.ref)}>
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                            Accepter
+                          </button>
+                          <button type="button" className="np-btn-refuse" onClick={() => handleRefuse(n.ref)}>
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            Refuser
+                          </button>
+                        </>
+                      )}
+                      {!n.lu && (
+                        <button type="button" className="np-btn-mark" onClick={() => markRead(n.id)}>
+                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          Marquer lu
+                        </button>
+                      )}
+                      <button type="button" className="np-btn-del" onClick={() => setConfirmDel(n)}>
+                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        Supprimer
+                      </button>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
-          <div style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "center", padding: "4px 0 10px", letterSpacing: 1, textTransform: "uppercase" }}>© 2026 AirOps Transport Management</div>
+
+          <div style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "center", padding: "14px 0 4px", letterSpacing: 1, textTransform: "uppercase" }}>© 2026 AirOps – Gestion Transport Passager</div>
         </main>
+
+        {/* Footer identique NotificationM */}
+        <footer className="ch-footer-r">
+          <div className="ch-footer-brand">
+            <svg width="14" height="14" fill="#22c55e" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
+            Système de gestion sécurisé — AirOps Transport 2026
+          </div>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{filtered.length} notification{filtered.length !== 1 ? "s" : ""}</span>
+        </footer>
       </div>
 
-      {toast && <div className="toast">{toast}</div>}
+      {confirmDel && <ConfirmDelete notif={confirmDel} onClose={() => setConfirmDel(null)} onConfirm={deleteOne} />}
+      {toast.msg && <div className={`nm-toast ${toast.type}`}>{toast.msg}</div>}
     </div>
   );
 }

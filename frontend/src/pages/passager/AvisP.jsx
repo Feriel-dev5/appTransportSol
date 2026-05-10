@@ -39,7 +39,7 @@ const avisCSS = `
   .sb-nav-icon { flex-shrink:0; width:18px; height:18px; display:flex; align-items:center; justify-content:center; }
   .sb-nav-lbl  { flex:1; overflow:hidden; transition:opacity 0.2s,max-width 0.3s; max-width:160px; }
   .sidebar.collapsed .sb-nav-lbl { opacity:0; max-width:0; }
-  .sb-badge { background:#ef4444; color:#fff; font-size:10px; font-weight:700; min-width:18px; height:18px; border-radius:9px; display:flex; align-items:center; justify-content:center; padding:0 4px; flex-shrink:0; transition:opacity 0.2s; }
+  .sb-badge { background:#ef4444; color:#fff; font-size:10px; font-weight:700; min-width:18px; height:18px; border-radius:9px; display:flex; align-items:center; justify-content:center; padding:0 4px; flex-shrink:0; transition:opacity 0.2s; margin-left:auto; }
   .sidebar.collapsed .sb-badge { opacity:0; }
   .sidebar.collapsed .sb-nav-item::after { content:attr(data-label); position:absolute; left:calc(var(--sidebar-mini) + 6px); top:50%; transform:translateY(-50%); background:var(--brand-dark); color:#fff; font-size:12px; font-weight:600; padding:6px 12px; border-radius:8px; white-space:nowrap; pointer-events:none; box-shadow:var(--shadow-md); border:1px solid rgba(255,255,255,0.1); z-index:200; opacity:0; transition:opacity 0.15s; }
   .sidebar.collapsed .sb-nav-item:hover::after { opacity:1; }
@@ -203,7 +203,7 @@ const navItems = [
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
   },
   {
-    label: "Avis des acteurs",
+    label: "Ajouter avis",
     to: "/avisP",
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>,
   },
@@ -217,7 +217,7 @@ const navItems = [
 function Stars({ rating, size = 15 }) {
   return (
     <div className="avis-stars">
-      {[1, 2, 3, 4, 5].map(i => (
+      {[1,2,3,4,5].map(i => (
         <span key={i} className={`star${i <= rating ? " on" : ""}`} style={{ fontSize: size }}>⭐</span>
       ))}
     </div>
@@ -233,11 +233,11 @@ function AddAvisModal({ onClose, onSubmit, authorName, photo }) {
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    const initials = (authorName || "A B").trim().split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
-    const colors = ["#2980e8", "#16a34a", "#8b5cf6", "#f97316", "#ef4444", "#0d2b5e", "#f59e0b"];
+    const initials = (authorName || "A B").trim().split(" ").map(w => w[0]).slice(0,2).join("").toUpperCase();
+    const colors = ["#2980e8","#16a34a","#8b5cf6","#f97316","#ef4444","#0d2b5e","#f59e0b"];
     const color = colors[Math.floor(Math.random() * colors.length)];
     const now = new Date();
-    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
     onSubmit({ author: authorName || "Anonyme", role: "Passager", initials, photo, color, cat, rating, text, date, likes: 0, liked: false });
     onClose();
   };
@@ -262,7 +262,7 @@ function AddAvisModal({ onClose, onSubmit, authorName, photo }) {
           <div className="form-group">
             <label className="form-label">Note</label>
             <div className="star-selector">
-              {[1, 2, 3, 4, 5].map(i => (
+              {[1,2,3,4,5].map(i => (
                 <button key={i} type="button" className={`star-btn${i <= (hoverRating || rating) ? " on" : ""}`}
                   onMouseEnter={() => setHoverRating(i)} onMouseLeave={() => setHoverRating(0)}
                   onClick={() => setRating(i)}>⭐</button>
@@ -270,8 +270,8 @@ function AddAvisModal({ onClose, onSubmit, authorName, photo }) {
             </div>
           </div>
           <div className="form-group">
-            <label className="form-label">Votre avis <span style={{ fontWeight: 400, textTransform: "none", color: "var(--text-muted)" }}>(min. 10 caractères)</span></label>
-            <textarea className="form-textarea" value={text} onChange={e => setText(e.target.value)} placeholder="Partagez votre expérience avec l'application, le service, les chauffeurs…" />
+            <label className="form-label">Votre avis <span style={{ fontWeight:400, textTransform:"none", color:"var(--text-muted)" }}>(min. 10 caractères)</span></label>
+            <textarea className="form-textarea" value={text} onChange={e => setText(e.target.value)} placeholder="Partagez votre expérience avec l'application, le service, les chauffeurs…"/>
           </div>
         </div>
         <div className="modal-footer">
@@ -316,7 +316,7 @@ function readStoredAvis() {
 }
 
 function writeStoredAvis(list) {
-  try { localStorage.setItem(getAvisKey(), JSON.stringify(Array.isArray(list) ? list : [])); } catch { }
+  try { localStorage.setItem(getAvisKey(), JSON.stringify(Array.isArray(list) ? list : [])); } catch {}
 }
 
 function sameAvis(a, b) {
@@ -328,7 +328,7 @@ function sameAvis(a, b) {
 
 export default function AvisP() {
   const navigate = useNavigate();
-  const { nom, photo, initials } = useProfileSync();
+  const { nom, photo, initials, unreadCount } = useProfileSync();
 
   /* ── Charger les avis du compte courant avec persistance immédiate ── */
   const [avisList, setAvisList] = useState(() => readStoredAvis());
@@ -354,22 +354,22 @@ export default function AvisP() {
         if (cancelled) return;
         const payload = Array.isArray(res?.data) ? res.data : Array.isArray(res?.data?.data) ? res.data.data : [];
         const mapped = payload.map(a => ({
-          id: a._id || a.id || "api_" + Date.now() + "_" + Math.random(),
-          author: a.userId?.name || nom || "Anonyme",
-          role: "Passager",
-          initials: (a.userId?.name || nom || "A").trim().split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() || "A",
-          photo: a.userId?.photo || null,
-          color: "#2980e8",
-          cat: a.categorie === "chauffeur" ? "Chauffeur"
-            : a.categorie === "services" ? "Service"
-              : "Application",
-          rating: Number(a.note) || 0,
-          text: a.message || "",
-          date: a.createdAt ? String(a.createdAt).slice(0, 10) : new Date().toISOString().slice(0, 10),
-          statut: a.statut || "EN_ATTENTE",
-          likes: 0,
-          liked: false,
-          _raw: a
+          id:       a._id || a.id || "api_" + Date.now() + "_" + Math.random(),
+          author:   a.userId?.name || nom || "Anonyme",
+          role:     "Passager",
+          initials: (a.userId?.name || nom || "A").trim().split(" ").map(w => w[0]).slice(0,2).join("").toUpperCase() || "A",
+          photo:    a.userId?.photo || null,
+          color:    "#2980e8",
+          cat:      a.categorie === "chauffeur" ? "Chauffeur"
+                  : a.categorie === "services"  ? "Service"
+                  : "Application",
+          rating:   Number(a.note) || 0,
+          text:     a.message || "",
+          date:     a.createdAt ? String(a.createdAt).slice(0,10) : new Date().toISOString().slice(0,10),
+          statut:   a.statut || "EN_ATTENTE",
+          likes:    0,
+          liked:    false,
+          _raw:     a
         }));
         writeStoredAvis(mapped);
         setAvisList(mapped);
@@ -387,16 +387,16 @@ export default function AvisP() {
     };
   }, [nom]);
 
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed,     setCollapsed]     = useState(false);
   const [sidebarMobile, setSidebarMobile] = useState(false);
-  const [toast, setToast] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [activeFilter, setActiveFilter] = useState("Tous");
+  const [toast,         setToast]         = useState("");
+  const [showModal,     setShowModal]     = useState(false);
+  const [activeFilter,  setActiveFilter]  = useState("Tous");
   // Onglet principal: "avis" | "reclamation"
-  const [mainTab, setMainTab] = useState("avis");
+  const [mainTab,       setMainTab]       = useState("avis");
   // Formulaire réclamation
-  const [reclForm, setReclForm] = useState({ categorie: "APPLICATION", description: "" });
-  const [reclSubmitting, setReclSubmitting] = useState(false);
+  const [reclForm,      setReclForm]      = useState({ categorie: "APPLICATION", description: "" });
+  const [reclSubmitting,setReclSubmitting]= useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -419,10 +419,10 @@ export default function AvisP() {
     } finally { setReclSubmitting(false); }
   };
 
-  const filters = ["Tous", ...CATEGORIES];
+  const filters  = ["Tous", ...CATEGORIES];
   const filtered = activeFilter === "Tous" ? avisList : avisList.filter(a => a.cat === activeFilter);
 
-  const avgRating = avisList.length ? (avisList.reduce((s, a) => s + a.rating, 0) / avisList.length).toFixed(1) : "—";
+  const avgRating  = avisList.length ? (avisList.reduce((s, a) => s + a.rating, 0) / avisList.length).toFixed(1) : "—";
   const totalLikes = avisList.reduce((s, a) => s + a.likes, 0);
 
   const handleLike = (id) => {
@@ -469,16 +469,16 @@ export default function AvisP() {
 
   return (
     <div className="aw">
-      {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)} />}
+      {sidebarMobile && <div className="sb-overlay" onClick={() => setSidebarMobile(false)}/>}
 
       <aside className={["sidebar", collapsed ? "collapsed" : "", sidebarMobile ? "open" : ""].filter(Boolean).join(" ")}>
         <button type="button" className="sb-toggle-btn" onClick={() => setCollapsed(v => !v)}>
-          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </button>
-        <div className="sb-brand" onClick={() => navigate("/")}>
+        <div className="sb-brand" onClick={() => navigate("/dashbordP")}>
           <div className="sb-brand-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12"/>
             </svg>
           </div>
           <div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">ESPACE PASSAGER</span></div>
@@ -491,14 +491,14 @@ export default function AvisP() {
               onClick={() => setSidebarMobile(false)}>
               <span className="sb-nav-icon">{item.icon}</span>
               <span className="sb-nav-lbl">{item.label}</span>
-              {item.badge ? <span className="sb-badge">{item.badge}</span> : null}
+              {item.label === "Notifications" && unreadCount > 0 ? <span className="sb-badge">{unreadCount}</span> : item.badge ? <span className="sb-badge">{item.badge}</span> : null}
             </NavLink>
           ))}
         </nav>
         <div className="sb-footer">
           <div className="sb-label" style={{ paddingTop: 0 }}>Compte</div>
           <button type="button" className="sb-logout" onClick={handleLogout}>
-            <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></span>
+            <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></span>
             <span className="sb-logout-lbl">Déconnexion</span>
           </button>
         </div>
@@ -508,9 +508,9 @@ export default function AvisP() {
         <header className="ah">
           <div className="ah-left">
             <button type="button" className="ah-menu-btn" onClick={() => setSidebarMobile(v => !v)}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
             </button>
-            <span className="ah-title">Avis des acteurs</span>
+            <span className="ah-title">Ajouter avis</span>
           </div>
           <div className="ah-right">
             <div className="user-chip">
@@ -519,7 +519,7 @@ export default function AvisP() {
                 <div className="user-role">Passager</div>
               </div>
               <div className="user-avatar">
-                {photo ? <img src={photo} alt="profil" /> : initials}
+                {photo ? <img src={photo} alt="profil"/> : initials}
               </div>
             </div>
           </div>
@@ -527,15 +527,13 @@ export default function AvisP() {
 
         <main className="ac">
           {/* ── Tabs: Avis / Réclamations ── */}
-          <div style={{ display: "none", gap: 8, marginBottom: 20, borderBottom: "2px solid var(--border)", paddingBottom: 0 }}>
-            {[{ id: "avis", label: "⭐ Mes Avis" }].map(tab => (
-              <button key={tab.id} type="button" onClick={() => setMainTab(tab.id)}
-                style={{
-                  padding: "10px 20px", fontFamily: "inherit", fontWeight: 700, fontSize: 13, border: "none", background: "none", cursor: "pointer",
-                  borderBottom: mainTab === tab.id ? "2px solid #2980e8" : "2px solid transparent",
-                  color: mainTab === tab.id ? "#2980e8" : "#5a6e88",
-                  marginBottom: -2, transition: "all 0.2s"
-                }}>
+          <div style={{display:"none",gap:8,marginBottom:20,borderBottom:"2px solid var(--border)",paddingBottom:0}}>
+            {[{id:"avis",label:"⭐ Mes Avis"}].map(tab=>(
+              <button key={tab.id} type="button" onClick={()=>setMainTab(tab.id)}
+                style={{padding:"10px 20px",fontFamily:"inherit",fontWeight:700,fontSize:13,border:"none",background:"none",cursor:"pointer",
+                  borderBottom: mainTab===tab.id ? "2px solid #2980e8" : "2px solid transparent",
+                  color: mainTab===tab.id ? "#2980e8" : "#5a6e88",
+                  marginBottom: -2, transition:"all 0.2s"}}>
                 {tab.label}
               </button>
             ))}
@@ -543,77 +541,77 @@ export default function AvisP() {
 
           {/* ─── Onglet Avis ─── */}
           {mainTab === "avis" && (<>
-            <div className="avis-header">
-              <div>
-                <h1 className="avis-title">Mes avis</h1>
-                <p className="avis-subtitle">Vos avis personnels — chaque compte ne voit que ses propres avis publiés.</p>
-              </div>
-              <button type="button" className="btn-add-avis" onClick={() => setShowModal(true)}>
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                Donner mon avis
+          <div className="avis-header">
+            <div>
+              <h1 className="avis-title">Mes avis</h1>
+              <p className="avis-subtitle">Vos avis personnels — chaque compte ne voit que ses propres avis publiés.</p>
+            </div>
+            <button type="button" className="btn-add-avis" onClick={() => setShowModal(true)}>
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+              Donner mon avis
+            </button>
+          </div>
+
+          <div className="avis-filters">
+            {filters.map(f => (
+              <button key={f} type="button" className={`filter-btn${activeFilter === f ? " active" : ""}`} onClick={() => setActiveFilter(f)}>
+                {f !== "Tous" && CAT_ICONS[f]} {f}
               </button>
-            </div>
+            ))}
+            <span style={{ marginLeft:"auto", fontSize:12, color:"var(--text-muted)", fontWeight:600 }}>{filtered.length} avis</span>
+          </div>
 
-            <div className="avis-filters">
-              {filters.map(f => (
-                <button key={f} type="button" className={`filter-btn${activeFilter === f ? " active" : ""}`} onClick={() => setActiveFilter(f)}>
-                  {f !== "Tous" && CAT_ICONS[f]} {f}
-                </button>
-              ))}
-              <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>{filtered.length} avis</span>
+          {filtered.length === 0 ? (
+            <div className="avis-empty">
+              <div className="avis-empty-icon">💬</div>
+              <div className="avis-empty-title">Aucun avis pour cette catégorie</div>
+              <p style={{ fontSize:13 }}>Vous n'avez pas encore d'avis dans cette catégorie. Partagez votre expérience !</p>
             </div>
-
-            {filtered.length === 0 ? (
-              <div className="avis-empty">
-                <div className="avis-empty-icon">💬</div>
-                <div className="avis-empty-title">Aucun avis pour cette catégorie</div>
-                <p style={{ fontSize: 13 }}>Vous n'avez pas encore d'avis dans cette catégorie. Partagez votre expérience !</p>
-              </div>
-            ) : (
-              <div className="avis-grid">
-                {filtered.map(avis => (
-                  <div key={avis.id} className={`avis-card ${catCls(avis.cat)}`}>
-                    <div className="avis-card-top">
-                      <div className="avis-author">
-                        <div className="avis-avatar" style={{ background: avis.color }}>
-                          {avis.photo ? (
-                            <img src={avis.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
-                          ) : (
-                            avis.initials
-                          )}
-                        </div>
-                        <div className="avis-author-info">
-                          <span className="avis-author-name">{avis.author}</span>
-                          <span className="avis-author-role">{avis.role}</span>
-                        </div>
+          ) : (
+            <div className="avis-grid">
+              {filtered.map(avis => (
+                <div key={avis.id} className={`avis-card ${catCls(avis.cat)}`}>
+                  <div className="avis-card-top">
+                    <div className="avis-author">
+                      <div className="avis-avatar" style={{ background: avis.color }}>
+                        {avis.photo ? (
+                          <img src={avis.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+                        ) : (
+                          avis.initials
+                        )}
                       </div>
-                      <span className="avis-cat-badge">{CAT_ICONS[avis.cat]} {avis.cat}</span>
+                      <div className="avis-author-info">
+                        <span className="avis-author-name">{avis.author}</span>
+                        <span className="avis-author-role">{avis.role}</span>
+                      </div>
                     </div>
-                    <Stars rating={avis.rating} />
-                    <p className="avis-text">{avis.text}</p>
-                    <div className="card-actions">
-                      <span className="avis-date">{avis.date}</span>
-                      <button type="button" className={`like-btn${avis.liked ? " liked" : ""}`} onClick={() => handleLike(avis.id)}>
-                        ❤️ {avis.likes}
-                      </button>
-                      <button type="button" className="delete-btn" onClick={() => handleDelete(avis.id)} title="Supprimer cet avis">
-                        <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        Supprimer
-                      </button>
-                    </div>
+                    <span className="avis-cat-badge">{CAT_ICONS[avis.cat]} {avis.cat}</span>
                   </div>
-                ))}
-              </div>
-            )}
+                  <Stars rating={avis.rating}/>
+                  <p className="avis-text">{avis.text}</p>
+                  <div className="card-actions">
+                    <span className="avis-date">{avis.date}</span>
+                    <button type="button" className={`like-btn${avis.liked ? " liked" : ""}`} onClick={() => handleLike(avis.id)}>
+                      ❤️ {avis.likes}
+                    </button>
+                    <button type="button" className="delete-btn" onClick={() => handleDelete(avis.id)} title="Supprimer cet avis">
+                      <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           </>)}
 
 
-          <div className="avis-footer" style={{ marginTop: 32 }}>© 2026 AirOps Transport Management</div>
+          <div className="avis-footer" style={{marginTop:32}}>© 2026 AirOps Transport Management</div>
         </main>
       </div>
 
-      {showModal && <AddAvisModal onClose={() => setShowModal(false)} onSubmit={handleAddAvis} authorName={nom} photo={photo} />}
+      {showModal && <AddAvisModal onClose={() => setShowModal(false)} onSubmit={handleAddAvis} authorName={nom} photo={photo}/>}
       {toast && <div className="toast">{toast}</div>}
     </div>
   );

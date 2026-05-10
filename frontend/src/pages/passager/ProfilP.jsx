@@ -56,7 +56,7 @@ const profilCSS = `
   .sb-nav-icon { flex-shrink: 0; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
   .sb-nav-lbl  { flex: 1; overflow: hidden; transition: opacity 0.2s, max-width 0.3s; max-width: 160px; }
   .sidebar.collapsed .sb-nav-lbl { opacity: 0; max-width: 0; }
-  .sb-badge { background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; flex-shrink: 0; transition: opacity 0.2s; }
+  .sb-badge { background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; flex-shrink: 0; transition: opacity 0.2s; margin-left: auto; }
   .sidebar.collapsed .sb-badge { opacity: 0; }
   .sidebar.collapsed .sb-nav-item::after { content: attr(data-label); position: absolute; left: calc(var(--sidebar-mini) + 6px); top: 50%; transform: translateY(-50%); background: var(--brand-dark); color: #fff; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-md); border: 1px solid rgba(255,255,255,0.1); z-index: 200; opacity: 0; transition: opacity 0.15s; }
   .sidebar.collapsed .sb-nav-item:hover::after { opacity: 1; }
@@ -167,7 +167,7 @@ if (typeof document !== "undefined" && !document.getElementById("profil-page-css
   document.head.appendChild(tag);
 }
 
-export const STORAGE_FORM = "airops_profil_form_v2";
+export const STORAGE_FORM  = "airops_profil_form_v2";
 export const STORAGE_PHOTO = "airops_profil_photo_v2";
 
 /* ── Clé photo par compte (user ID ou email) ── */
@@ -197,47 +197,47 @@ export function getStoredInitials(nom) {
 
 /* ══ COUNTRY DIAL CODES ══ */
 const COUNTRIES = [
-  { code: "TN", dial: "+216", flag: "🇹🇳", name: "Tunisie", digits: 8 },
-  { code: "DZ", dial: "+213", flag: "🇩🇿", name: "Algérie", digits: 9 },
-  { code: "MA", dial: "+212", flag: "🇲🇦", name: "Maroc", digits: 9 },
-  { code: "EG", dial: "+20", flag: "🇪🇬", name: "Égypte", digits: 10 },
-  { code: "LY", dial: "+218", flag: "🇱🇾", name: "Libye", digits: 9 },
-  { code: "FR", dial: "+33", flag: "🇫🇷", name: "France", digits: 9 },
-  { code: "DE", dial: "+49", flag: "🇩🇪", name: "Allemagne", digits: 11 },
-  { code: "GB", dial: "+44", flag: "🇬🇧", name: "Royaume-Uni", digits: 10 },
-  { code: "ES", dial: "+34", flag: "🇪🇸", name: "Espagne", digits: 9 },
-  { code: "IT", dial: "+39", flag: "🇮🇹", name: "Italie", digits: 10 },
-  { code: "PT", dial: "+351", flag: "🇵🇹", name: "Portugal", digits: 9 },
-  { code: "BE", dial: "+32", flag: "🇧🇪", name: "Belgique", digits: 9 },
-  { code: "NL", dial: "+31", flag: "🇳🇱", name: "Pays-Bas", digits: 9 },
-  { code: "CH", dial: "+41", flag: "🇨🇭", name: "Suisse", digits: 9 },
-  { code: "SA", dial: "+966", flag: "🇸🇦", name: "Arabie Saoudite", digits: 9 },
-  { code: "AE", dial: "+971", flag: "🇦🇪", name: "Émirats Arabes", digits: 9 },
-  { code: "QA", dial: "+974", flag: "🇶🇦", name: "Qatar", digits: 8 },
-  { code: "KW", dial: "+965", flag: "🇰🇼", name: "Koweït", digits: 8 },
-  { code: "BH", dial: "+973", flag: "🇧🇭", name: "Bahreïn", digits: 8 },
-  { code: "OM", dial: "+968", flag: "🇴🇲", name: "Oman", digits: 8 },
-  { code: "JO", dial: "+962", flag: "🇯🇴", name: "Jordanie", digits: 9 },
-  { code: "LB", dial: "+961", flag: "🇱🇧", name: "Liban", digits: 8 },
-  { code: "TR", dial: "+90", flag: "🇹🇷", name: "Turquie", digits: 10 },
-  { code: "SN", dial: "+221", flag: "🇸🇳", name: "Sénégal", digits: 9 },
-  { code: "CI", dial: "+225", flag: "🇨🇮", name: "Côte d Ivoire", digits: 10 },
-  { code: "CM", dial: "+237", flag: "🇨🇲", name: "Cameroun", digits: 9 },
-  { code: "GN", dial: "+224", flag: "🇬🇳", name: "Guinée", digits: 9 },
-  { code: "ML", dial: "+223", flag: "🇲🇱", name: "Mali", digits: 8 },
-  { code: "MR", dial: "+222", flag: "🇲🇷", name: "Mauritanie", digits: 8 },
-  { code: "US", dial: "+1", flag: "🇺🇸", name: "États-Unis", digits: 10 },
-  { code: "CA", dial: "+1", flag: "🇨🇦", name: "Canada", digits: 10 },
-  { code: "BR", dial: "+55", flag: "🇧🇷", name: "Brésil", digits: 11 },
-  { code: "CN", dial: "+86", flag: "🇨🇳", name: "Chine", digits: 11 },
-  { code: "JP", dial: "+81", flag: "🇯🇵", name: "Japon", digits: 10 },
-  { code: "KR", dial: "+82", flag: "🇰🇷", name: "Corée du Sud", digits: 10 },
-  { code: "AU", dial: "+61", flag: "🇦🇺", name: "Australie", digits: 9 },
-  { code: "IN", dial: "+91", flag: "🇮🇳", name: "Inde", digits: 10 },
-  { code: "PK", dial: "+92", flag: "🇵🇰", name: "Pakistan", digits: 10 },
-  { code: "NG", dial: "+234", flag: "🇳🇬", name: "Nigéria", digits: 10 },
-  { code: "ZA", dial: "+27", flag: "🇿🇦", name: "Afrique du Sud", digits: 9 },
-  { code: "RU", dial: "+7", flag: "🇷🇺", name: "Russie", digits: 10 },
+  { code: "TN", dial: "+216", flag: "🇹🇳", name: "Tunisie",           digits: 8  },
+  { code: "DZ", dial: "+213", flag: "🇩🇿", name: "Algérie",           digits: 9  },
+  { code: "MA", dial: "+212", flag: "🇲🇦", name: "Maroc",             digits: 9  },
+  { code: "EG", dial: "+20",  flag: "🇪🇬", name: "Égypte",            digits: 10 },
+  { code: "LY", dial: "+218", flag: "🇱🇾", name: "Libye",             digits: 9  },
+  { code: "FR", dial: "+33",  flag: "🇫🇷", name: "France",            digits: 9  },
+  { code: "DE", dial: "+49",  flag: "🇩🇪", name: "Allemagne",         digits: 11 },
+  { code: "GB", dial: "+44",  flag: "🇬🇧", name: "Royaume-Uni",       digits: 10 },
+  { code: "ES", dial: "+34",  flag: "🇪🇸", name: "Espagne",           digits: 9  },
+  { code: "IT", dial: "+39",  flag: "🇮🇹", name: "Italie",            digits: 10 },
+  { code: "PT", dial: "+351", flag: "🇵🇹", name: "Portugal",          digits: 9  },
+  { code: "BE", dial: "+32",  flag: "🇧🇪", name: "Belgique",          digits: 9  },
+  { code: "NL", dial: "+31",  flag: "🇳🇱", name: "Pays-Bas",          digits: 9  },
+  { code: "CH", dial: "+41",  flag: "🇨🇭", name: "Suisse",            digits: 9  },
+  { code: "SA", dial: "+966", flag: "🇸🇦", name: "Arabie Saoudite",   digits: 9  },
+  { code: "AE", dial: "+971", flag: "🇦🇪", name: "Émirats Arabes",    digits: 9  },
+  { code: "QA", dial: "+974", flag: "🇶🇦", name: "Qatar",             digits: 8  },
+  { code: "KW", dial: "+965", flag: "🇰🇼", name: "Koweït",            digits: 8  },
+  { code: "BH", dial: "+973", flag: "🇧🇭", name: "Bahreïn",           digits: 8  },
+  { code: "OM", dial: "+968", flag: "🇴🇲", name: "Oman",              digits: 8  },
+  { code: "JO", dial: "+962", flag: "🇯🇴", name: "Jordanie",          digits: 9  },
+  { code: "LB", dial: "+961", flag: "🇱🇧", name: "Liban",             digits: 8  },
+  { code: "TR", dial: "+90",  flag: "🇹🇷", name: "Turquie",           digits: 10 },
+  { code: "SN", dial: "+221", flag: "🇸🇳", name: "Sénégal",           digits: 9  },
+  { code: "CI", dial: "+225", flag: "🇨🇮", name: "Côte d Ivoire",     digits: 10 },
+  { code: "CM", dial: "+237", flag: "🇨🇲", name: "Cameroun",          digits: 9  },
+  { code: "GN", dial: "+224", flag: "🇬🇳", name: "Guinée",            digits: 9  },
+  { code: "ML", dial: "+223", flag: "🇲🇱", name: "Mali",              digits: 8  },
+  { code: "MR", dial: "+222", flag: "🇲🇷", name: "Mauritanie",        digits: 8  },
+  { code: "US", dial: "+1",   flag: "🇺🇸", name: "États-Unis",        digits: 10 },
+  { code: "CA", dial: "+1",   flag: "🇨🇦", name: "Canada",            digits: 10 },
+  { code: "BR", dial: "+55",  flag: "🇧🇷", name: "Brésil",            digits: 11 },
+  { code: "CN", dial: "+86",  flag: "🇨🇳", name: "Chine",             digits: 11 },
+  { code: "JP", dial: "+81",  flag: "🇯🇵", name: "Japon",             digits: 10 },
+  { code: "KR", dial: "+82",  flag: "🇰🇷", name: "Corée du Sud",      digits: 10 },
+  { code: "AU", dial: "+61",  flag: "🇦🇺", name: "Australie",         digits: 9  },
+  { code: "IN", dial: "+91",  flag: "🇮🇳", name: "Inde",              digits: 10 },
+  { code: "PK", dial: "+92",  flag: "🇵🇰", name: "Pakistan",          digits: 10 },
+  { code: "NG", dial: "+234", flag: "🇳🇬", name: "Nigéria",           digits: 10 },
+  { code: "ZA", dial: "+27",  flag: "🇿🇦", name: "Afrique du Sud",    digits: 9  },
+  { code: "RU", dial: "+7",   flag: "🇷🇺", name: "Russie",            digits: 10 },
 ];
 function isAlphaOnly(str) {
   return /^[a-zA-ZÀ-ÖØ-öø-ÿ\s\-']+$/.test(str);
@@ -258,12 +258,12 @@ function buildDefaultForm() {
     const phoneData = parseStoredPhone(authUser?.phone || savedParsed.phoneLocal || "");
 
     return {
-      nom: authUser?.name || savedParsed.nom || "Passager",
-      email: authUser?.email || savedParsed.email || "",
-      phoneLocal: phoneData.phoneLocal,
+      nom:          authUser?.name      || savedParsed.nom          || "Passager",
+      email:        authUser?.email     || savedParsed.email        || "",
+      phoneLocal:   phoneData.phoneLocal,
       phoneCountry: phoneData.phoneCountry || "TN",
-      adresse: authUser?.address || savedParsed.adresse || "",
-      password: "",
+      adresse:      authUser?.address   || savedParsed.adresse      || "",
+      password:     "",
     };
   } catch {
     return { nom: "Passager", email: "", phoneLocal: "", phoneCountry: "TN", adresse: "", password: "" };
@@ -288,7 +288,7 @@ const navItems = [
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
   },
   {
-    label: "Avis des acteurs",
+    label: "Ajouter avis",
     to: "/avisP",
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>,
   },
@@ -302,7 +302,7 @@ const navItems = [
 function pwdStrength(pwd) {
   if (!pwd) return 0;
   let score = 0;
-  if (pwd.length >= 6) score++;
+  if (pwd.length >= 6)  score++;
   if (pwd.length >= 10) score++;
   if (/[A-Z]/.test(pwd) || /[0-9]/.test(pwd)) score++;
   return score;
@@ -315,7 +315,7 @@ const pwdColors = ["", "active-weak", "active-medium", "active-strong"];
 
 export default function ProfilP() {
   const navigate = useNavigate();
-  const fileRef = useRef(null);
+  const fileRef  = useRef(null);
   const STORAGE_PHOTO = "airops_profil_photo_v2";
 
   const getPhotoKey = () => {
@@ -338,12 +338,12 @@ export default function ProfilP() {
         if (cancelled || !user) return;
         const phoneData = parseStoredPhone(user.phone || "");
         setForm({
-          nom: user.name || "Passager",
-          email: user.email || "",
-          phoneLocal: phoneData.phoneLocal,
+          nom:          user.name || "Passager",
+          email:        user.email || "",
+          phoneLocal:   phoneData.phoneLocal,
           phoneCountry: phoneData.phoneCountry || "TN",
-          adresse: user.address || "",
-          password: "",
+          adresse:      user.address || "",
+          password:     "",
         });
         setPhoto(user.photo || null);
         // Sync local
@@ -351,13 +351,13 @@ export default function ProfilP() {
           const current = JSON.parse(localStorage.getItem("user") || "{}");
           localStorage.setItem("user", JSON.stringify({ ...current, name: user.name, email: user.email }));
           window.dispatchEvent(new Event("airops-profile-update"));
-        } catch { }
+        } catch {}
       })
       .catch(err => console.error("Erreur fetch profile:", err));
     return () => { cancelled = true; };
   }, []);
 
-  const { nom: syncNom, photo: syncPhoto, initials } = useProfileSync();
+  const { nom: syncNom, photo: syncPhoto, initials, unreadCount } = useProfileSync();
   const nom = syncNom || form.nom || "Passager";
 
   /* Persist form (sans password) */
@@ -366,15 +366,15 @@ export default function ProfilP() {
       const { password: _p, ...rest } = form;
       localStorage.setItem(STORAGE_FORM, JSON.stringify(rest));
       window.dispatchEvent(new Event("airops-profile-update"));
-    } catch { }
+    } catch {}
   }, [form]);
 
 
-  const [touched, setTouched] = useState({});
+  const [touched,        setTouched]        = useState({});
   const [successMessage, setSuccessMessage] = useState("");
-  const [toast, setToast] = useState("");
-  const [collapsed, setCollapsed] = useState(false);
-  const [sidebarMobile, setSidebarMobile] = useState(false);
+  const [toast,          setToast]          = useState("");
+  const [collapsed,      setCollapsed]      = useState(false);
+  const [sidebarMobile,  setSidebarMobile]  = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -386,18 +386,18 @@ export default function ProfilP() {
 
   const errors = {
     nom:
-      !form.nom.trim() ? "Le nom est obligatoire." :
-        form.nom.trim().length < 3 ? "Au moins 3 caractères." :
-          !isAlphaOnly(form.nom) ? "Le nom ne doit contenir que des lettres." : "",
+      !form.nom.trim()           ? "Le nom est obligatoire." :
+      form.nom.trim().length < 3 ? "Au moins 3 caractères." :
+      !isAlphaOnly(form.nom)     ? "Le nom ne doit contenir que des lettres." : "",
     email:
-      !form.email.trim() ? "L'email est obligatoire." :
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? "Email invalide." : "",
+      !form.email.trim()         ? "L'email est obligatoire." :
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? "Email invalide." : "",
     phoneLocal:
-      !form.phoneLocal.trim() ? "Le téléphone est obligatoire." :
-        !/^\d+$/.test(form.phoneLocal) ? "Uniquement des chiffres." :
-          form.phoneLocal.length !== selectedCountry.digits ? `${selectedCountry.digits} chiffres requis pour ${selectedCountry.name}.` : "",
+      !form.phoneLocal.trim()    ? "Le téléphone est obligatoire." :
+      !/^\d+$/.test(form.phoneLocal) ? "Uniquement des chiffres." :
+      form.phoneLocal.length !== selectedCountry.digits ? `${selectedCountry.digits} chiffres requis pour ${selectedCountry.name}.` : "",
     adresse:
-      !form.adresse.trim() ? "L'adresse est obligatoire." : "",
+      !form.adresse.trim()       ? "L'adresse est obligatoire." : "",
     password:
       form.password.length > 0 && form.password.length < 6
         ? "Minimum 6 caractères." : "",
@@ -439,11 +439,11 @@ export default function ProfilP() {
       const selectedCountry2 = COUNTRIES.find(c => c.code === form.phoneCountry) || COUNTRIES[0];
 
       const payload = {
-        name: form.nom,
-        email: form.email,
-        phone: form.phoneLocal ? `${selectedCountry2.dial} ${form.phoneLocal}` : undefined,
+        name:    form.nom,
+        email:   form.email,
+        phone:   form.phoneLocal ? `${selectedCountry2.dial} ${form.phoneLocal}` : undefined,
         address: form.adresse,
-        photo: photoToSave,
+        photo:   photoToSave,
         ...(form.password ? { password: form.password } : {}),
       };
       const updated = await updateMyProfile(payload);
@@ -452,7 +452,7 @@ export default function ProfilP() {
         const current = JSON.parse(localStorage.getItem("user") || "{}");
         localStorage.setItem("user", JSON.stringify({ ...current, name: updated.name || form.nom, email: updated.email || form.email }));
         window.dispatchEvent(new Event("airops-profile-update"));
-      } catch { }
+      } catch {}
       // Persist form locally (sans password)
       const { password: _p, ...rest } = form;
       localStorage.setItem(STORAGE_FORM, JSON.stringify(rest));
@@ -498,7 +498,7 @@ export default function ProfilP() {
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, width, height);
-
+        
         const compressedData = canvas.toDataURL("image/jpeg", 0.7); // 70% qualité
 
         try {
@@ -525,7 +525,7 @@ export default function ProfilP() {
       sessionStorage.removeItem("airops_photo_current");
       window.dispatchEvent(new Event("airops-profile-update"));
       setToast("✓ Photo supprimée.");
-    } catch { }
+    } catch {}
   };
 
   const handleLogout = async () => {
@@ -545,12 +545,12 @@ export default function ProfilP() {
 
       <aside className={["sidebar", collapsed ? "collapsed" : "", sidebarMobile ? "open" : ""].filter(Boolean).join(" ")}>
         <button type="button" className="sb-toggle-btn" onClick={() => setCollapsed(v => !v)}>
-          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </button>
-        <div className="sb-brand" onClick={() => navigate("/")}>
+        <div className="sb-brand" onClick={() => navigate("/dashbordP")}>
           <div className="sb-brand-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12"/>
             </svg>
           </div>
           <div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">ESPACE PASSAGER</span></div>
@@ -563,14 +563,14 @@ export default function ProfilP() {
               onClick={() => setSidebarMobile(false)}>
               <span className="sb-nav-icon">{item.icon}</span>
               <span className="sb-nav-lbl">{item.label}</span>
-              {item.badge ? <span className="sb-badge">{item.badge}</span> : null}
+              {item.label === "Notifications" && unreadCount > 0 ? <span className="sb-badge">{unreadCount}</span> : item.badge ? <span className="sb-badge">{item.badge}</span> : null}
             </NavLink>
           ))}
         </nav>
         <div className="sb-footer">
           <div className="sb-label" style={{ paddingTop: 0 }}>Compte</div>
           <button type="button" className="sb-logout" onClick={handleLogout}>
-            <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></span>
+            <span className="sb-logout-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></span>
             <span className="sb-logout-lbl">Déconnexion</span>
           </button>
         </div>
@@ -580,7 +580,7 @@ export default function ProfilP() {
         <header className="ph">
           <div className="ph-left">
             <button type="button" className="ph-menu-btn" onClick={() => setSidebarMobile(v => !v)}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
             </button>
             <span className="ph-title">Profile</span>
           </div>
@@ -591,7 +591,7 @@ export default function ProfilP() {
                 <div className="user-role-h">Passager</div>
               </div>
               <div className="user-avatar-h" onClick={() => fileRef.current?.click()} title="Changer la photo">
-                {photo ? <img src={photo} alt="profil" /> : <span>{initials}</span>}
+                {photo ? <img src={photo} alt="profil"/> : <span>{initials}</span>}
               </div>
             </div>
           </div>
@@ -607,30 +607,30 @@ export default function ProfilP() {
               <div className="card avatar-card">
                 <div className="avatar-wrap" onClick={() => fileRef.current?.click()} title="Cliquer pour changer la photo">
                   {photo
-                    ? <img src={photo} alt="Profil" className="avatar-img" />
+                    ? <img src={photo} alt="Profil" className="avatar-img"/>
                     : <div className="avatar-placeholder">
-                      <svg width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16l4-4a3 3 0 014.243 0L16 16m-2-2l1-1a3 3 0 014.243 0L21 15m-6-8h.01" /></svg>
-                      <span style={{ fontSize: 12, marginTop: 6, fontWeight: 600 }}>Ajouter photo</span>
-                    </div>
+                        <svg width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16l4-4a3 3 0 014.243 0L16 16m-2-2l1-1a3 3 0 014.243 0L21 15m-6-8h.01"/></svg>
+                        <span style={{ fontSize: 12, marginTop: 6, fontWeight: 600 }}>Ajouter photo</span>
+                      </div>
                   }
                   <div className="avatar-overlay">
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                     <span>Changer photo</span>
                   </div>
                 </div>
 
-                <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: "none" }} />
+                <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: "none" }}/>
 
                 {photo && (
                   <button type="button" className="btn-remove-photo" onClick={handleRemovePhoto}>
-                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     Supprimer la photo
                   </button>
                 )}
 
                 <p className="avatar-name">{nom || "Passager"}</p>
                 <span className="avatar-role">
-                  <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                   Passager
                 </span>
 
@@ -639,15 +639,15 @@ export default function ProfilP() {
               </div>
 
               <div className="banner-card">
-                <div className="banner-deco" style={{ width: 160, height: 160, right: -40, bottom: -40 }} />
-                <div className="banner-deco" style={{ width: 80, height: 80, right: 60, top: -20 }} />
+                <div className="banner-deco" style={{ width: 160, height: 160, right: -40, bottom: -40 }}/>
+                <div className="banner-deco" style={{ width: 80, height: 80, right: 60, top: -20 }}/>
                 <div>
                   <p className="banner-sub">Espace personnel</p>
                   <p className="banner-title">Gardez vos informations à jour</p>
                   <p className="banner-desc">Un profil complet facilite le traitement de vos demandes.</p>
                 </div>
                 <div className="banner-pill">
-                  <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                  <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                   Compte sécurisé
                 </div>
               </div>
@@ -662,17 +662,17 @@ export default function ProfilP() {
                 <div className="form-grid">
                   {/* Nom — alphabet only */}
                   <div className="form-group">
-                    <label className="form-label">Nom complet <span style={{ fontWeight: 400, color: "var(--text-muted)", textTransform: "none" }}>(lettres uniquement)</span></label>
+                    <label className="form-label">Nom complet <span style={{ fontWeight:400, color:"var(--text-muted)", textTransform:"none" }}>(lettres uniquement)</span></label>
                     <input type="text" name="nom" value={form.nom} onChange={handleChange} onBlur={handleBlur}
                       className={inputCls("nom")} placeholder="Votre nom complet"
-                      inputMode="text" autoComplete="name" />
+                      inputMode="text" autoComplete="name"/>
                     {touched.nom && errors.nom && <p className="form-error">{errors.nom}</p>}
                   </div>
 
                   {/* Email */}
                   <div className="form-group">
                     <label className="form-label">Adresse email</label>
-                    <input type="email" name="email" value={form.email} onChange={handleChange} onBlur={handleBlur} className={inputCls("email")} placeholder="ahmed@email.com" />
+                    <input type="email" name="email" value={form.email} onChange={handleChange} onBlur={handleBlur} className={inputCls("email")} placeholder="ahmed@email.com"/>
                     {touched.email && errors.email && <p className="form-error">{errors.email}</p>}
                   </div>
 
@@ -680,7 +680,7 @@ export default function ProfilP() {
                   <div className="form-group full">
                     <label className="form-label">
                       Téléphone
-                      <span style={{ fontWeight: 400, color: "var(--text-muted)", textTransform: "none", marginLeft: 6 }}>
+                      <span style={{ fontWeight:400, color:"var(--text-muted)", textTransform:"none", marginLeft:6 }}>
                         ({selectedCountry.digits} chiffres pour {selectedCountry.name})
                       </span>
                     </label>
@@ -713,19 +713,19 @@ export default function ProfilP() {
                   {/* Adresse */}
                   <div className="form-group">
                     <label className="form-label">Adresse</label>
-                    <input type="text" name="adresse" value={form.adresse} onChange={handleChange} onBlur={handleBlur} className={inputCls("adresse")} placeholder="Ville, Pays" />
+                    <input type="text" name="adresse" value={form.adresse} onChange={handleChange} onBlur={handleBlur} className={inputCls("adresse")} placeholder="Ville, Pays"/>
                     {touched.adresse && errors.adresse && <p className="form-error">{errors.adresse}</p>}
                   </div>
 
                   {/* Password */}
                   <div className="form-group">
                     <label className="form-label">Nouveau mot de passe</label>
-                    <input type="password" name="password" value={form.password} onChange={handleChange} onBlur={handleBlur} className={inputCls("password")} placeholder="Laisser vide si inchangé" />
+                    <input type="password" name="password" value={form.password} onChange={handleChange} onBlur={handleBlur} className={inputCls("password")} placeholder="Laisser vide si inchangé"/>
                     {touched.password && errors.password && <p className="form-error">{errors.password}</p>}
                     {form.password.length > 0 && (
                       <>
                         <div className="pwd-strength">
-                          {[1, 2, 3].map(i => <div key={i} className={`pwd-bar${i <= strength ? ` ${pwdColors[strength]}` : ""}`} />)}
+                          {[1, 2, 3].map(i => <div key={i} className={`pwd-bar${i <= strength ? ` ${pwdColors[strength]}` : ""}`}/>)}
                         </div>
                         <p className="pwd-hint">Force : <strong>{pwdLabels[strength]}</strong></p>
                       </>

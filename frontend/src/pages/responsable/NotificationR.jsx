@@ -48,7 +48,7 @@ const NOTIF_CSS = `
   .sb-nav-icon{flex-shrink:0;width:18px;height:18px;display:flex;align-items:center;justify-content:center;}
   .sb-nav-lbl{flex:1;overflow:hidden;transition:opacity 0.2s,max-width 0.3s;max-width:160px;}
   .sidebar.collapsed .sb-nav-lbl{opacity:0;max-width:0;}
-  .sb-badge{background:#ef4444;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;flex-shrink:0;transition:opacity 0.2s;}
+  .sb-badge{background:#ef4444;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;flex-shrink:0;transition:opacity 0.2s;margin-left:auto;}
   .sidebar.collapsed .sb-badge{opacity:0;}
   .sidebar.collapsed .sb-nav-item::after{content:attr(data-label);position:absolute;left:calc(var(--sidebar-mini) + 6px);top:50%;transform:translateY(-50%);background:var(--brand-dark);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:8px;white-space:nowrap;pointer-events:none;box-shadow:var(--shadow-md);border:1px solid rgba(255,255,255,0.1);z-index:200;opacity:0;transition:opacity 0.15s;}
   .sidebar.collapsed .sb-nav-item:hover::after{opacity:1;}
@@ -203,6 +203,21 @@ function ConfirmDelete({ notif, onConfirm, onClose }) {
   );
 }
 
+
+const translateMsg = (msg) => {
+  if (!msg) return '';
+  let t = msg;
+  t = t.replace(/Your request (.*?) was approved/g, 'Votre demande $1 a été approuvée');
+  t = t.replace(/Your request (.*?) was rejected/g, 'Votre demande $1 a été rejetée');
+  t = t.replace(/New mission assigned for request (.*?)$/g, 'Nouvelle mission assignée pour la demande $1');
+  t = t.replace(/New mission assigned (.*?)$/g, 'Nouvelle mission assignée : $1');
+  t = t.replace(/Mission (.*?) was reassigned/g, 'La mission $1 a été réassignée');
+  t = t.replace(/Mission (.*?) was cancelled/g, 'La mission $1 a été annulée');
+  t = t.replace(/Mission for request (.*?) was cancelled/g, 'La mission pour la demande $1 a été annulée');
+  t = t.replace(/New mission created for request (.*?)$/g, 'Nouvelle mission créée pour la demande $1');
+  return t;
+};
+
 /* ─── MAIN ───────────────────────────────────────────────────── */
 export default function NotificationR() {
   const navigate = useNavigate();
@@ -250,8 +265,8 @@ export default function NotificationR() {
           emoji: cfg.emoji,
           catBadge: cfg.category === "Demandes" ? "cat-demande" : "cat-reclam",
           catLabel: cfg.category === "Incidents" ? "Incident" : cfg.category.slice(0, -1),
-          title: n.message?.split(":")[0] || "Notification",
-          desc: n.message || "",
+          title: translateMsg(n.message)?.split(":")[0] || "Notification",
+          desc: translateMsg(n.message) || "",
           tag: cfg.tag,
           tagColor: cfg.tagColor,
           time: formatTimeAgo(n.createdAt),
@@ -319,7 +334,7 @@ export default function NotificationR() {
         <button type="button" className="sb-toggle-btn" onClick={() => setCollapsed(v => !v)}>
           <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
         </button>
-        <div className="sb-brand" onClick={() => navigate("/")}>
+        <div className="sb-brand" onClick={() => navigate("/dashbordRES")}>
           <div className="sb-brand-icon"><svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" /></svg></div>
           <div className="sb-brand-text"><span className="sb-brand-name">AirOps</span><span className="sb-brand-sub">ESPACE RESPONSABLE</span></div>
         </div>
@@ -427,7 +442,7 @@ export default function NotificationR() {
 
                     {/* footer identique NotificationM */}
                     <div className="np-card-footer" onClick={e => e.stopPropagation()}>
-                      {n.actionable && n.category === "Demandes" ? (
+                      {n.actionable && n.category === "Demandes" && (
                         <>
                           <button type="button" className="np-btn-accept" onClick={() => handleAccept(n.ref)}>
                             <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
@@ -438,11 +453,6 @@ export default function NotificationR() {
                             Refuser
                           </button>
                         </>
-                      ) : (
-                        <button type="button" className="np-btn-primary" onClick={() => markRead(n.id)}>
-                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                          Consulter
-                        </button>
                       )}
                       {!n.lu && (
                         <button type="button" className="np-btn-mark" onClick={() => markRead(n.id)}>

@@ -83,7 +83,7 @@ const dashCSS = `
   .sb-nav-icon { flex-shrink: 0; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
   .sb-nav-lbl  { flex: 1; overflow: hidden; transition: opacity 0.2s, max-width 0.3s; max-width: 160px; }
   .sidebar.collapsed .sb-nav-lbl { opacity: 0; max-width: 0; }
-  .sb-badge { background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; flex-shrink: 0; transition: opacity 0.2s; }
+  .sb-badge { background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; flex-shrink: 0; transition: opacity 0.2s; margin-left: auto; }
   .sidebar.collapsed .sb-badge { opacity: 0; }
   .sidebar.collapsed .sb-nav-item::after { content: attr(data-label); position: absolute; left: calc(var(--sidebar-mini) + 6px); top: 50%; transform: translateY(-50%); background: var(--brand-dark); color: #fff; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-md); border: 1px solid rgba(255,255,255,0.1); z-index: 200; opacity: 0; transition: opacity 0.15s; }
   .sidebar.collapsed .sb-nav-item:hover::after { opacity: 1; }
@@ -156,15 +156,17 @@ const dashCSS = `
   .sc:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); }
 
   .sc.orange { background: linear-gradient(135deg, #0ea5e9, #0284c7); box-shadow: 0 8px 24px rgba(14, 165, 233, 0.3); }
+  .sc.sky    { background: linear-gradient(135deg, #0ea5e9, #0284c7); box-shadow: 0 8px 24px rgba(14, 165, 233, 0.3); }
   .sc.green  { background: linear-gradient(135deg, #38bdf8, #0284c7); box-shadow: 0 8px 24px rgba(2, 132, 199, 0.3); }
   .sc.blue   { background: linear-gradient(135deg, #60a5fa, #2563eb); box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3); }
   .sc.red    { background: linear-gradient(135deg, var(--brand-mid), var(--brand-dark)); box-shadow: 0 8px 24px rgba(13, 43, 94, 0.3); }
 
-  .sc-icon { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; background: #fff; }
-  .sc.orange .sc-icon { color: #0ea5e9; }
-  .sc.green  .sc-icon { color: #0284c7; }
+  .sc-icon { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+  .sc.orange .sc-icon { color: #f97316; }
+  .sc.green  .sc-icon { color: #16a34a; }
   .sc.blue   .sc-icon { color: #2563eb; }
-  .sc.red    .sc-icon { color: var(--brand-dark); }
+  .sc.sky    .sc-icon { color: #0284c7; }
+  .sc.red    .sc-icon { color: #ef4444; }
 
   .sc-content { display: flex; flex-direction: column; justify-content: center; }
   .sc-value { font-size: 28px; font-weight: 800; color: #fff !important; letter-spacing: -1px; line-height: 1.2; }
@@ -772,7 +774,7 @@ function Pagination({ total, page, perPage, onPage, onPerPage }) {
 
 export default function DashbordP() {
   const navigate = useNavigate();
-  const { nom, photo, initials } = useProfileSync();
+  const { nom, photo, initials, unreadCount } = useProfileSync();
 
   /* ── État principal ─────────────────────────────────── */
   const [demandes, setDemandes] = useState([]);
@@ -897,27 +899,27 @@ export default function DashbordP() {
   };
 
   /* ── Stat cards ─────────────────────────────────────── */
+  // const unreadCount = notifs.filter(n => n.unread).length; // Utilisation de useProfileSync pour la parité globale
   const statCards = [
     {
       label: "En attente", value: stats.attente, tag: "En attente", color: "orange",
-      icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#ea580c" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#ea580c" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
     },
     {
       label: "Validées", value: stats.validees, tag: "Validées", color: "green",
-      icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#15803d" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#15803d" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
     },
     {
       label: "En cours", value: stats.encours, tag: "En cours", color: "blue",
-      icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#1d4ed8" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+      icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#1d4ed8" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
     },
     {
-      label: "Refusées", value: stats.refusees, tag: "Refusées", color: "red",
-      icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#dc2626" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      label: "Notifications", value: unreadCount, color: "sky", onClick: () => navigate("/notificationP"),
+      icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
     },
   ];
 
   const prenom = nom.split(" ")[0] || "Passager";
-  const unreadCount = notifs.filter(n => n.unread).length;
 
   /* ── Skeleton loader ─────────────────────────────────── */
   if (loading) {
@@ -939,7 +941,7 @@ export default function DashbordP() {
           <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
         </button>
 
-        <div className="sb-brand" onClick={() => navigate("/")}>
+        <div className="sb-brand" onClick={() => navigate("/dashbordP")}>
           <div className="sb-brand-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12" />
@@ -955,7 +957,8 @@ export default function DashbordP() {
         <nav className="sb-nav">
           {navItems.map(item => (
             <NavLink key={item.label} to={item.to} data-label={item.label} className={({ isActive }) => `sb-nav-item${isActive ? " active" : ""}`} onClick={() => setSidebarMobile(false)}>
-              <span className="sb-nav-icon">{item.icon}</span><span className="sb-nav-lbl">{item.label}</span>
+              <span className="sb-nav-icon">{item.icon}</span>
+              <span className="sb-nav-lbl">{item.label}</span>
               {item.label === "Notifications" && unreadCount > 0 ? <span className="sb-badge">{unreadCount}</span> : null}
             </NavLink>
           ))}
@@ -1021,7 +1024,7 @@ export default function DashbordP() {
 
           <div className="stats-grid">
             {statCards.map(s => (
-              <div key={s.label} className={`sc ${s.color}`}>
+              <div key={s.label} className={`sc ${s.color}`} onClick={s.onClick}>
                 <div className="sc-icon">{s.icon}</div>
                 <div className="sc-content">
                   <div className="sc-value">{s.value}</div>
