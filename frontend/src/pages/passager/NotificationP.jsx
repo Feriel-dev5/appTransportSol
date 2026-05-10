@@ -172,7 +172,7 @@ if (typeof document !== "undefined" && !document.getElementById("airops-notifp2-
 
 /* Unified nav — responsable */
 
-const TABS = ["Tout", "Demandes"];
+const TABS = ["Tout", "Demandes", "Incidents"];
 
 const TYPE_MAP = {
   VALIDATION: { category: "Demandes", emoji: "✅", tag: "Confirmée", tagColor: "green" },
@@ -328,7 +328,7 @@ export default function NotificationP() {
 
   const navWithBadge = navItems.map(i => i.to === "/notificationP" ? { ...i, badge: unread > 0 ? unread : undefined } : i);
 
-  const tabCounts = { "Tout": notifs.length, "Demandes": notifs.filter(n => n.category === "Demandes").length };
+  const tabCounts = { "Tout": notifs.length, "Demandes": notifs.filter(n => n.category === "Demandes").length, "Incidents": notifs.filter(n => n.category === "Incidents").length };
 
   return (
     <div className="nrw">

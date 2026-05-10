@@ -169,7 +169,7 @@ if (typeof document !== "undefined" && !document.getElementById("airops-notifm2-
   const s = document.createElement("style"); s.id = "airops-notifm2-css"; s.textContent = NOTIF_CSS; document.head.appendChild(s);
 }
 
-const TABS = ["Tout", "Demandes"];
+const TABS = ["Tout", "Demandes", "Incidents"];
 
 const TYPE_MAP = {
   VALIDATION: { category: "Demandes", emoji: "✅", tag: "Confirmée", tagColor: "green" },
@@ -321,7 +321,7 @@ export default function NotificationM() {
   const handleRefuse = ref => { setNotifs(p => p.map(n => n.ref === ref ? { ...n, lu: true, tag: "Refusée", tagColor: "red", actionable: false } : n)); setToast({ msg: `Demande ${ref} refusée.`, type: "" }); };
 
   const navWithBadge = navItems.map(i => i.to === "/notificationM" ? { ...i, badge: unreadCount > 0 ? unreadCount : undefined } : i);
-  const tabCounts = { "Tout": notifs.length, "Demandes": notifs.filter(n => n.category === "Demandes").length };
+  const tabCounts = { "Tout": notifs.length, "Demandes": notifs.filter(n => n.category === "Demandes").length, "Incidents": notifs.filter(n => n.category === "Incidents").length };
 
   return (
     <div className="nrw">
