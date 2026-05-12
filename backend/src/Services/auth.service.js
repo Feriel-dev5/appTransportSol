@@ -24,6 +24,7 @@ const sanitizeUser = (user) => ({
   passportNumber: user.passportNumber,
   cin: user.cin,
   address: user.address,
+  nationality: user.nationality,
   numeroPermis: user.numeroPermis,
   photo: user.photo,
 });
@@ -38,6 +39,7 @@ const register = async ({
   cin,
   role,
   address,
+  nationality,
   photo,
 }) => {
   const normalizedEmail = email.toLowerCase();
@@ -65,11 +67,12 @@ const register = async ({
     name,
     email: normalizedEmail,
     password: hashed,
-    role,
+    role: role ?? "PASSAGER",
     phone,
     passportNumber,
     cin,
     address,
+    nationality,
     numeroPermis,
     photo,
   });

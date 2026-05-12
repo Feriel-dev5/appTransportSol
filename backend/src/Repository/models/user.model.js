@@ -29,6 +29,7 @@ const UserSchema = new mongoose.Schema(
     cin: { type: String, trim: true },
     address: { type: String, trim: true },
     photo: { type: String },
+    nationality: { type: String, required: true },
   },
 
   { timestamps: true },

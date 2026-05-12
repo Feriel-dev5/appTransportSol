@@ -13,6 +13,7 @@ const registerSchema = z.object({
       passportNumber: z.string().min(3).optional(),
       cin: z.string().min(3).optional(),
       address: z.string().min(3),
+      nationality: z.string().min(2),
       numeroPermis: z.string().optional(),
     })
     .refine((data) => data.passportNumber || data.cin, {

@@ -32,6 +32,8 @@ export const register = async ({
   address,
   cin,
   passportNumber,
+  role,
+  nationality,
 }) => {
   const response = await api.post("/auth/register", {
     name,
@@ -41,6 +43,8 @@ export const register = async ({
     address,
     cin: cin || undefined,
     passportNumber: passportNumber || undefined,
+    role,
+    nationality,
   });
 
   return response.data;
